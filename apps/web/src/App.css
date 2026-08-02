@@ -51,7 +51,7 @@
     0 4px 10px rgba(0, 0, 0, 0.5),
     0 0 22px rgba(245, 166, 35, 0.14);
   cursor: pointer;
-  transform: translateX(88%);
+  transform: translateX(94%);
   opacity: 0.55;
   transition:
     transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
@@ -59,7 +59,7 @@
 }
 
 .pip:hover {
-  transform: translateX(82%);
+  transform: translateX(88%);
   opacity: 0.85;
 }
 
