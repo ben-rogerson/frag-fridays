@@ -17,8 +17,11 @@ RUN printf 'sv_gravity 800\nsv_airaccelerate 10\n' >> cstrike/addons/amxmodx/con
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \
- && cp compiled/frag_dm.amxx ../plugins/ \
+ && cp compiled/*.amxx ../plugins/ \
  && grep -qx 'frag_dm.amxx' ../configs/plugins.ini || echo 'frag_dm.amxx' >> ../configs/plugins.ini
+# remote console via compose-mounted command file - see scripting/cmdpipe.sma
+RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'cmdpipe.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 
 # YaPB registers with METAMOD's plugins.ini (not AMXX's - third registration
 # file, see docs/troubleshooting.md). Bots need write access to data/ at

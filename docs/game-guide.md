@@ -127,9 +127,9 @@ adding one needs no image rebuild - just the deploy + clientcfg pair.
 Maps rotate at `mp_timelimit` (30 min). AMXX's end-of-map vote
 (`mapchooser`) is enabled and fires shortly before the limit - whether the
 vote menu renders in the browser client is untested. All players can use
-`say timeleft` and `say nextmap`. To force a specific map now: edit the
-`+map` in the mod's compose `command:` and redeploy (there is no live
-console - stdin is closed and rcon is off).
+`say timeleft` and `say nextmap`. To force a specific map now:
+`pnpm run rc "changelevel de_dust2"` - no restart, no player drop (the
+cmdpipe plugin; see troubleshooting.md, there is still no real rcon).
 
 Adding custom maps (fy_iceworld etc) means bundling `.bsp` + assets into
 valve.zip - measure the size first; see backlog item 6.

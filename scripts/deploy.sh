@@ -74,8 +74,9 @@ if [[ -d "$SERVER_DIR/custom" ]]; then
   rsync -rtvz "$SERVER_DIR/custom/" "$HOST:$REMOTE_ROOT/cs/cstrike/"
 fi
 
-# the root compose bind-mounts these; they must exist even when empty
-ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs}"
+# the root compose bind-mounts these; they must exist even when empty.
+# cmdpipe is the remote-console drop dir (scripts/rc.sh -> cmdpipe.amxx).
+ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs} $REMOTE_ROOT/cmdpipe"
 
 if [[ -z "$MOD" ]]; then
   log "files synced. No mod named, so nothing was restarted."

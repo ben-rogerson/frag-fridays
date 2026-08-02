@@ -1,6 +1,6 @@
 ---
 name: cs16-server
-description: Operate the Frag Friday CS 1.6 server - swap mods, restart, check status, tail logs, ship client config, manage maps/rotations, tune bots, verify plugins. Use for any request about the game server, the VPS, valve.zip, GunGame, deathmatch, bots or maps.
+description: Operate the Frag Friday CS 1.6 server - run live console commands (change map, cvars) via the cmdpipe remote console, swap mods, restart, check status, tail logs, ship client config, manage maps/rotations, tune bots, verify plugins. Use for any request about the game server, the VPS, valve.zip, GunGame, deathmatch, bots or maps.
 ---
 
 # CS 1.6 server operations
@@ -33,6 +33,7 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 | Sync files only | `pnpm run deploy` |
 | Swap/restart mod | `pnpm run deploy <vanilla\|gg\|dm>` |
 | Ship client config / rebuild valve.zip | `pnpm run clientcfg` |
+| Live server console (gg/dm only) | `pnpm run rc "<command>"` |
 
 ## Iron rules
 
@@ -58,8 +59,16 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 
 ## Recipes
 
-**Interrogate the server console** (no rcon, stdin closed on the real
-container) - boot a throwaway with stdin piped:
+**Run commands on the LIVE server:** `pnpm run rc "changelevel de_dust2"`.
+No rcon exists on this stack (build answers no A2S/rcon UDP, stdin closed) -
+rc.sh writes a serial-numbered file to `/opt/cs16/cmdpipe/` which the
+`cmdpipe.amxx` plugin (baked into gg + dm images, NOT vanilla) polls every
+second. rc.sh tails docker logs for output, but slow output (map loads) can
+outrun its 5s window - re-check with `pnpm run logs <mod>`. Map changes via
+`changelevel` don't drop players; a redeploy does.
+
+**Interrogate a mod's console offline** (image not yet deployed) - boot a
+throwaway with stdin piped:
 
 ```bash
 ssh cs16 '( sleep 10; echo "amxx plugins"; sleep 2; echo "quit" ) | \
@@ -102,4 +111,5 @@ render in-browser).
 Follow `docs/runbook.md`: bring up the mod, `docker ps` check, three Slack
 messages (morning / midday "open the URL now to preload ~300MB" / final call
 with F1-F2 + `/guns` instructions). Don't swap mods mid-session - forces
-every player through a reload.
+every player through a reload. Mid-session map changes are fine:
+`pnpm run rc "changelevel <map>"` keeps everyone connected.

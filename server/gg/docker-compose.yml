@@ -11,6 +11,8 @@ services:
     volumes:
       - "../valve.zip:/xashds/public/valve.zip"
       - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
+      # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
+      - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"
     ports:
       - "27016:27016"
       - "27018:27018"

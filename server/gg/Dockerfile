@@ -13,6 +13,9 @@ RUN cd cstrike/addons/amxmodx/scripting \
  && ./compile.sh \
  && cp compiled/*.amxx ../plugins/ \
  && grep -qx 'gungame.amxx' ../configs/plugins.ini || echo 'gungame.amxx' >> ../configs/plugins.ini
+# remote console via compose-mounted command file - see scripting/cmdpipe.sma
+RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'cmdpipe.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 
 # YaPB registers with METAMOD's plugins.ini (not AMXX's - third registration
 # file, see docs/troubleshooting.md). Bots need write access to data/ at

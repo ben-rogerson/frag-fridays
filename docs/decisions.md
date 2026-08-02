@@ -295,3 +295,40 @@ open questions about custom-map dependencies:
   `game_player_equip` (knives) would break GunGame's level ladder. Same
   strip/equip race as scoutzknivez under frag_dm - watch which handout wins
   on Friday.
+
+## Remote console with no rcon: the cmdpipe plugin (2026-08-02)
+
+Wanted: change the map on the live server without restarting it. The stack
+offers no way in - this Xash3D build answers no rcon/A2S UDP queries at all
+(not misconfigured, just absent), the container's stdin is closed, and
+configs are image-baked so there is no cfg re-read to hijack. Until now the
+only "remote console" was in-game admin chat, and forcing a map meant
+editing the compose `+map` and redeploying - which drops every player.
+
+Options considered: enabling rcon (dead - the build doesn't serve it),
+`docker attach` (dead - stdin closed at spawn), and a scheduled
+rebuild-and-restart (works but is the player-dropping hammer we were
+avoiding). Solution: the server may be sealed from outside, but AMXX runs
+*inside* and can execute arbitrary console commands via `server_cmd()`. So
+`cmdpipe.amxx` (~80 lines, script-only, clears the no-binary-modules rule)
+polls a compose-mounted file once a second and feeds new lines to the
+console. `scripts/rc.sh` (`pnpm run rc "changelevel de_dust2"`) writes the
+file over SSH and tails docker logs for the output.
+
+The design wrinkle worth remembering: the mount is **read-only**. The
+obvious protocol - plugin deletes the file after executing - needs the
+container user to have write access to a host-owned dir (uid gymnastics or
+a 777 dir). Instead line 1 carries a serial number: rc.sh increments it and
+replaces the file atomically (mktemp + mv - replacing the inode is why the
+mount is the *directory*, not the file; a bind-mounted file goes stale on
+rename). The plugin executes only when the serial changes, and on plugin
+load it swallows the current serial without executing - AMXX reloads
+plugins on every map change, so without that guard a `changelevel` command
+would re-fire the moment the new map booted. Verified live: round-tripped
+`amxx plugins`, changed map twice with bots reconnecting cleanly, no
+replay after the reload.
+
+Baked into gg and dm images (vanilla runs the stock image unbuilt, so it
+misses out). This also quietly answers the "how does the future web portal
+change maps - RCON? scheduled restart?" question in the backlog: it drops
+a file.

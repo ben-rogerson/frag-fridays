@@ -188,8 +188,9 @@ map / server-up status.
 
 Design questions for when we get there: hosting (same VPS? static site +
 small API?), reading live server state (GoldSrc A2S query protocol, container
-logs, or an AMXX status plugin), how votes become map changes (config the
-server reads? RCON? scheduled rebuild-and-restart?), auth (open link vs Slack
+logs, or an AMXX status plugin), how votes become map changes (answered:
+the cmdpipe plugin - drop a serial-numbered command file in
+`/opt/cs16/cmdpipe/`, see decisions.md), auth (open link vs Slack
 identity), and a Slack bot that posts the Friday announcement automatically.
 
 **Shared backend opportunity:** the MCP server (item 8) and the web portal

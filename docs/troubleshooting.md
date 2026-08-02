@@ -13,9 +13,18 @@ every debugging session came down to **verify, don't assume**:
 - `amx_plugins` (in-game/console) - did the plugin actually load?
 - Check the archive root - is `valve.zip` structured correctly?
 
-To interrogate the server console without a player or rcon, boot a throwaway
-copy of the image with stdin piped (the real container runs with stdin
-closed, and this build answers no A2S/rcon UDP queries):
+**Live server console: `pnpm run rc "<command>"`** (e.g. `pnpm run rc
+"changelevel de_dust2"`). There is no rcon (this build answers no A2S/rcon
+UDP queries) and stdin is closed, so the `cmdpipe.amxx` plugin (gg + dm, not
+vanilla) polls a compose-mounted file `/opt/cs16/cmdpipe/cmd.txt` once a
+second and executes new lines in the server console. `scripts/rc.sh` bumps
+the serial on line 1 and replaces the file atomically; the plugin swallows
+the current serial on load so restarts/map changes never replay a command.
+Output comes back via `docker logs` (rc.sh tails it, but slow output like a
+map load can outrun the 5s window - re-check with `pnpm run logs`).
+
+To interrogate a mod's console *offline* (image not deployed yet), boot a
+throwaway copy with stdin piped:
 
 ```bash
 ( sleep 10; echo "amxx plugins"; sleep 2; echo "quit" ) | \
