@@ -32,6 +32,9 @@ new g_spawnDelay, g_protectTime, g_refill;
 // preferred primary per player: index into g_guns, -1 = team default
 new g_choice[33];
 
+// one /guns hint per connection, on first spawn
+new bool:g_hinted[33];
+
 new const g_guns[][] = {
 	"/ak",     "weapon_ak47",
 	"/m4",     "weapon_m4a1",
@@ -70,6 +73,7 @@ public plugin_init()
 public client_putinserver(id)
 {
 	g_choice[id] = -1;
+	g_hinted[id] = false;
 }
 
 public client_disconnected(id)
@@ -143,6 +147,12 @@ public ham_player_spawn(id)
 	}
 
 	cs_set_user_armor(id, 100, CS_ARMOR_VESTHELM);
+
+	if (!g_hinted[id] && !is_user_bot(id))
+	{
+		g_hinted[id] = true;
+		client_print(id, print_chat, "[DM] Say /guns to pick your gun - it applies from your next spawn.");
+	}
 
 	new Float:protect = get_pcvar_float(g_protectTime);
 	if (protect > 0.0)

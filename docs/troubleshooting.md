@@ -151,3 +151,13 @@ Steam client) and "Other". See [setup.md](setup.md) for the full context.
 `uname -m` inside a `--platform linux/386` container reports `x86_64`. Not a
 fault - it reports the kernel arch. Correct check:
 `docker image inspect i386/alpine --format '{{.Architecture}}'` -> `386`.
+
+## Menus truncate at ~175 characters in the browser client
+
+GoldSrc splits long `show_menu` text into multi-part ShowMenu messages; the
+browser client doesn't reassemble them, so anything past ~175 characters is
+silently cut off. First occurrence (2026-08-03): the GunGame welcome menu's
+last line rendered as `Chat commands: !gu` - a player duly typed `!gu`.
+Budget menu text (all lines + colour codes + "press key" footer) under 175
+chars total, and keep player-facing hints in chat (`client_print`) where
+there is no such limit.
