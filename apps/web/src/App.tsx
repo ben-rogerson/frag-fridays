@@ -12,6 +12,12 @@ type Stage =
 
 const SEGMENTS = 24
 
+// Background: Counter Strike 1.6 ANNIHILATION 2 HQ (7:36). Random start so
+// the music differs each load; capped at 400s to leave a stretch before the
+// loop wraps to 0.
+const VIDEO_ID = 'Y6gcmbioqiE'
+const VIDEO_MAX_START = 400
+
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
 function stageProgress(stage: Stage): number | null {
@@ -52,7 +58,28 @@ const App: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const zipRef = useRef<Uint8Array | null>(null)
   const startedRef = useRef(false)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
   const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
+  const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
+  const [soundOn, setSoundOn] = useState(false)
+
+  const ytCommand = (func: string, args: unknown[] = []) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func, args }),
+      '*',
+    )
+  }
+
+  const toggleSound = () => {
+    if (soundOn) {
+      ytCommand('mute')
+    } else {
+      // unmuting needs a user gesture, which this click is
+      ytCommand('unMute')
+      ytCommand('setVolume', [65])
+    }
+    setSoundOn(!soundOn)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -93,6 +120,17 @@ const App: FC = () => {
     <>
       <canvas id="canvas" ref={canvasRef} />
       <div className={`overlay${stage.id === 'playing' ? ' overlay--hidden' : ''}`}>
+        {stage.id !== 'playing' && (
+          <iframe
+            ref={iframeRef}
+            className="bgvid"
+            src={`https://www.youtube-nocookie.com/embed/${VIDEO_ID}?autoplay=1&mute=1&controls=0&loop=1&playlist=${VIDEO_ID}&start=${videoStart}&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1`}
+            allow="autoplay; encrypted-media"
+            tabIndex={-1}
+            title="background video"
+          />
+        )}
+        <div className="tint" />
         <div className="loader">
           <p className="eyebrow">Counter-Strike 1.6 &middot; in your browser</p>
           <h1 className="title">
@@ -130,6 +168,15 @@ const App: FC = () => {
 
           <p className="hint">Tip: hit F1 on the team screen to jump straight into the action</p>
         </div>
+        {stage.id !== 'playing' && (
+          <button
+            className="sound"
+            onClick={toggleSound}
+            aria-label={soundOn ? 'Mute music' : 'Play music'}
+          >
+            {soundOn ? '\u{1F50A}' : '\u{1F507}'}
+          </button>
+        )}
       </div>
     </>
   )
