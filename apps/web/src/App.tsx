@@ -161,7 +161,7 @@ const App: FC = () => {
     }
   }
 
-  // unmute at volume 0 and ramp to 65 over ~2.5s; no-op while already
+  // unmute at volume 0 and ramp to 65 over ~0.6s; no-op while already
   // fading or already audible
   const startSound = () => {
     if (fadeRef.current !== null || !playerMutedRef.current) return
@@ -170,10 +170,10 @@ const App: FC = () => {
     ytCommand('playVideo')
     let volume = 0
     fadeRef.current = window.setInterval(() => {
-      volume = Math.min(65, volume + 5)
+      volume = Math.min(65, volume + 8)
       ytCommand('setVolume', [volume])
       if (volume >= 65) stopFade()
-    }, 200)
+    }, 65)
   }
 
   const toggleSound = () => {
