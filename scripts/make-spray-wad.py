@@ -79,6 +79,15 @@ def build(mips, palette, w, h):
     wad += struct.pack('<iiiBBH', 12, len(mt), len(mt), 0x43, 0, 0) + name.ljust(16, b'\0')
     return wad
 
+def save_bmp(out, mips, palette, w, h):
+    """8-bit indexed BMP - what Xash3D-FWGS actually reads as the custom
+    spray (logos/remapped.bmp); the wads only serve GoldSrc-protocol
+    clients. Engine ref: cl_main.c CL_CheckLogoFile -> 'logos/remapped.%s'."""
+    from PIL import Image
+    im = Image.frombytes('P', (w, h), mips[0])
+    im.putpalette(bytes(palette))
+    im.save(out, 'BMP')
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -88,6 +97,10 @@ if __name__ == '__main__':
     h = int(sys.argv[4]) if len(sys.argv) > 4 else 64
     assert w % 16 == 0 and h % 16 == 0, 'spray dimensions must be multiples of 16'
     mips, palette = from_image(img, w, h) if img else placeholder(w, h)
-    wad = build(mips, palette, w, h)
-    open(out, 'wb').write(wad)
-    log(f'{out}: {len(wad)} bytes ({"image: " + img if img else "placeholder"})')
+    if out.endswith('.bmp'):
+        save_bmp(out, mips, palette, w, h)
+        log(f'{out}: 8-bit BMP {w}x{h}')
+    else:
+        wad = build(mips, palette, w, h)
+        open(out, 'wb').write(wad)
+        log(f'{out}: {len(wad)} bytes ({"image: " + img if img else "placeholder"})')
