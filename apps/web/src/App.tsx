@@ -69,12 +69,14 @@ const App: FC = () => {
   const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [videoDead, setVideoDead] = useState(false)
-  // sound defaults on, but browsers refuse unmuted playback with no user
-  // gesture - unmuting early PAUSES the video, so it must wait for the
-  // first click/keypress (see effect below)
-  const [soundOn, setSoundOn] = useState(true)
-  const soundOnRef = useRef(true)
-  const gestureRef = useRef(false)
+  // Sound is wanted by default, but browsers refuse unmuted playback with
+  // no user gesture (and unmuting early PAUSES the video), so it applies on
+  // the first click/keypress. The icon reflects the PLAYER's actual muted
+  // state (reported via infoDelivery), not our wish - otherwise it shows
+  // sound-on while the browser still has it muted, and the first toggle
+  // press mutes instead of unmuting.
+  const [playerMuted, setPlayerMuted] = useState(true)
+  const wantSoundRef = useRef(true)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
@@ -87,14 +89,7 @@ const App: FC = () => {
       try {
         const d = JSON.parse(e.data)
         if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
-        // a toggle clicked before the player was ready would be dropped -
-        // resend the desired state once it reports in (gesture-gated:
-        // unmuting without one pauses the video)
-        if (d.event === 'onReady' && soundOnRef.current && gestureRef.current) {
-          ytCommand('unMute')
-          ytCommand('setVolume', [65])
-          ytCommand('playVideo')
-        }
+        if (d.info && typeof d.info.muted === 'boolean') setPlayerMuted(d.info.muted)
       } catch {
         /* not a widget message */
       }
@@ -106,11 +101,13 @@ const App: FC = () => {
         '*',
       )
     }, 1000)
-    // any real gesture lets us apply the default-on sound (idempotent);
-    // playVideo resumes it if an earlier unmute attempt paused playback
-    const applySound = () => {
-      gestureRef.current = true
-      if (soundOnRef.current) {
+    // any real gesture lets us apply the wanted-by-default sound
+    // (idempotent); playVideo resumes it if an unmute attempt paused
+    // playback. Skipped when the gesture is the toggle itself, so a
+    // mute press is not immediately overridden.
+    const applySound = (e: Event) => {
+      if (e.target instanceof Element && e.target.closest('.sound')) return
+      if (wantSoundRef.current) {
         ytCommand('unMute')
         ytCommand('setVolume', [65])
         ytCommand('playVideo')
@@ -134,16 +131,16 @@ const App: FC = () => {
   }
 
   const toggleSound = () => {
-    if (soundOn) {
-      ytCommand('mute')
-    } else {
+    if (playerMuted) {
       // unmuting needs a user gesture, which this click is
+      wantSoundRef.current = true
       ytCommand('unMute')
       ytCommand('setVolume', [65])
       ytCommand('playVideo')
+    } else {
+      wantSoundRef.current = false
+      ytCommand('mute')
     }
-    soundOnRef.current = !soundOn
-    setSoundOn(!soundOn)
   }
 
   useEffect(() => {
@@ -255,9 +252,9 @@ const App: FC = () => {
           <button
             className="sound"
             onClick={toggleSound}
-            aria-label={soundOn ? 'Mute music' : 'Play music'}
+            aria-label={playerMuted ? 'Play music' : 'Mute music'}
           >
-            {soundOn ? '\u{1F50A}' : '\u{1F507}'}
+            {playerMuted ? '\u{1F507}' : '\u{1F50A}'}
           </button>
         )}
       </div>
