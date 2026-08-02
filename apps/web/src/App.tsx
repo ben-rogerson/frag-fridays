@@ -46,6 +46,72 @@ const NEWS_TEXT = NEWS.join('  •••  ') + '  •••  '
 
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
+// fullscreen muzzle-flash flicker: soft amber bursts (occasionally a
+// whole-screen wash) composited over the page. Low alpha so nothing
+// underneath loses readability; skipped under prefers-reduced-motion.
+const FlashCanvas: FC = () => {
+  const ref = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const canvas = ref.current!
+    const ctx = canvas.getContext('2d')!
+
+    const resize = () => {
+      canvas.width = Math.floor(window.innerWidth * devicePixelRatio)
+      canvas.height = Math.floor(window.innerHeight * devicePixelRatio)
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    type Flash = { x: number; y: number; r: number; born: number; span: number; full: boolean }
+    let flashes: Flash[] = []
+    let nextAt = performance.now() + 900
+    let raf = 0
+
+    const tick = (t: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      if (t >= nextAt) {
+        flashes.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: (0.18 + Math.random() * 0.3) * Math.min(canvas.width, canvas.height),
+          born: t,
+          span: 180 + Math.random() * 260,
+          full: Math.random() < 0.18,
+        })
+        nextAt = t + 500 + Math.random() * 2400
+      }
+      ctx.globalCompositeOperation = 'lighter'
+      flashes = flashes.filter((f) => {
+        const life = (t - f.born) / f.span
+        if (life >= 1) return false
+        const a = Math.sin(Math.PI * life)
+        if (f.full) {
+          ctx.fillStyle = `rgba(255, 205, 130, ${(a * 0.05).toFixed(3)})`
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+        } else {
+          const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r)
+          g.addColorStop(0, `rgba(255, 214, 150, ${(a * 0.16).toFixed(3)})`)
+          g.addColorStop(1, 'rgba(255, 214, 150, 0)')
+          ctx.fillStyle = g
+          ctx.fillRect(f.x - f.r, f.y - f.r, f.r * 2, f.r * 2)
+        }
+        return true
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', resize)
+    }
+  }, [])
+
+  return <canvas className="flashfx" ref={ref} aria-hidden="true" />
+}
+
 // stylised sponsor marks, drawn inline so the page stays self-contained
 const SWS_COLOURS = [
   '#2ecc71', '#71e0d6', '#2394df', '#5d3fd3',
@@ -375,6 +441,7 @@ const App: FC = () => {
             {playerMuted ? '\u{1F507}' : '\u{1F50A}'}
           </button>
         )}
+        {stage.id !== 'playing' && <FlashCanvas />}
       </div>
     </>
   )

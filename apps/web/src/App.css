@@ -345,6 +345,16 @@
   }
 }
 
+/* muzzle-flash flicker layer above everything, purely decorative */
+.flashfx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
 .sound {
   position: absolute;
   top: 1rem;
