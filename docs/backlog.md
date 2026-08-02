@@ -122,22 +122,19 @@ shipped `config.cfg` already has `bind "t" "impulse 201"`, `decalfrequency`
 is 30, and `sv_allow_upload`/`mp_decals` don't exist in this engine build -
 with an identical WAD in every client no upload path is needed anyway.
 
-First browser test (2026-08-02): T sprayed the LAMBDA - so `impulse 201`
-works, but the wads were the wrong mechanism. Engine source
-(cl_main.c) says Xash3D-FWGS reads the custom spray from
-`logos/remapped.<cl_logoext>` (default bmp); missing file = silent
-fallback to decals.wad `{lambda` tinted by `cl_logocolor`. tempdecal.wad
-is only consulted on GoldSrc-protocol connections, not this stack. Now
-shipping `cstrike/logos/remapped.bmp` (48x64 8-bit, same generator -
-`.bmp` output mode added to the script). Server side confirmed ready:
-`sv_send_logos 1`, `sv_uploadmax 0.5`MB vs our 4KB.
+Verified working in-browser (2026-08-02) after the mechanism hunt: the
+wads were the wrong path - Xash3D-FWGS reads the custom spray from
+`logos/remapped.<cl_logoext>` (engine cl_main.c; missing file = silent
+lambda fallback, which the first T-press proved). `tempdecal.wad` only
+matters on GoldSrc-protocol connections. First working version at 48x64
+was poor quality, so now 96x128 (decal world size = texture size / scale
+per ref/gl/gl_decals.c, so it also sprays twice as large). Regenerate any
+time: `scripts/make-spray-wad.py server/custom/logos/remapped.bmp
+assets/<img>.png 96 128` then deploy + clientcfg. Server side:
+`sv_send_logos 1`, `sv_uploadmax 0.5`MB.
 
-Remaining (browser): hard-refresh (full ~305MB redownload), join, press T.
-Kirk renders = done (consider deleting the now-useless
-tempdecal/pldecal.wad from server/custom). Still lambda = check whether
-the stock 64x64 logo size is load-bearing (ours is 48x64) - regenerate
-with `48 64` -> `64 64` args; transparency via index 255 is the other
-suspect.
+Remaining: confirm the 96x128 looks right in-browser, then delete the
+now-useless tempdecal/pldecal.wad from server/custom and call it done.
 
 - **Limitation (accepted):** every client loads the same `valve.zip`, so
   everyone shares one spray.
