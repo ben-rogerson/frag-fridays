@@ -230,17 +230,27 @@ const App: FC = () => {
     <>
       <canvas id="canvas" ref={canvasRef} />
       <div className={`overlay${stage.id === 'playing' ? ' overlay--hidden' : ''}`}>
+        {stage.id !== 'playing' && !videoDead && (
+          <iframe
+            className="bgvid"
+            src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
+            allow="autoplay; encrypted-media"
+            referrerPolicy="strict-origin-when-cross-origin"
+            tabIndex={-1}
+            title="background video"
+          />
+        )}
         <div className="tint" />
         {stage.id !== 'playing' && !videoDead && (
           <div className="pip">
             <iframe
               ref={iframeRef}
-              className="bgvid"
+              className="pipvid"
               src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
               allow="autoplay; encrypted-media"
               referrerPolicy="strict-origin-when-cross-origin"
               tabIndex={-1}
-              title="background video"
+              title="frag movie"
             />
           </div>
         )}
