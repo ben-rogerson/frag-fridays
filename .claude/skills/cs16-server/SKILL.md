@@ -34,6 +34,7 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 | Swap/restart mod | `pnpm run deploy <vanilla\|gg\|dm>` |
 | Ship client config / rebuild valve.zip | `pnpm run clientcfg` |
 | Live server console (gg/dm only) | `pnpm run rc "<command>"` |
+| Start a map vote ("votemap") | `pnpm run votemap` - 4 random mapcycle picks (script-side shuffle; never hand-pick maps) |
 
 ## Iron rules
 
