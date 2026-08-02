@@ -1,0 +1,51 @@
+services:
+  zp:
+    image: yohimik/cs-web-server-metpamx:latest
+    platform: linux/386
+    profiles: ["vanilla"]
+    command: [ "+map de_dust2", "+maxplayers 14" ]
+    restart: unless-stopped
+    environment:
+      PORT: 27018
+      IP: ${PUBLIC_IP}
+    volumes:
+      - "./valve.zip:/xashds/public/valve.zip"
+      - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
+      - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
+    ports:
+      - "27016:27016"
+      - "27018:27018/udp"
+
+  gg:
+    image: yohimik/cs-web-server-metpamx:latest
+    platform: linux/386
+    profiles: ["gg"]
+    command: [ "+map de_dust2", "+maxplayers 14" ]
+    restart: unless-stopped
+    environment:
+      PORT: 27028
+      IP: ${PUBLIC_IP}
+    volumes:
+      - "./valve.zip:/xashds/public/valve.zip"
+      - "./mods/gg/plugins:/xashds/cstrike/addons/amxmodx/plugins"
+      - "./mods/gg/configs:/xashds/cstrike/addons/amxmodx/configs"
+    ports:
+      - "27016:27016"
+      - "27028:27028/udp"
+
+  dm:
+    image: yohimik/cs-web-server-metpamx:latest
+    platform: linux/386
+    profiles: ["dm"]
+    command: [ "+map de_dust2", "+maxplayers 14" ]
+    restart: unless-stopped
+    environment:
+      PORT: 27038
+      IP: ${PUBLIC_IP}
+    volumes:
+      - "./valve.zip:/xashds/public/valve.zip"
+      - "./mods/dm/plugins:/xashds/cstrike/addons/amxmodx/plugins"
+      - "./mods/dm/configs:/xashds/cstrike/addons/amxmodx/configs"
+    ports:
+      - "27016:27016"
+      - "27038:27038/udp"
