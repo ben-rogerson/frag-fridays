@@ -18,7 +18,7 @@
   left: 50%;
   width: max(100vw, 177.78vh);
   height: max(100vh, 56.25vw);
-  transform: translate(-50%, -50%) scale(1.08);
+  transform: translate(-50%, -50%) scale(1.25);
   border: 0;
   pointer-events: none;
   filter: blur(14px) brightness(0.35) saturate(0.85);
