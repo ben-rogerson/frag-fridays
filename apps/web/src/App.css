@@ -119,6 +119,33 @@
   color: #f5a623;
 }
 
+/* bops when the music is audible: ~174bpm dnb, one bounce per two beats */
+.title--dancing {
+  animation: dance 0.69s ease-in-out infinite;
+}
+
+@keyframes dance {
+  0%,
+  100% {
+    transform: scale(1) rotate(-1.8deg);
+  }
+  25% {
+    transform: scale(1.08) rotate(0.9deg);
+  }
+  50% {
+    transform: scale(0.97) rotate(1.8deg);
+  }
+  75% {
+    transform: scale(1.06) rotate(-0.9deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title--dancing {
+    animation: none;
+  }
+}
+
 .name {
   font: inherit;
   font-size: 0.95rem;

@@ -373,7 +373,7 @@ const App: FC = () => {
         )}
         <div className="loader">
           <p className="eyebrow">Counter-Strike 1.6 &middot; in your browser</p>
-          <h1 className="title">
+          <h1 className={`title${!playerMuted ? ' title--dancing' : ''}`}>
             Frag<span> Friday</span>
           </h1>
 
