@@ -107,5 +107,7 @@ export async function launchGame(
   if (playerName) {
     x.Cmd_ExecuteString(`name "${playerName}"`)
   }
+  // the WebRTC data channels surface as a fake UDP peer at 127.0.0.1:8080
+  x.Cmd_ExecuteString('connect 127.0.0.1:8080')
   return x
 }
