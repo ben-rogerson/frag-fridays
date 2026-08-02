@@ -21,10 +21,12 @@ reclaimed port 27016 after a reboot and "GunGame" was actually vanilla for
 the whole session. Never announce until `docker ps` shows the right container
 name and nothing else on 27016.
 
-If the client config changed, `valve.zip` must be rebuilt on the box so
-players actually receive it - this is currently a manual process (there is no
-`update-clientcfg.sh` yet; automating it is in the backlog). `pnpm run deploy`
-only installs the config into the game files tree.
+If the client config changed, run `pnpm run clientcfg` from the laptop: it
+syncs configs, then runs `update-clientcfg.sh` on the box, which rebuilds
+`valve.zip` from the game files tree, installs it to every mount point and
+restarts the running mod. Players must hard-refresh the browser tab to fetch
+the new zip. (`pnpm run deploy` alone only installs the config into the game
+files tree - players won't see it.)
 
 ## 2. The three Slack messages
 
@@ -48,6 +50,11 @@ The browser build does not render the team select menu, so players must:
   ship to every player via the `userconfig.cfg` inside `valve.zip`.
 - **Console fallback** if the binds fail: open console (backtick key), type
   `jointeam 1` then `joinclass 1`.
+- **DM sessions only:** gun choice is by chat - say `/guns` for the list,
+  then e.g. `/awp` or `/ak` (applies from the next spawn; default is your
+  team's rifle + deagle).
+- **Bots:** YaPB fills the server (9 by default) and bots leave as humans
+  join - the server is never empty, so early joiners have someone to shoot.
 
 Mobile browsers do not work (text input isn't real HTML input) - laptop only.
 Say so in the announcement.

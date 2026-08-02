@@ -13,6 +13,20 @@ every debugging session came down to **verify, don't assume**:
 - `amx_plugins` (in-game/console) - did the plugin actually load?
 - Check the archive root - is `valve.zip` structured correctly?
 
+To interrogate the server console without a player or rcon, boot a throwaway
+copy of the image with stdin piped (the real container runs with stdin
+closed, and this build answers no A2S/rcon UDP queries):
+
+```bash
+( sleep 10; echo "amxx plugins"; sleep 2; echo "quit" ) | \
+  docker run -i --rm --platform linux/386 dm-xash3d:latest +map de_dust2 +maxplayers 4 \
+  2>&1 | grep -aiE "bad load|running|plugins,"
+```
+
+This is how the CSDM failure below was diagnosed. Note `grep -a`: some
+upstream sources (gungame.sma) are ISO-8859 + CRLF and macOS grep silently
+treats them as binary - another silent failure.
+
 ## Team select menu does not render
 
 The browser build never shows the team select menu. Players sit unassigned.
@@ -76,6 +90,34 @@ ReHLDS/ReGameDLL/ReAPI. Any mod or plugin requiring ReAPI natives (ReGG,
 ReZombiePlague, ReDeathmatch, and many other modern mods) **will not work**.
 All plugins must be classic Metamod-P/AMXX-era. Check for ReAPI dependency
 before spending any time on a candidate mod.
+
+## Binary modules that sig-scan the game DLL do not work (CSDM)
+
+A subtler cousin of the ReAPI problem, found 2026-08-02. CSDM's
+`csdm_amxx_i386.so` loads and reports `running` in both `meta list` and
+`amxx modules` - but it locates its gameplay hooks by **binary signature
+scanning** the original `cs_i386.so` (its strings contain
+`"Sig line %d (%s) failed"`). This stack's cstrike DLL is a reimplementation,
+so the scan fails **silently**: the module registers its config natives
+(`csdm_get_ffa`, `csdm_reg_cfg`) but never the gameplay ones (`csdm_active`,
+`csdm_respawn`, `csdm_trace_hull`), and every CSDM plugin dies with
+`Plugin uses an unknown function ... check your modules.ini` - which points
+at entirely the wrong cause. Recompiling the plugins from source changes
+nothing; the natives simply do not exist at runtime.
+
+Rule of thumb: **script-only plugins using Ham/fakemeta work** (GunGame
+proves the whole surface: `Ham_Spawn`, `Ham_CS_RoundRespawn`, entity
+give/strip, `cs_set_user_*`). **Binary modules that peek inside the game DLL
+fail.** Deathmatch is therefore a from-scratch script plugin
+(`dm/addons/amxmodx/scripting/frag_dm.sma`), not CSDM.
+
+The refinement, from YaPB working first try: what matters is *how* the
+binary hooks in. YaPB is a Metamod plugin coded against engine interfaces
+with explicit Xash3D support and logs
+`Counter-Strike v1.6 @ Xash3D Engine` - fine. CSDM pattern-matches bytes
+inside the game DLL - dead. Before adopting anything with a `.so`, ask which
+kind it is, and prefer projects that name Xash3D in their compatibility
+list.
 
 ## Steam account verification (SteamCMD)
 

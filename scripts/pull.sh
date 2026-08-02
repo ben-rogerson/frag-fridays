@@ -6,6 +6,7 @@
 #   /opt/cs16/docker-compose.yml        -> server/docker-compose.yml  (profile-based: vanilla)
 #   /opt/cs16/{gg,dm,zp}/               -> server/{gg,dm,zp}/         (minus valve.zip)
 #   /opt/cs16/cs/cstrike/userconfig.cfg -> server/config/userconfig.cfg
+#   /opt/cs16/update-clientcfg.sh       -> server/update-clientcfg.sh
 #
 # Never pulled: game files (cs/), valve.zip anywhere, mod archives (src/),
 # SteamCMD internals (linux32/, linux64/, package/, public/, siteserverui/),
@@ -36,5 +37,9 @@ done
 
 log "pulling shared client config..."
 rsync -tvz "$HOST:$REMOTE_ROOT/cs/cstrike/userconfig.cfg" "$SERVER_DIR/config/userconfig.cfg"
+
+log "pulling update-clientcfg.sh..."
+rsync -tpvz "$HOST:$REMOTE_ROOT/update-clientcfg.sh" "$SERVER_DIR/update-clientcfg.sh" 2>/dev/null \
+  || log "  (not on the box yet - deploy will install it)"
 
 log "done. Review with: git status && git diff"

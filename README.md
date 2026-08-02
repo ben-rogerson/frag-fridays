@@ -59,6 +59,7 @@ around it.
 Start in `docs/`:
 
 - Runbook - the Friday procedure: bring up the mod, verify, announce in Slack
+- Game guide - how each mod plays, DM chat commands, bot difficulty and tuning
 - Troubleshooting - the known gotchas (this stack fails quietly; verify, don't
   assume)
 - Decision log - why things are the way they are, kept as decisions happen

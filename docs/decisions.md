@@ -134,6 +134,37 @@ working server two file-moves before a Friday.
 (the port-theft incident), root compose service renamed `zp` to `vanilla` to
 match its profile, stray 438MB `dm/valve.zip` deleted from the box.
 
+## One canonical valve.zip for all mods (2026-08-02)
+
+`update-clientcfg.sh` builds a single `valve.zip` from `cs/{valve,cstrike}`
+at `/opt/cs16/valve.zip`, and every mod's compose mounts that one file
+(`../valve.zip`) instead of keeping its own copy. Before this, the two
+existing zips had drifted: the hand-built gg one carried
+`userconfig.cfg` and the gungame sounds, the root one had neither - so a
+vanilla session would silently ship players no join binds. The cost of the
+canonical approach is that mod-specific client assets (~600KB of gungame
+sounds) ship to everyone; against a ~438MB archive that is noise, and it buys
+"vanilla and gg cannot disagree about what clients receive". The script also
+encodes the two rules that made hand-building risky: only `valve/` and
+`cstrike/` at the archive root, and a mandatory down/up of the running mod
+because compose bind-mounts the zip by inode.
+
+## Deathmatch: wrote frag_dm.sma instead of shipping CSDM (2026-08-02)
+
+CSDM was the plan (archive already on the box), and its module even loads
+cleanly - but its gameplay natives never register because the module
+signature-scans the original CS DLL, and this stack's DLL is a
+reimplementation (troubleshooting.md has the diagnosis trail). Options were:
+hunt for a "CSDM without module" fork of unknown provenance, or write the
+~250-line subset we actually want against APIs GunGame already proves work
+on this stack. Chose the latter: `frag_dm.sma` does respawn + equip +
+spawn protection + ammo refill, with gun choice via chat commands rather
+than AMXX menus (menus are unverified in the browser client - and if they
+turn out to work, item 5's map voting matters more than gun menus). The
+lesson that generalises: on this stack, prefer script-only plugins over
+anything shipping a binary `.so`, because binary-module failures are silent
+and the error messages point at the wrong cause.
+
 ## SSH password auth disabled (2026-08-02)
 
 The sshd logs showed constant root-password brute-forcing. Root cause of it

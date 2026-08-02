@@ -50,9 +50,12 @@ done
 
 # userconfig.cfg lives inside the game files tree (it ships to players via
 # valve.zip). Rebuilding valve.zip so players actually receive changes is a
-# separate, manual step for now - see docs/backlog.md (update-clientcfg.sh).
+# separate step: pnpm run clientcfg (runs update-clientcfg.sh on the box).
 log "installing userconfig.cfg into game files tree"
 rsync -tvz "$SERVER_DIR/config/userconfig.cfg" "$HOST:$REMOTE_ROOT/cs/cstrike/userconfig.cfg"
+
+log "installing update-clientcfg.sh"
+rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientcfg.sh"
 
 # the root compose bind-mounts these; they must exist even when empty
 ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs}"

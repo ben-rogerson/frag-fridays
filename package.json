@@ -11,6 +11,7 @@
     "deploy:vanilla": "scripts/deploy.sh vanilla",
     "deploy:gg": "scripts/deploy.sh gg",
     "pull": "scripts/pull.sh",
+    "clientcfg": "scripts/deploy.sh && ssh cs16 /opt/cs16/update-clientcfg.sh",
     "status": "ssh cs16 'docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"'",
     "logs": "scripts/logs.sh"
   }

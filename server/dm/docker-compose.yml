@@ -4,11 +4,11 @@ services:
     restart: unless-stopped
     platform: linux/386
     environment:
-      PORT: 27018
+      PORT: 27038
       IP: 149.28.172.74
     volumes:
-      - "./valve.zip:/xashds/public/valve.zip"
+      - "../valve.zip:/xashds/public/valve.zip"
     ports:
       - "27016:27016"
-      - "27018:27018"
-      - "27018:27018/udp"
+      - "27038:27038"
+      - "27038:27038/udp"

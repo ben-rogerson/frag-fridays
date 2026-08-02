@@ -10,29 +10,39 @@ Retest latency from a real connection. The earlier 75-320ms reading was a
 phone hotspot (mobile radio latency plus jitter), not the server. Sydney
 should give ~20-30ms.
 
-## 2. Write update-clientcfg.sh + verify join binds
+## 2. Verify join binds in-browser
 
-The handover doc referenced `/opt/cs16/update-clientcfg.sh` but it does not
-exist on the box - `valve.zip` was built by hand. Write it (server-side script
-in the repo: install `userconfig.cfg`, rebuild `valve.zip` with only `valve/`
-and `cstrike/` at the archive root, restart the running mod), then verify the
-F1/F2 join binds work in-browser.
+`update-clientcfg.sh` is written and deployed (2026-08-02): `pnpm run
+clientcfg` syncs configs, rebuilds `valve.zip` from `cs/{valve,cstrike}`,
+installs it to both mount points and restarts the running mod. Remaining:
+open http://149.28.172.74:27016 in a browser and verify the F1/F2 join binds
+actually work (and that the `userconfig.cfg loaded` echo appears in console).
 
-## 3. Build CSDM (Deathmatch)
+## 3. Verify Deathmatch (frag_dm) in-browser
 
-Archive is uploaded to `/opt/cs16/src/dm-src`; nothing built. It ships
-`csdm_amxx_i386.so`, which is a **module** and registers in
-`configs/modules.ini`, not `plugins.ini` - so the GunGame Dockerfile pattern
-does not transfer unchanged. Get a file listing of the archive first.
+CSDM is dead on this stack - its binary module signature-scans the original
+CS DLL and fails silently against the reimplemented one (full story in
+troubleshooting.md). Replaced 2026-08-02 with `frag_dm.sma`, a from-scratch
+module-free DM plugin built on the Ham calls GunGame proves work: instant
+respawn, armour + rifle + deagle on spawn, spawn protection, ammo refill on
+kill, C4 stripped. Gun choice via chat (`/guns` lists; `/ak /m4 /awp /mp5
+/p90 /scout /shotty /famas /deagle`) because AMXX menus are unverified in the
+browser (item 5). Deployed, compiles, reports `running`. Remaining: play it -
+verify respawn timing, equip, protection and the chat commands feel right.
+The `/opt/cs16/src/dm-src` archive can be deleted once frag_dm is confirmed.
 
-## 4. Add YaPB bots
+## 4. Tune YaPB bots (installed 2026-08-02)
 
-Decided on: actively maintained, explicit Xash3D support, ~3x faster than
-PodBot MM, supports CSDM. Not yet downloaded.
-
-- Installs to `cstrike/addons/yapb/`
-- Registers via **Metamod's** `plugins.ini` (a different file from AMXX's)
-- Key cvar: `yb_kick_after_player_connect` - drops bots as real players join
+YaPB 4.4.957 is installed in both gg and dm images and confirmed working:
+`successfully loaded for game: Counter-Strike v1.6 @ Xash3D Engine`, 9 bots
+join within seconds of boot (de_dust2 graph ships in the release). Settings: `yb_quota 9`, `yb_kick_after_player_connect 1` (bots leave as
+humans join), difficulty spread Easy-Hard + K/D auto-balance
+(`yb_difficulty_min 1` / `_max 3` / `_auto 1`), `[BOT]` name prefix with
+`BOT` in the ping column, `yb_csdm_mode 1` in dm only. Remaining: play
+against them and fine-tune - quota for small maps, and whether bot text chat
+stays on. All options documented in
+[game-guide.md](game-guide.md); config in
+`server/{gg,dm}/addons/yapb/conf/yapb.cfg` (image-baked - redeploy to apply).
 
 ## 5. Map voting investigation
 

@@ -70,7 +70,8 @@ SteamCMD install dir, so SteamCMD internals sit alongside the project files:
 │       └── userconfig.cfg   # shared client config, ships to all players
 ├── .env                     # PUBLIC_IP for the root compose (not in repo)
 ├── docker-compose.yml       # profile-based: --profile vanilla runs stock CS
-├── valve.zip                # ~438MB game filesystem archive, built by hand
+├── valve.zip                # ~438MB game filesystem archive (rebuild: update-clientcfg.sh)
+├── update-clientcfg.sh      # rebuilds valve.zip from cs/, restarts running mod
 ├── mods/                    # bind-mount targets for the root compose (empty)
 ├── src/                     # downloaded mod archives (not in repo)
 │   ├── gg-src/
@@ -78,18 +79,19 @@ SteamCMD install dir, so SteamCMD internals sit alongside the project files:
 ├── gg/                      # GunGame - working; own image built from addons/
 │   ├── Dockerfile
 │   ├── docker-compose.yml
-│   ├── addons/
-│   └── valve.zip
-├── dm/                      # CSDM - compose + Dockerfile only, no addons yet
+│   └── addons/              # mounts ../valve.zip (the canonical one)
+├── dm/                      # Deathmatch - frag_dm.sma (ours; CSDM was incompatible)
 ├── zp/                      # Zombie Plague - abandoned template
 └── linux32/, linux64/, package/, public/, siteserverui/, steamcmd.sh
                              # SteamCMD internals - leave alone
 ```
 
-There is no `update-clientcfg.sh` (the original handover doc claimed one;
-writing it is in the backlog). Working mods are each their own image and
-directory. Everything binds port 27016, so only one runs at a time and the
-player URL never changes.
+`update-clientcfg.sh` (the script the handover doc claimed existed) was
+written 2026-08-02: it builds ONE canonical `valve.zip` from
+`cs/{valve,cstrike}` and installs it to both the root and `gg/` compose mount
+points, so the two can never drift. Run it via `pnpm run clientcfg` from the
+laptop. Working mods are each their own image and directory. Everything binds
+port 27016, so only one runs at a time and the player URL never changes.
 
 ## 6. Snapshot as rollback point
 

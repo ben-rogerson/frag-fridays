@@ -7,3 +7,9 @@ valve.zip
 server/**/steam-files/
 *.log
 dist
+
+# YaPB runtime output - bots write learned data + logs here on the box,
+# and pull.sh would otherwise drag it into the repo
+server/**/addons/yapb/data/logs/
+server/**/addons/yapb/data/pwf/
+server/**/addons/yapb/data/train/
