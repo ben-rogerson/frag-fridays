@@ -69,8 +69,10 @@ const App: FC = () => {
   const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [videoDead, setVideoDead] = useState(false)
-  const [soundOn, setSoundOn] = useState(false)
-  const soundOnRef = useRef(false)
+  // sound defaults on, but browsers refuse unmuted playback with no user
+  // gesture - the first click/keypress anywhere applies it (see effect below)
+  const [soundOn, setSoundOn] = useState(true)
+  const soundOnRef = useRef(true)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
@@ -100,8 +102,19 @@ const App: FC = () => {
         '*',
       )
     }, 1000)
+    // any real gesture lets us apply the default-on sound (idempotent)
+    const applySound = () => {
+      if (soundOnRef.current) {
+        ytCommand('unMute')
+        ytCommand('setVolume', [65])
+      }
+    }
+    window.addEventListener('pointerdown', applySound)
+    window.addEventListener('keydown', applySound)
     return () => {
       window.removeEventListener('message', onMsg)
+      window.removeEventListener('pointerdown', applySound)
+      window.removeEventListener('keydown', applySound)
       clearInterval(handshake)
     }
   }, [])
