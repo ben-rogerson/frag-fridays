@@ -95,7 +95,9 @@ const App: FC = () => {
   // sound-on while the browser still has it muted, and the first toggle
   // press mutes instead of unmuting.
   const [playerMuted, setPlayerMuted] = useState(true)
+  const playerMutedRef = useRef(true)
   const wantSoundRef = useRef(true)
+  const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
@@ -108,7 +110,10 @@ const App: FC = () => {
       try {
         const d = JSON.parse(e.data)
         if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
-        if (d.info && typeof d.info.muted === 'boolean') setPlayerMuted(d.info.muted)
+        if (d.info && typeof d.info.muted === 'boolean') {
+          playerMutedRef.current = d.info.muted
+          setPlayerMuted(d.info.muted)
+        }
       } catch {
         /* not a widget message */
       }
@@ -120,25 +125,25 @@ const App: FC = () => {
         '*',
       )
     }, 1000)
-    // any real gesture lets us apply the wanted-by-default sound
-    // (idempotent); playVideo resumes it if an unmute attempt paused
-    // playback. Skipped when the gesture is the toggle itself, so a
-    // mute press is not immediately overridden.
-    const applySound = (e: Event) => {
+    // Gestures apply the wanted-by-default sound: any click, or Enter
+    // (typing a name shouldn't kick the music off early - Enter commits).
+    // Skipped when the gesture is the toggle itself, so a mute press is
+    // not immediately overridden.
+    const onPointer = (e: Event) => {
       if (e.target instanceof Element && e.target.closest('.sound')) return
-      if (wantSoundRef.current) {
-        ytCommand('unMute')
-        ytCommand('setVolume', [65])
-        ytCommand('playVideo')
-      }
+      if (wantSoundRef.current) startSound()
     }
-    window.addEventListener('pointerdown', applySound)
-    window.addEventListener('keydown', applySound)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && wantSoundRef.current) startSound()
+    }
+    window.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('message', onMsg)
-      window.removeEventListener('pointerdown', applySound)
-      window.removeEventListener('keydown', applySound)
+      window.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
       clearInterval(handshake)
+      stopFade()
     }
   }, [])
 
@@ -149,15 +154,36 @@ const App: FC = () => {
     )
   }
 
+  const stopFade = () => {
+    if (fadeRef.current !== null) {
+      clearInterval(fadeRef.current)
+      fadeRef.current = null
+    }
+  }
+
+  // unmute at volume 0 and ramp to 65 over ~2.5s; no-op while already
+  // fading or already audible
+  const startSound = () => {
+    if (fadeRef.current !== null || !playerMutedRef.current) return
+    ytCommand('setVolume', [0])
+    ytCommand('unMute')
+    ytCommand('playVideo')
+    let volume = 0
+    fadeRef.current = window.setInterval(() => {
+      volume = Math.min(65, volume + 5)
+      ytCommand('setVolume', [volume])
+      if (volume >= 65) stopFade()
+    }, 200)
+  }
+
   const toggleSound = () => {
     if (playerMuted) {
       // unmuting needs a user gesture, which this click is
       wantSoundRef.current = true
-      ytCommand('unMute')
-      ytCommand('setVolume', [65])
-      ytCommand('playVideo')
+      startSound()
     } else {
       wantSoundRef.current = false
+      stopFade()
       ytCommand('mute')
     }
   }
