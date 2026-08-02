@@ -129,8 +129,20 @@ image's, so client and server engine versions match).
 - `index.html` is a file bind-mount: like valve.zip, a redeploy changes the
   inode, so the container must restart to serve the new build (deploy with a
   mod arg does this).
-- Two fixes over upstream: signalling URL derives from `location.host`
-  (example hard-coded localhost), and the mic is optional - `getUserMedia`
-  does not exist on plain-http origins, so voice needs https if ever wanted.
+- **webrtc.ts is ported from the image's stock client, NOT the upstream
+  example.** The example on git main targets a newer goxash server that
+  double-encodes signalling `data` as a JSON string; our July-2026 image
+  sends plain objects. The mismatch makes `JSON.parse` throw, the offer is
+  never answered and connect hangs forever. Ours accepts both encodings.
+  After boot the client must run `connect 127.0.0.1:8080` - the WebRTC data
+  channels surface as a fake UDP peer at that address.
+- The mic is optional - `getUserMedia` does not exist on plain-http origins,
+  so voice needs https if ever wanted.
+- The loading screen tries a YouTube background video, but YouTube rejects
+  embeds from IP-literal http origins (onError 150 via the widget API -
+  verified against a known-embeddable control video, so it is the origin,
+  not the video). The client detects the error and drops the iframe. A real
+  domain (+ https) in front of the box would make it work, and would also
+  unlock mic voice chat.
 - `pnpm run web:dev` runs Vite locally, proxying `/websocket` and
   `/valve.zip` to the live box.
