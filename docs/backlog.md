@@ -65,27 +65,31 @@ rotation, and voting needs a chat-command approach like frag_dm's `/guns`
 (write a small say-based vote plugin; skip Galileo - same menu question and
 heavier).
 
-## 6. Fun map rotation - first two in (2026-08-02)
+## 6. Fun map rotation - scoutzknivez in too (2026-08-02)
 
 In: `fy_iceworld` (122KB) and `fy_pool_day` (833KB) in both rotations;
 `aim_map` (340KB, both rotations) and `awp_map` (1.5MB, dm only - odd fit
-for GunGame's weapon ladder). ~2.8MB of valve.zip growth total (now 301M),
-each verified booting with bots (YaPB downloads proper community graphs
-from its online DB for all of them). The pipeline for
-any future map: drop `.bsp` in `server/maps/`, add to mapcycles,
-`pnpm run deploy <mod>` + `pnpm run clientcfg`. Analyse dependencies first
-(embedded textures vs wad refs vs skyname) - the trick is in the decision
-log; beware download mirrors serving Source-engine (`VBSP`) files under CS
-1.6 map names.
+for GunGame's weapon ladder); `scoutzknivez` (734KB, both rotations, low
+gravity via the per-map cvar mechanism in the decision log). ~3.5MB of
+valve.zip growth total (still 301M), each verified booting with bots (YaPB
+downloads proper community graphs from its online DB for all of them). The
+pipeline for any future map: drop `.bsp` in `server/maps/`, add to
+mapcycles, `pnpm run deploy <mod>` + `pnpm run clientcfg`. Analyse
+dependencies first (embedded textures vs wad refs vs skyname) - the trick
+is in the decision log; beware download mirrors serving Source-engine
+(`VBSP`) files under CS 1.6 map names.
 
 Remaining candidates, roughly in order of appeal:
 
-- `scoutzknivez` - needs `sv_gravity` lowered per-map (AMXX per-map configs
-  in `configs/maps/<map>.cfg`), so slightly more than a drop-in
 - `he_glass` - grenade-only concept clashes with frag_dm's rifle handout;
   fine under GunGame
 - `ka_legoland`, `35hp_2`, `rats_*` - untested
 - `fy_snow` - more iceworld, if the first two land well
+
+Watch on Friday: under dm, scoutzknivez's own scout+knife handout
+(`player_weaponstrip` + `game_player_equip` map entities) races frag_dm's
+rifle handout - either outcome is playable, but if rifles win and it feels
+wrong, teach frag_dm to skip equipping on this map.
 
 ## 7. Custom spray / wall tag
 
@@ -138,8 +142,8 @@ state. Design once, consume twice.
 
 Give IT a heads-up about the public-facing server, if not already done.
 
-## 11. Housekeeping
+## 11. Housekeeping - done (2026-08-02)
 
-- Rename the `zp` compose profile to `vanilla`
-- Delete the stray `/opt/cs16/dm/valve.zip` (created by a failed run)
-- Ensure every compose file uses `restart: unless-stopped` (not `always`)
+All three verified done on the box: root compose profile is `vanilla`, the
+stray `/opt/cs16/dm/valve.zip` is gone, every compose (repo and box) uses
+`restart: unless-stopped`.

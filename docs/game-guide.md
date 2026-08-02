@@ -107,9 +107,13 @@ rotation maps have bot graphs. Each mod has a curated `mapcycle.txt` in
 zip):
 
 - gg (boots on aim_map): aim_map, dust2, assault, dust, italy, inferno,
-  militia, aztec, fy_iceworld, fy_pool_day
+  militia, aztec, fy_iceworld, fy_pool_day, scoutzknivez
 - dm (boots on awp_map): awp_map, dust2, dust, assault, prodigy, nuke,
-  militia, fy_iceworld, fy_pool_day, aim_map
+  militia, fy_iceworld, fy_pool_day, aim_map, scoutzknivez
+
+scoutzknivez runs at `sv_gravity 250` / `sv_airaccelerate 100` via an AMXX
+per-map config; every other map resets to stock 800/10 (mechanism in
+[decisions.md](decisions.md)). The map itself hands out scout+knife.
 
 The boot map is the compose `command:` (`+map ...`) - keep it matching line 1
 of that mod's mapcycle.txt so the rotation flows on from it.

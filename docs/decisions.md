@@ -206,6 +206,20 @@ containers via a read-only compose mount into xash's `cstrike/custom/maps`
 search path (no image rebuild); client-side they ride valve.zip via the
 mapcycle keep-list.
 
+## Per-map cvars: amxx.cfg baseline + configs/maps/<map>.cfg override (2026-08-02)
+
+scoutzknivez needs low gravity, but cvars set for one map persist into the
+next - GoldSrc never resets them. The mechanism (verified in a throwaway
+container, and reusable for any per-map setting): AMXX executes
+`configs/amxx.cfg` on **every** map start, then `configs/maps/<map>.cfg`
+for the current map only, in that order. So the mod Dockerfiles append the
+stock baseline (`sv_gravity 800`, `sv_airaccelerate 10`) to amxx.cfg, and
+`server/<mod>/addons/amxmodx/configs/maps/scoutzknivez.cfg` overrides
+(250/100). Observed exec order in the logs: amxx.cfg -> gungame.cfg ->
+maps/scoutzknivez.cfg; after `changelevel de_dust2` both cvars read stock
+again. This is also how a future `he_glass` could restrict weapons per-map
+without touching plugin code.
+
 ## SSH password auth disabled (2026-08-02)
 
 The sshd logs showed constant root-password brute-forcing. Root cause of it

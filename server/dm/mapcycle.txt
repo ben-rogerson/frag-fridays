@@ -8,3 +8,4 @@ cs_militia
 fy_iceworld
 fy_pool_day
 aim_map
+scoutzknivez

@@ -5,6 +5,9 @@ COPY addons cstrike/addons
 COPY mapcycle.txt cstrike/mapcycle.txt
 USER root
 RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
+# amxx.cfg runs every map start, BEFORE configs/maps/<map>.cfg - so these are
+# the baseline that per-map overrides (scoutzknivez low gravity) reset from.
+RUN printf 'sv_gravity 800\nsv_airaccelerate 10\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \
