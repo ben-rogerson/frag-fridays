@@ -44,12 +44,18 @@ const page = (v, start) => `<!doctype html>
 </body>
 </html>`
 
+// defaults let the bare URL show the loading-screen video for a quick check
+const DEFAULT_VIDEO = 'Y6gcmbioqiE'
+const DEFAULT_MAX_START = 400
+
 export default {
   fetch(request) {
     const url = new URL(request.url)
-    const v = (url.searchParams.get('v') || '').replace(/[^\w-]/g, '')
-    const start = Math.max(0, parseInt(url.searchParams.get('start') || '0', 10) || 0)
-    if (!v) return new Response('missing ?v=<videoId>', { status: 400 })
+    const v =
+      (url.searchParams.get('v') || '').replace(/[^\w-]/g, '') || DEFAULT_VIDEO
+    const start = url.searchParams.has('start')
+      ? Math.max(0, parseInt(url.searchParams.get('start') || '0', 10) || 0)
+      : Math.floor(Math.random() * DEFAULT_MAX_START)
     return new Response(page(v, start), {
       headers: { 'content-type': 'text/html; charset=utf-8' },
     })
