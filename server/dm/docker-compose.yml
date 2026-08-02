@@ -10,6 +10,11 @@ services:
       IP: 149.28.172.74
     volumes:
       - "../valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Friday loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "../web/index.html:/xashds/public/index.html:ro"
+      - "../web/assets:/xashds/public/assets:ro"
       - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"

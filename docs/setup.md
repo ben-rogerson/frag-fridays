@@ -71,6 +71,7 @@ SteamCMD install dir, so SteamCMD internals sit alongside the project files:
 ├── .env                     # PUBLIC_IP for the root compose (not in repo)
 ├── docker-compose.yml       # profile-based: --profile vanilla runs stock CS
 ├── valve.zip                # ~300MB trimmed client archive (rebuild: update-clientcfg.sh)
+├── web/                     # custom web client build (from repo apps/web via deploy.sh)
 ├── update-clientcfg.sh      # rebuilds valve.zip from cs/, restarts running mod
 ├── mods/                    # bind-mount targets for the root compose (empty)
 ├── src/                     # downloaded mod archives (not in repo)
@@ -111,3 +112,25 @@ Image: `yohimik/cs-web-server-metpamx:latest`
 **Critical constraint:** the stack is **Xash3D-FWGS + Metamod-P + AMX Mod X
 1.9**. It is NOT ReHLDS/ReGameDLL/ReAPI - see
 [troubleshooting.md](troubleshooting.md) before choosing any mod or plugin.
+
+## 8. Custom web client (apps/web)
+
+The image ships a stock browser client in `/xashds/public/`. We replace it
+with our own (Frag Friday loading screen, download progress bar) built from
+`apps/web` - a Vite + React port of the upstream
+`examples/react-typescript-cs16-webrtc`, pinned to `xash3d-fwgs@1.2.2` +
+`cs16-client@0.1.2` npm packages (their `xash.wasm` is byte-identical to the
+image's, so client and server engine versions match).
+
+- `deploy.sh` builds `apps/web` into `server/web/` (gitignored) and rsyncs it
+  to `/opt/cs16/web/`; every compose mounts `web/index.html` and `web/assets/`
+  over the stock client. The image's `public/cstrike/` (wasm dlls for the
+  stock client) stays untouched underneath.
+- `index.html` is a file bind-mount: like valve.zip, a redeploy changes the
+  inode, so the container must restart to serve the new build (deploy with a
+  mod arg does this).
+- Two fixes over upstream: signalling URL derives from `location.host`
+  (example hard-coded localhost), and the mic is optional - `getUserMedia`
+  does not exist on plain-http origins, so voice needs https if ever wanted.
+- `pnpm run web:dev` runs Vite locally, proxying `/websocket` and
+  `/valve.zip` to the live box.

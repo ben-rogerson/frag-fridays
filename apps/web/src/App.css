@@ -1,0 +1,130 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 40%, #161b21 0%, #0b0d10 75%);
+  transition: opacity 0.6s ease-out;
+}
+
+.overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #7a8087;
+}
+
+.title {
+  font-size: clamp(2.8rem, 9vw, 5.5rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e8e6e3;
+}
+
+.title span {
+  color: #f5a623;
+}
+
+/* GoldSrc-style chunky segmented loading bar */
+.bar {
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgba(245, 166, 35, 0.6);
+  width: min(420px, 80vw);
+}
+
+.seg {
+  flex: 1;
+  height: 14px;
+  background: rgba(245, 166, 35, 0.08);
+}
+
+.seg--on {
+  background: #f5a623;
+  box-shadow: 0 0 6px rgba(245, 166, 35, 0.55);
+}
+
+@keyframes indeterminate {
+  0% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.15;
+  }
+}
+
+.bar--indeterminate .seg {
+  background: #f5a623;
+  animation: indeterminate 1.2s ease-in-out infinite;
+}
+
+.status {
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: #a8adb3;
+  font-variant-numeric: tabular-nums;
+  min-height: 1.2em;
+}
+
+.status--error {
+  color: #e05c4b;
+}
+
+.play {
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #f5a623;
+  background: transparent;
+  border: 2px solid #f5a623;
+  padding: 0.9rem 3.2rem 0.9rem 3.5rem; /* extra left pad offsets tracking */
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+  animation: breathe 2.2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    box-shadow: 0 0 18px rgba(245, 166, 35, 0.35);
+  }
+}
+
+.play:hover,
+.play:focus-visible {
+  background: #f5a623;
+  color: #0b0d10;
+  outline: none;
+  animation: none;
+}
+
+.hint {
+  margin-top: 1.2rem;
+  font-size: 0.75rem;
+  color: #5c6167;
+}

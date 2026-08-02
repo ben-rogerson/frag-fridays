@@ -37,6 +37,15 @@ log "checking SSH access to $HOST..."
 ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" true \
   || die "cannot SSH to $HOST - check ~/.ssh/config and that your key is authorised on the box"
 
+# --- web client --------------------------------------------------------------
+# apps/web builds into server/web; the composes mount index.html + assets/
+# over the image's stock client. Build fresh so the box never gets stale
+# assets (server/web is gitignored).
+if [[ -d "$REPO_ROOT/apps/web" ]]; then
+  log "building web client (apps/web -> server/web)"
+  (cd "$REPO_ROOT" && pnpm --filter @frag-friday/web build)
+fi
+
 # --- sync --------------------------------------------------------------------
 log "syncing server/ -> $HOST:$REMOTE_ROOT/"
 rsync -tvz "$SERVER_DIR/docker-compose.yml" "$HOST:$REMOTE_ROOT/docker-compose.yml"
@@ -47,6 +56,11 @@ for d in "${DIR_MODS[@]}"; do
     --exclude '.DS_Store' \
     "$SERVER_DIR/$d/" "$HOST:$REMOTE_ROOT/$d/"
 done
+
+if [[ -d "$SERVER_DIR/web" ]]; then
+  log "syncing web client"
+  rsync -rlptvz --delete "$SERVER_DIR/web/" "$HOST:$REMOTE_ROOT/web/"
+fi
 
 # userconfig.cfg lives inside the game files tree (it ships to players via
 # valve.zip). Rebuilding valve.zip so players actually receive changes is a

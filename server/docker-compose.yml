@@ -10,6 +10,11 @@ services:
       IP: ${PUBLIC_IP}
     volumes:
       - "./valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Friday loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "./web/index.html:/xashds/public/index.html:ro"
+      - "./web/assets:/xashds/public/assets:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
@@ -28,6 +33,11 @@ services:
       IP: ${PUBLIC_IP}
     volumes:
       - "./valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Friday loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "./web/index.html:/xashds/public/index.html:ro"
+      - "./web/assets:/xashds/public/assets:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/gg/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/gg/configs:/xashds/cstrike/addons/amxmodx/configs"
@@ -46,6 +56,11 @@ services:
       IP: ${PUBLIC_IP}
     volumes:
       - "./valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Friday loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "./web/index.html:/xashds/public/index.html:ro"
+      - "./web/assets:/xashds/public/assets:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/dm/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/dm/configs:/xashds/cstrike/addons/amxmodx/configs"
