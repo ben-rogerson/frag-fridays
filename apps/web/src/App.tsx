@@ -25,6 +25,25 @@ const VIDEO_ID = 'Y6gcmbioqiE'
 const VIDEO_MAX_START = 400
 const VIDEO_SHIM = 'https://frag-friday-bg.floral-math-a059.workers.dev'
 
+const NEWS = [
+  'BREAKING: Bomb has been planted. Authorities urge residents to gather directly on top of it',
+  'de_dust2 voted best holiday destination for 26th consecutive year',
+  'Local CT spotted defusing with a kit he never bought. Investigation ongoing',
+  'Study finds 9 out of 10 knife-round losses caused by "lag"',
+  'Chicken population on cs_italy reaches critical low. Scientists baffled, Ts blamed',
+  'Man who bought AWP on pistol round says he is "confident in the strategy"',
+  'Friendly fire incident ruled "definitely an accident" for the 14th consecutive time',
+  'Rush B strategy peer-reviewed, found to be "no worse than anything else we tried"',
+  'Hostages develop Stockholm syndrome: "at least the Ts never made us rush long A"',
+  'Door on de_nuke opened loudly for 4 billionth time, neighbours furious',
+  'Economy in shambles: player saves for full armour, dies to headshot anyway',
+  'Bot difficulty raised by one. Server population mysteriously halves',
+  'Flashbang sales soar as teammates report finally "seeing the light"',
+  'AFK player commended for "anchoring the site", awarded MVP',
+  'Weather forecast for de_aztec: rain. Tomorrow: rain. Forever: rain',
+]
+const NEWS_TEXT = NEWS.join('  •••  ') + '  •••  '
+
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
 function stageProgress(stage: Stage): number | null {
@@ -247,6 +266,16 @@ const App: FC = () => {
           )}
 
           <p className="hint">Tip: hit F1 on the team screen to jump straight into the action</p>
+        </div>
+        <div className="ticker" aria-hidden="true">
+          <span className="ticker__badge">FF NEWS</span>
+          <div className="ticker__viewport">
+            {/* two copies so the -50% translate loops seamlessly */}
+            <div className="ticker__track">
+              <span>{NEWS_TEXT}</span>
+              <span>{NEWS_TEXT}</span>
+            </div>
+          </div>
         </div>
         {stage.id !== 'playing' && !videoDead && (
           <button
