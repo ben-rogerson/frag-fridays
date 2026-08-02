@@ -54,7 +54,7 @@ const SERVER_SPECS: [string, string][] = [
   ['vCPUs', '1 vCPU'],
   ['RAM', '2048.00 MB'],
   ['Storage', '25 GB NVMe'],
-  ['Location', 'Sydney'],
+  ['Location', '\u{1F1E6}\u{1F1FA} Sydney'],
 ]
 
 // fullscreen muzzle-flash flicker: soft amber bursts (occasionally a
