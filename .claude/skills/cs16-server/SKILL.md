@@ -73,10 +73,18 @@ Use `grep -a` - some files/output trip binary detection.
 **Add a map:** (1) verify the download is GoldSrc - first 4 bytes
 `1E 00 00 00`; mirrors serve Source `VBSP` files under CS 1.6 names.
 (2) Check dependencies (embedded textures vs wad refs vs skyname - python
-lump-reader in the decision log; all-stock deps = free). (3) Drop `.bsp` in
+lump-reader in the decision log; all-stock deps = free; check the box's
+game tree before bundling anything, several "custom" skies/sounds are
+stock). Non-map client assets (wads, overviews, skies, sounds) go in
+`server/custom/` - deploy.sh overlays it onto `cs/cstrike/` and they ride
+valve.zip; the server never needs them (verified: wad-referencing maps
+boot without their wads). A missing skyname can be byte-patched to a stock
+sky (recipe in the decision log). (3) Drop `.bsp` in
 `server/maps/`, add to `server/<mod>/mapcycle.txt`. (4) `pnpm run deploy
 <mod>` then `pnpm run clientcfg`. (5) Boot-test in a throwaway with the
-custom-maps mount. Boot map = compose `command:` `+map` - keep it equal to
+custom-maps mount and confirm: graph loads, bots rack up kills, zero
+`A* Search failed` (a broken graph dead-airs the session - the he_glass
+lesson). Boot map = compose `command:` `+map` - keep it equal to
 mapcycle line 1.
 
 **Bots:** YaPB config at `server/<mod>/addons/yapb/conf/yapb.cfg` (per-mod

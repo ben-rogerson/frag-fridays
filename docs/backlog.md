@@ -87,15 +87,28 @@ defeat the pathfinder), and a map bots can't play would dead-air the session
 whenever the rotation reached it. Revisit only if a session ever runs
 all-human.
 
-Remaining candidates, roughly in order of appeal:
+Candidate round two (2026-08-02): `fy_snow` (534KB, both rotations - its
+sky, and even its wind wav, turned out to be stock), `de_rats` (960KB bsp +
+2.9MB `de_rats.wad`, both rotations - the wad is client-only, verified by
+booting the map in a container without it) and `ka_legoland` (509KB, dm
+only - it strips weapons and hands out knives every spawn, which would
+break GunGame's weapon ladder). ka_legoland's `dustbowl` sky isn't stock,
+so its worldspawn `skyname` was byte-patched to `desert` (script trick in
+the decision log). All three boot-tested with bots: proper community
+graphs, kills accumulating, zero A* failures. valve.zip 301M -> 305M.
+Non-map client assets (the wad, overviews) ship via the new
+`server/custom/` overlay that deploy.sh rsyncs additively into
+`cs/cstrike/`.
 
-- `ka_legoland`, `rats_*` - untested
-- `fy_snow` - more iceworld, if the first ones land well
+No candidates left untested. Next map additions are pure pipeline work
+(recipe in the cs16-server skill).
 
 Watch on Friday: under dm, scoutzknivez's own scout+knife handout
 (`player_weaponstrip` + `game_player_equip` map entities) races frag_dm's
 rifle handout - either outcome is playable, but if rifles win and it feels
-wrong, teach frag_dm to skip equipping on this map.
+wrong, teach frag_dm to skip equipping on this map. Same applies to
+ka_legoland's knife handout - if frag_dm's rifles win the race there, the
+map loses its point; skip frag_dm equipping on it.
 
 ## 7. Custom spray / wall tag
 

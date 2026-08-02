@@ -11,18 +11,17 @@ gets hand-edited on the server.
 |---|---|---|
 | `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile vanilla` runs stock CS 1.6 (service bind-mounts `mods/`, which is currently empty). The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
 | `gg/` | `/opt/cs16/gg/` | GunGame (working) - Dockerfile compiles `addons/` plugin source at build time, appends to `plugins.ini` |
-| `dm/` | `/opt/cs16/dm/` | CSDM deathmatch - compose + Dockerfile only, no `addons/` yet so it cannot build (needs `modules.ini` handling, not `plugins.ini`) |
+| `dm/` | `/opt/cs16/dm/` | Deathmatch (working) - our `frag_dm.sma` compiled at build time; CSDM itself is dead on this stack (see docs/troubleshooting.md) |
 | `zp/` | `/opt/cs16/zp/` | Zombie Plague - abandoned, kept as the Dockerfile template the others were copied from |
 | `config/userconfig.cfg` | `/opt/cs16/cs/cstrike/userconfig.cfg` | Shared client config, ships to every player inside `valve.zip` |
+| `maps/` | `/opt/cs16/cs/cstrike/maps/` (additive) | Custom map `.bsp`/`.txt` files; containers also mount the box path as `cstrike/custom/maps` |
+| `custom/` | `/opt/cs16/cs/cstrike/` (additive) | Client-only assets custom maps need (wads, overviews, skies, sounds) - ride valve.zip, never mounted into containers |
 
 ## What is deliberately NOT here
 
 - `/opt/cs16/cs/` - the SteamCMD game install (copyrighted, ~1GB). Lives only on the box.
-- `valve.zip` (root, `gg/`, `dm/`) - ~438MB game filesystem archives, built on
-  the box from the game files. Gitignored. Note: there is currently NO
-  `update-clientcfg.sh` on the box (the handover doc was wrong) - rebuilding
-  valve.zip after a `userconfig.cfg` change is manual. Automating it is in
-  docs/backlog.md.
+- `valve.zip` - the ~300MB client payload, built on the box by
+  `update-clientcfg.sh` (`pnpm run clientcfg`). Gitignored.
 - `/opt/cs16/src/` - downloaded mod archives.
 - SteamCMD internals at `/opt/cs16/` root (`linux32/`, `package/`, `steamcmd.sh`, ...).
 - `.env` - stays on the box, holds only `PUBLIC_IP` for the root compose.

@@ -65,6 +65,15 @@ if [[ -d "$SERVER_DIR/maps" ]]; then
   rsync -rtvz "$SERVER_DIR/maps/" "$HOST:$REMOTE_ROOT/cs/cstrike/maps/"
 fi
 
+# non-map client assets a custom map needs (wads, overviews, gfx/env skies,
+# sounds) - an overlay of cstrike/, additive for the same reason as maps.
+# Client-only: the server proved it loads wad-referencing maps without the
+# wad, so containers never mount these; they ride valve.zip via clientcfg.
+if [[ -d "$SERVER_DIR/custom" ]]; then
+  log "installing custom client assets into game files tree"
+  rsync -rtvz "$SERVER_DIR/custom/" "$HOST:$REMOTE_ROOT/cs/cstrike/"
+fi
+
 # the root compose bind-mounts these; they must exist even when empty
 ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs}"
 

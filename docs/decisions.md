@@ -266,3 +266,32 @@ Blog material - the numbers and the colour:
   built-in per-source penalties (`srclimit_penalise` was visibly throttling
   the loudest IP already), and fail2ban would only be tidying the logs of a
   door that no longer has a lock to pick.
+
+## Map round two: wads are client-only, skynames are patchable (2026-08-02)
+
+Three additions (fy_snow, de_rats, ka_legoland[dm-only]) settled the two
+open questions about custom-map dependencies:
+
+- **External wads never need to reach the server.** de_rats references 130
+  textures across five wads including its own 2.9MB `de_rats.wad`; a
+  throwaway container booted it with bots fighting and no errors *without*
+  the wad present. Texture data is render-side. So wads (plus overviews,
+  custom skies, sounds) only need to reach clients - hence the new
+  `server/custom/` dir, an overlay of `cstrike/` that deploy.sh rsyncs
+  additively into `cs/cstrike/` where update-clientcfg.sh's keep-list zips
+  everything that isn't a trimmed map. Containers keep mounting only
+  `cs/cstrike/maps`.
+- **A missing sky is fixable by patching worldspawn, not by shipping TGAs.**
+  ka_legoland wants skyname `dustbowl` (TFC, not in HL/CS). Rather than
+  bundle six TGAs for a map you stare at for seconds, rewrite the skyname:
+  read lump 0 (entities, plain text) from the BSP's lump directory at offset
+  4, replace `"dustbowl"` with a stock sky (`"desert"`), append the modified
+  lump at EOF and repoint the directory entry (offsets of other lumps
+  untouched - appending sidesteps all shifting). ~10 lines of python,
+  verified in a bot boot-test. Check stock skies first though: fy_snow's
+  `snow` sky and even its `de_torn` wind wav were already in the game tree,
+  so it cost one bsp.
+- ka_legoland is dm-only: its per-spawn `player_weaponstrip` +
+  `game_player_equip` (knives) would break GunGame's level ladder. Same
+  strip/equip race as scoutzknivez under frag_dm - watch which handout wins
+  on Friday.

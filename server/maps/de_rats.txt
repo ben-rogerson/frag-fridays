@@ -1,0 +1,14 @@
+Rats! - Bomb/Defuse
+
+Counter-Terrorists:
+Prevent the terrorists from blowing-
+up the kitchen sink. Team members
+must defuse any bombs that threaten
+the target area.
+
+Terrorists:
+The terrorist carrying the bomb must
+plant it on or around the kitchen
+sink.
+
+(Press FIRE to continue)
