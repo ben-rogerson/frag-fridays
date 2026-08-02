@@ -130,11 +130,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Type !rules for instructions on how to play and a list of commands^n
-Type !level to get your level info and who is leading^n
-Type !score to get a list of all players scores and winnings^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -312,11 +308,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = D34+hm4+ch M0|)3 !$ \rENABLED!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Typ3 !|2u13$ |=0|2 !N$+|2uc+!0N$ 0N h0w +0 p14y 4N|) 4 1!$+ 0|= c0mm4N|)$^n
-Typ3 !13V31 +0 g3+ J00|2 13V31 !N|=0 4N|) wh0 !$ 134|)!Ng^n
-Typ3 !$c0|23 +0 g3+ 4 1!$+ 0|= 411 p14y3|2$ $c0|23$ 4N|) w!NN!Ng$ !N J00|2 c0N$013^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -494,11 +486,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Modus ist \rAKTIVIERT!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Modus ist \rAKTIVIERT!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Modus ist \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = Diese Runde hat \y%i\w Level!
-WELCOME_MESSAGE_LINE8 :
-Tippe !rules fuer Instruktionen, wie man den Mod spielt und um eine Liste der Befehle zu sehen^n
-Tippe !level um Deine Levelinfo und den momentan Fuehrenden zu sehen^n
-Tippe !score um eine Liste von allen Spielern, Punkten und Gewinnen in Deiner Konsole zu bekommen^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s gewinnt!
 WIN_MOTD_LINE2 = Das %sen Team
 WIN_MOTD_LINE3 = ist der Gewinner!
@@ -676,11 +664,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode is \rAAN!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Type !rules voor instructies om te spelen en een lijst met^n
-Type !level om je level te zien en te zien wie de leider is^n
-Type !score om een lijst van alle scores te zien in je console^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -858,11 +842,7 @@ WELCOME_MESSAGE_LINE4 = Le mode Knife Elite est \rACTIF !\w
 WELCOME_MESSAGE_LINE5 = Le mode Deathmatch est \rACTIF !\w
 WELCOME_MESSAGE_LINE6 = Le mode par equipe (Teamplay) est \rACTIF !\w
 WELCOME_MESSAGE_LINE7 = Il y a \y%i\w niveau a passer !
-WELCOME_MESSAGE_LINE8 :
-Tape !rules pour obtenir les instructions sur comment jouer et une liste des commandes^n
-Tape !level pour connaitre ton level actuel et qui est le meneur^n
-Tape !score pour afficher la liste des scores de tous les joueurs et des gagnants dans ta console^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s gagne !
 WIN_MOTD_LINE2 = L'equipe des %s
 WIN_MOTD_LINE3 = a gagne !
@@ -1041,11 +1021,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = 死亡模式 \开启!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-say !rules 命令查看游戏规则和玩家可用命令^n
-say !level 命令查看你的当前级别信息及领先者信息^n
-say !score 命令查看所有玩家当前成绩^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -1224,11 +1200,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode estah \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Modo Deathmatch estah \rENABLED!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode estah \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Digite !rules para instrucoes de como jogar e uma lista de comandos^n
-Digite !level para ver seu posto e quem esta liderando^n
-Digite !score para ver uma lista de todos os jogadores e vitoriasa no seu console^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -1407,11 +1379,7 @@ WELCOME_MESSAGE_LINE4 = Modo Knife Elite \rACTIVADO!\w
 WELCOME_MESSAGE_LINE5 = Modo Deathmatch \rACTIVADO!\w
 WELCOME_MESSAGE_LINE6 = Modo Teamplay \rACTIVADO!\w
 WELCOME_MESSAGE_LINE7 = Hay \y%i\w niveles en este juego!
-WELCOME_MESSAGE_LINE8 :
-Escribe !rules para ver instrucciones del juego y una lista de comandos^n
-Escribe !level para ver tus estadisticas^n
-Escribe !score para ver tu nivel y el de todos los jugadores^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s es el ganador!
 WIN_MOTD_LINE2 = el equipo %s
 WIN_MOTD_LINE3 = es el ganador!
@@ -1587,11 +1555,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mod ar \rAKTIVERAT!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Skriv !rules i consolen for instruktioner av hur du spelar och en lista med kommandon^n
-Skriv !level i consolen for att se info om din niva och vem som leder^n
-Skriv !score i consolen for att se alla spelares resultat och vinster^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -1769,11 +1733,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode on \rP'A'LL'A'!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Kirjoittamalla !rules n'a'et pelin s'a'a'nn'o't ja komennot^n
-Kirjoittamalla !level n'a'et tasosi ja johtajan^n
-Kirjoitamalla !score n'a'et pistetilastot voittajista ja h'a'vij'a'jist'a'^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -1952,11 +1912,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode este \rACTIVAT!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Tasteaza !rules pentru instructiuni, cum sa joci si o lista de comenzi 
-Tasteaza !level pentru a sti ce nivel esti si cine e cel mai avansat nivel
-Tasteaza !score pentru a primi o lista a tuturor jucatorilor si castigatorilor in consola
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -2135,11 +2091,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode er \rENABLED!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Skriv !rules for at faa instruction om hvordan spillet virker samt en liste over kommandoer som du kan skrive^n
-Skriv !level for at se hvilket niveau du befinder dig paa og hvem der ser ud til at vinde i Qjeblikket^n
-Skriv !score for at se alle spilleres nuvaerende score i din consol^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -2318,11 +2270,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode \rÂÊËÞ×¨Í!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rENABLED!\w
 WELCOME_MESSAGE_LINE7 = There are \y%i\w levels this round!
-WELCOME_MESSAGE_LINE8 :
-Ïèøè !rules äëÿ äàëüíåéøèõ èíñòðóêöèè ïî èãðå è ñïèñêà êîìàíä^n
-Ïèøè !level ÷òîá óçíàòü íà êàêîì òû óðîâíå è êòî ëèäèðóåò^n
-Ïèøè !score ÷òîá ïîëó÷èòü ñïèñîê î÷êîâ è ïîáåä âñåõ èãðîêîâ â êîíñîëè^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s won!
 WIN_MOTD_LINE2 = the %s team
 WIN_MOTD_LINE3 = is the winner!
@@ -2501,11 +2449,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode jest \rWLACZONY!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode jest \rWLACZONY!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode jest \rWLACZONY!\w
 WELCOME_MESSAGE_LINE7 = Jest \y%i\w leveli na tej mapie
-WELCOME_MESSAGE_LINE8 :
-Wpisz !rules by dostac wskazowki jak grac i liste przydatnych komend^n
-Wpisz !level by zobaczyc swoj poziom i sprawdzic kto wygrywa^n
-Wpisz !score by otrzymac punktacje graczy i wygrane w konsoli^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s wygral!
 WIN_MOTD_LINE2 = %s TEAM
 WIN_MOTD_LINE3 = wygrywa!
@@ -2684,11 +2628,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode is \rUKLJUCEN!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode je \rUKLJUCEN!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode is \rUKLJUCEN!\w
 WELCOME_MESSAGE_LINE7 = Ima \y%i\w nivoa u ovoj rundi!
-WELCOME_MESSAGE_LINE8 :
-Say !rules za instrukcije kako se igra GunGame i spisak komandi^n
-Say !level da vidis svoj trenutni nivo i ko vodi^n
-Say !score da u konzoli dobijes rezultate svih igraca i pobeda^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s je pobednik!
 WIN_MOTD_LINE2 = %s tim
 WIN_MOTD_LINE3 = je pobednik!
@@ -2868,11 +2808,7 @@ WELCOME_MESSAGE_LINE4 = Nāvesmačs Mods ir \rIeslēgts!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mods ir \rIeslēgts!\w
 WELCOME_MESSAGE_LINE6 = Komandas Mods ir \rIeslēgts!\w
 WELCOME_MESSAGE_LINE7 = Šeit ir \y%i\w līmeņi raundā!
-WELCOME_MESSAGE_LINE8 :
-Raksti !rules instrukcija kā spēlēt un komandu saraksts ^n
-Raksti !level lai iegūtu tava līmeņa un līdera info^n
-Raksti !score lai iegūtu sarakstu ar spēlētaju punktiem un uzvarām jūsu konsolē^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s vinnēja!
 WIN_MOTD_LINE2 = %s komanda
 WIN_MOTD_LINE3 = ir uzvarētaji!
@@ -3052,11 +2988,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite Mode е \rВКЛЮЧЕН!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Mode е \rВКЛЮЧЕН!\w
 WELCOME_MESSAGE_LINE6 = Teamplay Mode е \rВКЛЮЧЕН!\w
 WELCOME_MESSAGE_LINE7 = Този рунд има \y%i\w нива!
-WELCOME_MESSAGE_LINE8 :
-Напиши !rules за инструкции как се играе и лист със командите^n
-Напиши !level за да видиш нивото си и кой е лидерът^n
-Напиши !score за да видиш резултатът на всички играчи^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s ПОБЕДИ!
 WIN_MOTD_LINE2 = %s отборът
 WIN_MOTD_LINE3 = е победител!
@@ -3236,11 +3168,7 @@ WELCOME_MESSAGE_LINE4 = Knife Elite mode is \rUKLJUCEN!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch mode je \rUKLJUCEN!\w
 WELCOME_MESSAGE_LINE6 = Teamplay mode is \rUKLJUCEN!\w
 WELCOME_MESSAGE_LINE7 = Ima \y%i\w nivoa u ovoj rundi!
-WELCOME_MESSAGE_LINE8 :
-Say !rules za instrukcije kako se igra GunGame i spisak komandi^n
-Say !level da vidis svoj trenutni nivo i tko vodi^n
-Say !score da u konzoli dobijes rezultate svih igraca i pobjeda^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = %s je pobjednik!
 WIN_MOTD_LINE2 = %s tim
 WIN_MOTD_LINE3 = je pobjednik!
@@ -3416,11 +3344,7 @@ WELCOME_MESSAGE_LINE4 = Peilio Elite Rezimas yra \rIJUNGTAS!\w
 WELCOME_MESSAGE_LINE5 = Deathmatch Rezimas yra \rIJUNGTAS!\w
 WELCOME_MESSAGE_LINE6 = Komandinis rezimas yra \rIJUNGTAS!\w
 WELCOME_MESSAGE_LINE7 = isviso yra \y%i\w lygiai siame rounde!
-WELCOME_MESSAGE_LINE8 :
-Rasykite !rules gauti instrukcijoms kaip zaisti ir kokios komandos yra^n
-Rasykite !level gauti savo lygio informacija ir kas pirmiauja^n
-Rasykite !score gauti visu zaideju lygius ir taskus^n
-:
+WELCOME_MESSAGE_LINE8 = Welcome to \yFrag Friday\w! Chat commands: \y!guns !level !score !top10\w
 WIN_MOTD_LINE1 = Laimejo %s!
 WIN_MOTD_LINE2 = komanda %s
 WIN_MOTD_LINE3 = yra laimetojas!
