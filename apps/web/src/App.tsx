@@ -137,6 +137,7 @@ const App: FC = () => {
   const wantSoundRef = useRef(true)
   const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
+  const [pipOpen, setPipOpen] = useState(false)
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
@@ -287,7 +288,12 @@ const App: FC = () => {
           </div>
         </div>
         {stage.id !== 'playing' && !videoDead && (
-          <div className="pip">
+          <div
+            className={`pip${pipOpen ? ' pip--open' : ''}`}
+            onClick={() => setPipOpen((o) => !o)}
+            role="button"
+            aria-label={pipOpen ? 'Tuck the frag movie away' : 'Slide the frag movie in'}
+          >
             <iframe
               ref={iframeRef}
               className="pipvid"
