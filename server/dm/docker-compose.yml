@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     platform: linux/386
     # boot map (image default is de_dust2); keep in sync with mapcycle.txt line 1
-    command: ["+map awp_map", "+maxplayers 16"]
+    command: ["+map fy_pool_day", "+maxplayers 16"]
     environment:
       PORT: 27038
       IP: 149.28.172.74

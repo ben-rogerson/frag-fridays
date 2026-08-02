@@ -1,3 +1,4 @@
+fy_pool_day
 awp_map
 de_dust2
 de_dust
@@ -6,6 +7,5 @@ de_prodigy
 de_nuke
 cs_militia
 fy_iceworld
-fy_pool_day
 aim_map
 scoutzknivez

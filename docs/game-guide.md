@@ -108,8 +108,8 @@ zip):
 
 - gg (boots on aim_map): aim_map, dust2, assault, dust, italy, inferno,
   militia, aztec, fy_iceworld, fy_pool_day, scoutzknivez
-- dm (boots on awp_map): awp_map, dust2, dust, assault, prodigy, nuke,
-  militia, fy_iceworld, fy_pool_day, aim_map, scoutzknivez
+- dm (boots on fy_pool_day): fy_pool_day, awp_map, dust2, dust, assault,
+  prodigy, nuke, militia, fy_iceworld, aim_map, scoutzknivez
 
 scoutzknivez runs at `sv_gravity 250` / `sv_airaccelerate 100` via an AMXX
 per-map config; every other map resets to stock 800/10 (mechanism in
