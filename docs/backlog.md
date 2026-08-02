@@ -10,9 +10,13 @@ Retest latency from a real connection. The earlier 75-320ms reading was a
 phone hotspot (mobile radio latency plus jitter), not the server. Sydney
 should give ~20-30ms.
 
-## 2. Verify client config / join binds
+## 2. Write update-clientcfg.sh + verify join binds
 
-Run `/opt/cs16/update-clientcfg.sh gg` and verify the F1/F2 join binds work.
+The handover doc referenced `/opt/cs16/update-clientcfg.sh` but it does not
+exist on the box - `valve.zip` was built by hand. Write it (server-side script
+in the repo: install `userconfig.cfg`, rebuild `valve.zip` with only `valve/`
+and `cstrike/` at the archive root, restart the running mod), then verify the
+F1/F2 join binds work in-browser.
 
 ## 3. Build CSDM (Deathmatch)
 
@@ -110,7 +114,9 @@ Whatever the transport, the skill should encode: the directory layout and
 one-mod-at-a-time port constraint, the mod-swap procedure with mandatory
 `docker ps` verification, the `valve.zip` root-structure rule, the build-time
 compile pattern and the `plugins.ini`/`modules.ini` distinction, the ReAPI
-incompatibility, `update-clientcfg.sh` usage, and the Friday run-book.
+incompatibility, the valve.zip rebuild procedure, and the Friday run-book.
+(Note: local Claude Code can now SSH to the box directly via the `cs16`
+alias, which weakens the case for option 2's VPS install.)
 
 ## 9. Web portal / Slack integration (future project)
 

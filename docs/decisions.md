@@ -117,3 +117,19 @@ scripts.
 Chose an `apps/` + `packages/` monorepo layout to make room for the future
 web portal and Slack integration alongside the server config, rather than
 restructuring later.
+
+## Repo seeded from the live box, not the handover doc (2026-08-02)
+
+Pulling the real files revealed the handover doc had drifted from reality:
+`update-clientcfg.sh` never existed (valve.zip was built by hand), the root
+compose was already profile-based with an empty `mods/` bind-mount scheme,
+and `/opt/cs16` doubles as the SteamCMD install dir. Decision: the repo
+mirrors the box's actual layout 1:1 (`pnpm run pull` re-syncs it) rather than
+imposing a tidier invented one - less to migrate, nothing to break on a
+working server two file-moves before a Friday.
+
+## Housekeeping applied via first deploy (2026-08-02)
+
+`restart: always` changed to `unless-stopped` in all three mod compose files
+(the port-theft incident), root compose service renamed `zp` to `vanilla` to
+match its profile, stray 438MB `dm/valve.zip` deleted from the box.

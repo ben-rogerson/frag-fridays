@@ -59,29 +59,37 @@ you own. Correct answers:
 
 ## 5. Directory layout
 
+As verified on the live box (2026-08-02) - note `/opt/cs16` doubles as the
+SteamCMD install dir, so SteamCMD internals sit alongside the project files:
+
 ```
 /opt/cs16/
-├── cs/                      # SteamCMD install (source of truth for game files)
+├── cs/                      # SteamCMD game install (source of truth for game files)
 │   ├── valve/
 │   └── cstrike/
 │       └── userconfig.cfg   # shared client config, ships to all players
-├── docker-compose.yml       # vanilla server (profile: was "zp", renaming to "vanilla")
-├── update-clientcfg.sh      # writes client cfg, rebuilds valve.zip, restarts
-├── src/                     # downloaded mod archives (also not in repo)
+├── .env                     # PUBLIC_IP for the root compose (not in repo)
+├── docker-compose.yml       # profile-based: --profile vanilla runs stock CS
+├── valve.zip                # ~438MB game filesystem archive, built by hand
+├── mods/                    # bind-mount targets for the root compose (empty)
+├── src/                     # downloaded mod archives (not in repo)
 │   ├── gg-src/
 │   └── dm-src/
-├── gg/                      # GunGame - working
+├── gg/                      # GunGame - working; own image built from addons/
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   ├── addons/
 │   └── valve.zip
-└── dm/                      # CSDM - not built yet
-    ├── docker-compose.yml
-    └── valve.zip            # stray, created by a failed run - delete
+├── dm/                      # CSDM - compose + Dockerfile only, no addons yet
+├── zp/                      # Zombie Plague - abandoned template
+└── linux32/, linux64/, package/, public/, siteserverui/, steamcmd.sh
+                             # SteamCMD internals - leave alone
 ```
 
-Each mod is its own image and directory (not a swapped bind-mount). All mods
-bind port 27016, so only one runs at a time and the player URL never changes.
+There is no `update-clientcfg.sh` (the original handover doc claimed one;
+writing it is in the backlog). Working mods are each their own image and
+directory. Everything binds port 27016, so only one runs at a time and the
+player URL never changes.
 
 ## 6. Snapshot as rollback point
 

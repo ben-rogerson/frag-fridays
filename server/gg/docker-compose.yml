@@ -1,7 +1,7 @@
 services:
   xash3d:
     build: .
-    restart: always
+    restart: unless-stopped
     platform: linux/386
     environment:
       PORT: 27018

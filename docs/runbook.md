@@ -21,8 +21,10 @@ reclaimed port 27016 after a reboot and "GunGame" was actually vanilla for
 the whole session. Never announce until `docker ps` shows the right container
 name and nothing else on 27016.
 
-If the client config changed, run `/opt/cs16/update-clientcfg.sh <mod>` (it
-writes the config, rebuilds `valve.zip` and restarts).
+If the client config changed, `valve.zip` must be rebuilt on the box so
+players actually receive it - this is currently a manual process (there is no
+`update-clientcfg.sh` yet; automating it is in the backlog). `pnpm run deploy`
+only installs the config into the game files tree.
 
 ## 2. The three Slack messages
 

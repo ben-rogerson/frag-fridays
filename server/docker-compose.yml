@@ -1,5 +1,5 @@
 services:
-  zp:
+  vanilla:
     image: yohimik/cs-web-server-metpamx:latest
     platform: linux/386
     profiles: ["vanilla"]
