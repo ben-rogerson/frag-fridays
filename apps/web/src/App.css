@@ -205,6 +205,69 @@
   color: #5c6167;
 }
 
+/* sponsor strip, bottom left above the ticker */
+.sponsors {
+  position: absolute;
+  left: 1.25rem;
+  bottom: 3.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.sponsors__label {
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #5c6167;
+}
+
+.sponsors__logos {
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+}
+
+.sponsor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  opacity: 0.85;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6));
+}
+
+.sponsor__mark {
+  width: 26px;
+  height: 26px;
+}
+
+.sponsor__mark--claw path {
+  fill: #e8e6e3;
+}
+
+.sponsor__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e8e6e3;
+  white-space: nowrap;
+}
+
+/* the white can: silvery caps, spiky vibes */
+.sponsor__name--monster {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #eceff1;
+}
+
+.sponsor__name--monster em {
+  font-style: normal;
+  font-weight: 300;
+  letter-spacing: 0.28em;
+  color: #b8bfc4;
+}
+
 /* fake-news marquee pinned to the bottom of the overlay */
 .ticker {
   position: absolute;

@@ -46,6 +46,44 @@ const NEWS_TEXT = NEWS.join('  •••  ') + '  •••  '
 
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
+// stylised sponsor marks, drawn inline so the page stays self-contained
+const SWS_COLOURS = [
+  '#2ecc71', '#71e0d6', '#2394df', '#5d3fd3',
+  '#e64c4c', '#f5a623', '#f7d154', '#9acd32',
+]
+
+const SimplyWallStLogo: FC = () => (
+  <span className="sponsor">
+    <svg viewBox="0 0 40 40" className="sponsor__mark" aria-hidden="true">
+      {SWS_COLOURS.map((c, i) => (
+        <ellipse
+          key={c}
+          cx="20"
+          cy="9"
+          rx="3.2"
+          ry="9"
+          fill={c}
+          transform={`rotate(${i * 45} 20 20)`}
+        />
+      ))}
+    </svg>
+    <span className="sponsor__name">Simply Wall St</span>
+  </span>
+)
+
+const MonsterUltraLogo: FC = () => (
+  <span className="sponsor">
+    <svg viewBox="0 0 100 100" className="sponsor__mark sponsor__mark--claw" aria-hidden="true">
+      <path d="M28 8 L40 8 L42 46 L36 74 L30 46 Z" />
+      <path d="M46 4 L60 4 L57 52 L51 92 L46 52 Z" />
+      <path d="M66 8 L78 8 L72 46 L62 74 L64 46 Z" />
+    </svg>
+    <span className="sponsor__name sponsor__name--monster">
+      Monster <em>Ultra</em>
+    </span>
+  </span>
+)
+
 function stageProgress(stage: Stage): number | null {
   switch (stage.id) {
     case 'downloading':
@@ -241,6 +279,13 @@ const App: FC = () => {
           />
         )}
         <div className="tint" />
+        <div className="sponsors">
+          <p className="sponsors__label">Proudly sponsored by</p>
+          <div className="sponsors__logos">
+            <SimplyWallStLogo />
+            <MonsterUltraLogo />
+          </div>
+        </div>
         {stage.id !== 'playing' && !videoDead && (
           <div className="pip">
             <iframe
