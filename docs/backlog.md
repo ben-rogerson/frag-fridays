@@ -229,3 +229,21 @@ The join-screen welcome menu showed `ML_NOTFOUND: WELCOME_MESSAGE_LINEB--`
 as its last line. Root cause wasn't a missing key: the AMXX lang parser
 can't read the colon-block form of `WELCOME_MESSAGE_LINE8` in
 `gungame.txt`. Fixed in commit 91ac1f5 and deployed.
+
+## 13. Domain + https in front of the box
+
+Point a subdomain (e.g. `cs.` something Ben owns) at 149.28.172.74 and run
+Caddy on the box proxying 443 -> 27016 (ws upgrade included - the client
+already speaks wss/`location.host`). Unlocks three things at once:
+
+- **YouTube loading-screen video**: YouTube rejects embeds from IP-literal
+  http origins (widget onError 150, verified 2026-08-03 against a
+  known-embeddable control video). A real domain origin fixes it. The
+  client currently detects the error and drops the iframe, so shipping
+  this makes the video appear with zero client changes.
+- **Mic voice chat**: `getUserMedia` needs a secure context; webrtc.ts
+  already requests it optionally and adds the track when available.
+- Nicer player URL (no `:27016`).
+
+Firewall: open 80/443. Keep 27016 open during cutover; players on the old
+URL keep working.
