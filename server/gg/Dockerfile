@@ -1,5 +1,7 @@
 FROM yohimik/cs-web-server-metpamx:latest
 COPY addons cstrike/addons
+# curated rotation - all stock maps (already in valve.zip, zero load-time cost)
+COPY mapcycle.txt cstrike/mapcycle.txt
 USER root
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \

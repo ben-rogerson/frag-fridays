@@ -5,6 +5,8 @@ FROM yohimik/cs-web-server-metpamx:latest
 # signature-scans the original CS DLL and fails silently against this stack's
 # reimplemented one - see docs/decisions.md.
 COPY addons cstrike/addons
+# curated rotation - all stock maps (already in valve.zip, zero load-time cost)
+COPY mapcycle.txt cstrike/mapcycle.txt
 
 USER root
 RUN cd cstrike/addons/amxmodx/scripting \
