@@ -76,7 +76,8 @@ and `yb_difficulty_auto 0`, then `yb_difficulty` alone applies.
 | `yb_quota` | 9 | bot count; lower it for tiny maps |
 | `yb_quota_mode` | normal | `fill` = top up to quota counting humans; `match` = N bots per human |
 | `yb_join_team` | any | force `t`/`ct` to stack one side |
-| `yb_chat` / `yb_chat_percent` | 1 / 30 | text-chat banter; set `yb_chat 0` if it's noise |
+| `yb_chat` / `yb_chat_percent` | 0 / 30 | text-chat banter, off since 2026-08-02 |
+| `yb_radio_mode` | 0 | 0 = no radio, 1 = radio, 2 = radio + voice chatter; off since 2026-08-02 |
 | `yb_preferred_personality` | none | `rusher` / `careful` / `normal` |
 | `yb_random_knife_attacks` | 1 | bots occasionally go for the humiliation knife |
 | `yb_camping_allowed` | 1 | set 0 for pure run-and-gun sessions |
@@ -86,8 +87,8 @@ and `yb_difficulty_auto 0`, then `yb_difficulty` alone applies.
 
 Leave alone: `weapon.cfg` (buy priorities - moot when frag_dm hands out
 guns) and voice chatter (`chatter.cfg` needs sound files shipped via
-valve.zip). Text chat is off too (`yb_chat 0`, 2026-08-02) - bots are
-fully silent apart from radio commands (`yb_radio_mode 1`).
+valve.zip). Text chat and radio are both off (`yb_chat 0`,
+`yb_radio_mode 0`, 2026-08-02) - bots are fully silent.
 
 ### Verifying bots server-side
 
