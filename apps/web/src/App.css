@@ -99,6 +99,13 @@
   text-align: center;
 }
 
+.crest {
+  width: 64px;
+  height: 64px;
+  color: #fff;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55));
+}
+
 .eyebrow {
   font-size: 0.7rem;
   letter-spacing: 0.35em;
