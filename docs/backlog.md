@@ -10,13 +10,22 @@ loading, plugins.ini vs modules.ini).
 The earlier 75-320ms reading was the phone hotspot, as suspected. No
 server-side latency concern.
 
-## 2. Verify join binds in-browser
+## 2. Verify join binds in-browser - done (2026-08-02)
 
-`update-clientcfg.sh` is written and deployed (2026-08-02): `pnpm run
-clientcfg` syncs configs, rebuilds `valve.zip` from `cs/{valve,cstrike}`,
-installs it to both mount points and restarts the running mod. Remaining:
-open http://149.28.172.74:27016 in a browser and verify the F1/F2 join binds
-actually work (and that the `userconfig.cfg loaded` echo appears in console).
+Verified in-browser on gg: pressing F1 at the team screen spawned straight
+into the game. The F1/F2 binds live in `userconfig.cfg`, so the bind working
+proves the config loaded (the console echo wasn't checked directly - the
+WASM client has no console UI; the Xash menu has no Console entry and `~`
+does nothing). Two client quirks seen on the way in: one load stalled at
+the splash with "If it's not starting, try to enable microphone and
+refresh" (a refresh fixed it - worth a line in the Slack instructions),
+and the team-select menu DOES render in-browser (numbered text menu), so
+F1/F2 are a convenience rather than the only path in. Root cause of those
+stalls (seen repeatedly while testing item 5): whenever the engine tries
+to draw its yes/no message box (e.g. after a disconnect), the WASM build
+crashes with `RuntimeError: remainder by zero` in `UI_DrawString` and the
+render loop dies at the splash - upstream Xash3D-FWGS bug, not ours; the
+fix for players is always just refresh.
 
 ## 3. Verify Deathmatch (frag_dm) in-browser
 
@@ -44,7 +53,7 @@ them and fine-tune quota for small maps. All options documented in
 [game-guide.md](game-guide.md); config in
 `server/{gg,dm}/addons/yapb/conf/yapb.cfg` (image-baked - redeploy to apply).
 
-## 5. Map voting - server side done, browser vote menu unverified
+## 5. Map voting - done (2026-08-02), vote menu verified in-browser
 
 Investigated 2026-08-02. Server side is all in place:
 
@@ -59,11 +68,26 @@ Investigated 2026-08-02. Server side is all in place:
   graph loads, bots rejoin; `amx_nextmap` steps through the cycle
   sequentially. End-of-map vote fires near `mp_timelimit` (30 min).
 
-Remaining (needs a browser): does the end-of-map vote menu actually render
-in the WASM client? If yes, item done. If no, players still get the curated
-rotation, and voting needs a chat-command approach like frag_dm's `/guns`
-(write a small say-based vote plugin; skip Galileo - same menu question and
-heavier).
+Verified in-browser (2026-08-02) via `pnpm run rc "amx_votemap de_dust2
+fy_iceworld fy_snow de_aztec"` while connected in Chrome: the AMXX vote
+menu renders in the WASM client ("Choose map: 1..4 / 0. none"), a number
+keypress registers ("Reversons voted for option #2"), the vote passes and
+the server changelevels to the winner (fy_iceworld) with the client staying
+connected and bots rejoining. The end-of-map mapchooser flow also works:
+one full cycle observed where the advertised nextmap (de_dust2) was
+replaced by a vote outcome (de_inferno). So both voting paths function;
+`amx_votemap` doubles as a session-day tool to put a map change to a vote.
+
+Gotchas learned while testing:
+
+- The vote menu lasts ~10s and loses to whatever menu already has focus -
+  a player sitting on the GunGame welcome screen ("press any number key")
+  never sees it and their keys don't count. Fine in practice; know it
+  exists.
+- Don't force votes by lowering `mp_timelimit` mid-map: on this engine the
+  timer behaves as if measured against cumulative server time, so setting
+  it below the current value ends the map instantly, skipping the vote.
+  It resets from config on each map change (verified back at 20).
 
 ## 6. Fun map rotation - scoutzknivez in too (2026-08-02)
 
@@ -110,7 +134,7 @@ wrong, teach frag_dm to skip equipping on this map. Same applies to
 ka_legoland's knife handout - if frag_dm's rifles win the race there, the
 map loses its point; skip frag_dm equipping on it.
 
-## 7. Custom spray / wall tag - image shipped, needs a browser T-press
+## 7. Custom spray / wall tag - done (2026-08-02)
 
 Shipped (2026-08-02): the giggling-Kirk spray (`assets/spray-kirk.png`,
 Ben's pick) as a 48x64 255-colour `{LOGO` miptex in valve.zip as BOTH
@@ -133,8 +157,11 @@ time: `scripts/make-spray-wad.py server/custom/logos/remapped.bmp
 assets/<img>.png 96 128` then deploy + clientcfg. Server side:
 `sv_send_logos 1`, `sv_uploadmax 0.5`MB.
 
-Remaining: confirm the 96x128 looks right in-browser, then delete the
-now-useless tempdecal/pldecal.wad from server/custom and call it done.
+Done (2026-08-02): 96x128 confirmed in-browser on gg - sprayed on a de_dust2
+wall, clearly recognisable Kirk, roughly double the old world size as
+intended. `tempdecal.wad`/`pldecal.wad` deleted from `server/custom`; the
+removal ships with the next `pnpm run clientcfg` (not run at the time -
+another session was mid-deploy on the box).
 
 - **Limitation (accepted):** every client loads the same `valve.zip`, so
   everyone shares one spray.
@@ -178,3 +205,11 @@ Give IT a heads-up about the public-facing server, if not already done.
 All three verified done on the box: root compose profile is `vanilla`, the
 stray `/opt/cs16/dm/valve.zip` is gone, every compose (repo and box) uses
 `restart: unless-stopped`.
+
+## 12. GunGame welcome message cosmetic bug (spotted 2026-08-02)
+
+The join-screen welcome menu shows `ML_NOTFOUND: WELCOME_MESSAGE_LINEB--`
+as its last line - a missing multilingual key in GunGame's lang file.
+Cosmetic only. Fix by adding the key to
+`addons/amxmodx/data/lang/gungame.txt` (or trimming the welcome message
+lines in gungame.cfg) next time the gg image is touched.
