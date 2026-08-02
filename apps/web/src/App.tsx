@@ -70,9 +70,11 @@ const App: FC = () => {
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [videoDead, setVideoDead] = useState(false)
   // sound defaults on, but browsers refuse unmuted playback with no user
-  // gesture - the first click/keypress anywhere applies it (see effect below)
+  // gesture - unmuting early PAUSES the video, so it must wait for the
+  // first click/keypress (see effect below)
   const [soundOn, setSoundOn] = useState(true)
   const soundOnRef = useRef(true)
+  const gestureRef = useRef(false)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
@@ -86,10 +88,12 @@ const App: FC = () => {
         const d = JSON.parse(e.data)
         if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
         // a toggle clicked before the player was ready would be dropped -
-        // resend the desired state once it reports in
-        if (d.event === 'onReady' && soundOnRef.current) {
+        // resend the desired state once it reports in (gesture-gated:
+        // unmuting without one pauses the video)
+        if (d.event === 'onReady' && soundOnRef.current && gestureRef.current) {
           ytCommand('unMute')
           ytCommand('setVolume', [65])
+          ytCommand('playVideo')
         }
       } catch {
         /* not a widget message */
@@ -102,11 +106,14 @@ const App: FC = () => {
         '*',
       )
     }, 1000)
-    // any real gesture lets us apply the default-on sound (idempotent)
+    // any real gesture lets us apply the default-on sound (idempotent);
+    // playVideo resumes it if an earlier unmute attempt paused playback
     const applySound = () => {
+      gestureRef.current = true
       if (soundOnRef.current) {
         ytCommand('unMute')
         ytCommand('setVolume', [65])
+        ytCommand('playVideo')
       }
     }
     window.addEventListener('pointerdown', applySound)
@@ -133,6 +140,7 @@ const App: FC = () => {
       // unmuting needs a user gesture, which this click is
       ytCommand('unMute')
       ytCommand('setVolume', [65])
+      ytCommand('playVideo')
     }
     soundOnRef.current = !soundOn
     setSoundOn(!soundOn)
