@@ -132,6 +132,17 @@ console - stdin is closed and rcon is off).
 Adding custom maps (fy_iceworld etc) means bundling `.bsp` + assets into
 valve.zip - measure the size first; see backlog item 6.
 
+## Admin
+
+One named admin (`Ben`, full flags) in both mods' `users.ini`
+(`server/<mod>/addons/amxmodx/configs/`, image-baked). Auth from the
+browser client console works but the order is load-bearing: `setinfo _pw
+"<password>"` FIRST, then `name Ben` - AMXX re-auths on the name change and
+needs `_pw` already in the userinfo; the reverse order fails with "no
+access". Once authed, admin console commands work in the WASM client
+(`amx_map <map>` to change map, `amx_who` to check flags) - so a live map
+change no longer needs a compose edit + redeploy.
+
 ## Shared client config
 
 Every player gets `userconfig.cfg` (join binds, rates, mouse raw input,
