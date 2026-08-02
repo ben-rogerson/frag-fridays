@@ -103,7 +103,9 @@ export async function launchGame(
   fs.chdir('/rodir')
   x.main()
   x.Cmd_ExecuteString('_vgui_menus 0')
-  x.Cmd_ExecuteString('touch_enable 1')
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    x.Cmd_ExecuteString('touch_enable 1')
+  }
   if (playerName) {
     x.Cmd_ExecuteString(`name "${playerName}"`)
   }

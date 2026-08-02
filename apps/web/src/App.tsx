@@ -61,8 +61,36 @@ const App: FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
+  const [videoDead, setVideoDead] = useState(false)
   const [soundOn, setSoundOn] = useState(false)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
+
+  // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
+  // http origins since late 2025). Detect via the widget API and drop the
+  // iframe so players get the plain gradient instead of YouTube's error box.
+  // The widget only reports errors after a 'listening' handshake.
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (typeof e.data !== 'string') return
+      try {
+        const d = JSON.parse(e.data)
+        if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
+      } catch {
+        /* not a widget message */
+      }
+    }
+    window.addEventListener('message', onMsg)
+    const handshake = setInterval(() => {
+      iframeRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: 'listening', id: 'ff', channel: 'widget' }),
+        '*',
+      )
+    }, 1000)
+    return () => {
+      window.removeEventListener('message', onMsg)
+      clearInterval(handshake)
+    }
+  }, [])
 
   const ytCommand = (func: string, args: unknown[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -124,7 +152,7 @@ const App: FC = () => {
     <>
       <canvas id="canvas" ref={canvasRef} />
       <div className={`overlay${stage.id === 'playing' ? ' overlay--hidden' : ''}`}>
-        {stage.id !== 'playing' && (
+        {stage.id !== 'playing' && !videoDead && (
           <iframe
             ref={iframeRef}
             className="bgvid"
@@ -187,7 +215,7 @@ const App: FC = () => {
 
           <p className="hint">Tip: hit F1 on the team screen to jump straight into the action</p>
         </div>
-        {stage.id !== 'playing' && (
+        {stage.id !== 'playing' && !videoDead && (
           <button
             className="sound"
             onClick={toggleSound}
