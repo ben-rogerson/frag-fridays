@@ -146,3 +146,37 @@ key-only. Chose this over firewalling port 22 to the home IP because a
 rotating home IP plus keys-only auth would mean locking yourself out of a box
 that is already safe from password guessing. Verified both directions before
 closing the console.
+
+Blog material - the numbers and the colour:
+
+- The box was one day old and completely unadvertised: a $6 VPS hosting an
+  office CS 1.6 server. It was still being brute-forced around the clock.
+  Nobody targeted it; bots scan the entire IPv4 space and found it within
+  hours of it existing. This is the baseline weather on any public IP.
+- Measured impact: **513 "Failed password" events in the two hours before**
+  the change, **1 in the ten minutes after** (a connection that straddled the
+  sshd restart). Not reduced - eliminated, because the server no longer
+  offers a password prompt at all: rejected attempts changed from
+  `Permission denied (publickey,password)` to `Permission denied (publickey)`.
+- The username dictionary is a snapshot of what bots think runs on servers in
+  2026: `kafka`, `fivem`, `deploy`, `bob`, `mohammad`, `rock`, `openclaw`,
+  `cloud-user`, `data`. FiveM (GTA roleplay servers) sitting next to Kafka is
+  the tell that they scan for both enterprise and game hosts.
+- The trap worth writing about: the main `sshd_config` already said
+  `PasswordAuthentication no` - and it was a lie. Ubuntu cloud images ship
+  `sshd_config.d/50-cloud-init.conf` with `PasswordAuthentication yes`, the
+  drop-in directory is Included at the TOP of the main file, and sshd honours
+  the FIRST occurrence of a directive (the opposite of systemd drop-in
+  semantics). So the visible setting in the file everyone checks is
+  overridden by a file almost nobody checks. Always verify with the effective
+  config (`sshd -T | grep -i password`), never the config file.
+- The fix respects the same mechanism instead of fighting it: a drop-in named
+  `00-hardening.conf` sorts before `50-cloud-init.conf`, so its `no` is read
+  first and wins. No editing of cloud-init's file (it could be rewritten on
+  image updates), no editing of the main config.
+- After the fix, the bots keep knocking - `Invalid user kafka` lines still
+  scroll past - but they die pre-auth. The follow-up decision was to do
+  nothing about that: it is cosmetic log noise, Ubuntu 24.04's sshd has
+  built-in per-source penalties (`srclimit_penalise` was visibly throttling
+  the loudest IP already), and fail2ban would only be tidying the logs of a
+  door that no longer has a lock to pick.
