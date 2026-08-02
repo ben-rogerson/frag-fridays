@@ -307,6 +307,61 @@
   color: #5c6167;
 }
 
+/* server spec panel, top left */
+.specs {
+  position: absolute;
+  top: 1rem;
+  left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.specs__label {
+  font-size: 0.6rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #5c6167;
+}
+
+.specs__label::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.8);
+}
+
+.specs__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.specs__row {
+  display: flex;
+  gap: 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.specs__row dt {
+  width: 4.2rem;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: #5c6167;
+  line-height: 1.5;
+}
+
+.specs__row dd {
+  color: #a8adb3;
+}
+
 /* sponsor strip, bottom left above the ticker */
 .sponsors {
   position: absolute;

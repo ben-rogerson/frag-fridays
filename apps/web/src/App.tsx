@@ -49,6 +49,14 @@ const mb = (bytes: number) => Math.round(bytes / 1048576)
 // each mod's compose mounts its own /info.json next to the client
 type ModeInfo = { mode: string; tagline?: string; bullets?: string[] }
 
+// the Vultr box (update if the VPS is ever resized)
+const SERVER_SPECS: [string, string][] = [
+  ['vCPUs', '1 vCPU'],
+  ['RAM', '2048.00 MB'],
+  ['Storage', '25 GB NVMe'],
+  ['Location', 'Sydney'],
+]
+
 // fullscreen muzzle-flash flicker: soft amber bursts (occasionally a
 // whole-screen wash) composited over the page. Low alpha so nothing
 // underneath loses readability; skipped under prefers-reduced-motion.
@@ -374,6 +382,17 @@ const App: FC = () => {
           />
         )}
         <div className="tint" />
+        <div className="specs">
+          <p className="specs__label">Server</p>
+          <dl className="specs__list">
+            {SERVER_SPECS.map(([k, v]) => (
+              <div className="specs__row" key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
         <div className="sponsors">
           <p className="sponsors__label">Supported by</p>
           <div className="sponsors__logos">
