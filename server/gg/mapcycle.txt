@@ -1,3 +1,4 @@
+aim_map
 de_dust2
 cs_assault
 de_dust
@@ -5,3 +6,5 @@ cs_italy
 de_inferno
 cs_militia
 de_aztec
+fy_iceworld
+fy_pool_day

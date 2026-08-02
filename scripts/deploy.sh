@@ -57,6 +57,14 @@ rsync -tvz "$SERVER_DIR/config/userconfig.cfg" "$HOST:$REMOTE_ROOT/cs/cstrike/us
 log "installing update-clientcfg.sh"
 rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientcfg.sh"
 
+# custom maps go into the game files tree (server plays from it; clientcfg
+# bundles them into valve.zip when a mapcycle references them). Additive on
+# purpose - never --delete against the SteamCMD-installed stock maps.
+if [[ -d "$SERVER_DIR/maps" ]]; then
+  log "installing custom maps into game files tree"
+  rsync -rtvz "$SERVER_DIR/maps/" "$HOST:$REMOTE_ROOT/cs/cstrike/maps/"
+fi
+
 # the root compose bind-mounts these; they must exist even when empty
 ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs}"
 

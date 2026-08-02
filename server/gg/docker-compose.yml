@@ -3,11 +3,14 @@ services:
     build: .
     restart: unless-stopped
     platform: linux/386
+    # boot map (image default is de_dust2); keep in sync with mapcycle.txt line 1
+    command: ["+map aim_map", "+maxplayers 16"]
     environment:
       PORT: 27018
       IP: 149.28.172.74
     volumes:
       - "../valve.zip:/xashds/public/valve.zip"
+      - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
     ports:
       - "27016:27016"
       - "27018:27018"

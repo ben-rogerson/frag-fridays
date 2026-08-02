@@ -10,6 +10,7 @@ services:
       IP: ${PUBLIC_IP}
     volumes:
       - "./valve.zip:/xashds/public/valve.zip"
+      - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
     ports:
@@ -27,6 +28,7 @@ services:
       IP: ${PUBLIC_IP}
     volumes:
       - "./valve.zip:/xashds/public/valve.zip"
+      - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/gg/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/gg/configs:/xashds/cstrike/addons/amxmodx/configs"
     ports:
@@ -44,6 +46,7 @@ services:
       IP: ${PUBLIC_IP}
     volumes:
       - "./valve.zip:/xashds/public/valve.zip"
+      - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/dm/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/dm/configs:/xashds/cstrike/addons/amxmodx/configs"
     ports:
