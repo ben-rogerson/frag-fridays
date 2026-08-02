@@ -27,7 +27,7 @@ crashes with `RuntimeError: remainder by zero` in `UI_DrawString` and the
 render loop dies at the splash - upstream Xash3D-FWGS bug, not ours; the
 fix for players is always just refresh.
 
-## 3. Verify Deathmatch (frag_dm) in-browser
+## 3. Verify Deathmatch (frag_dm) in-browser - done (2026-08-03)
 
 CSDM is dead on this stack - its binary module signature-scans the original
 CS DLL and fails silently against the reimplemented one (full story in
@@ -36,9 +36,25 @@ module-free DM plugin built on the Ham calls GunGame proves work: instant
 respawn, armour + rifle + deagle on spawn, spawn protection, ammo refill on
 kill, C4 stripped. Gun choice via chat (`/guns` lists; `/ak /m4 /awp /mp5
 /p90 /scout /shotty /famas /deagle`) because AMXX menus are unverified in the
-browser (item 5). Deployed, compiles, reports `running`. Remaining: play it -
-verify respawn timing, equip, protection and the chat commands feel right.
-The `/opt/cs16/src/dm-src` archive can be deleted once frag_dm is confirmed.
+browser (item 5). Deployed, compiles, reports `running`.
+
+Verified in-browser (2026-08-03) on fy_pool_day with 9 bots: spawn equips
+AK + deagle + 100 armour; death respawns instantly (no death-cam wait)
+with full kit; spawn protection renders as a green glow on fresh spawns;
+`/guns` in chat answers "[DM] Pick a gun for your next spawn: /ak /m4 ...".
+`/opt/cs16/src/dm-src` deleted from the box. Untested: ammo-refill-on-kill
+(needs a human kill) and per-gun switch (e.g. `/m4`) - exercise on Friday.
+
+Watch items spotted during the test:
+
+- "[BOT] Chrono picked up the bomb" appeared on fy_pool_day - a C4 exists
+  despite frag_dm's strip (possibly re-granted at a round restart before the
+  strip runs). Cosmetic unless someone plants; check if it recurs.
+- "Terrorists Win!" round-end banners still appear - rounds cycle rather
+  than pure continuous DM. Instant respawn makes this near-invisible, but a
+  full-team wipe can still end a round.
+- The client's team-change limit ("Only 1 team change is allowed") can
+  strand a fumbled join in spectate; the fix is the usual browser refresh.
 
 ## 4. Tune YaPB bots (installed 2026-08-02)
 
@@ -207,10 +223,9 @@ All three verified done on the box: root compose profile is `vanilla`, the
 stray `/opt/cs16/dm/valve.zip` is gone, every compose (repo and box) uses
 `restart: unless-stopped`.
 
-## 12. GunGame welcome message cosmetic bug (spotted 2026-08-02)
+## 12. GunGame welcome message cosmetic bug - done (2026-08-02)
 
-The join-screen welcome menu shows `ML_NOTFOUND: WELCOME_MESSAGE_LINEB--`
-as its last line - a missing multilingual key in GunGame's lang file.
-Cosmetic only. Fix by adding the key to
-`addons/amxmodx/data/lang/gungame.txt` (or trimming the welcome message
-lines in gungame.cfg) next time the gg image is touched.
+The join-screen welcome menu showed `ML_NOTFOUND: WELCOME_MESSAGE_LINEB--`
+as its last line. Root cause wasn't a missing key: the AMXX lang parser
+can't read the colon-block form of `WELCOME_MESSAGE_LINE8` in
+`gungame.txt`. Fixed in commit 91ac1f5 and deployed.
