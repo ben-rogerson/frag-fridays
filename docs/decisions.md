@@ -133,3 +133,16 @@ working server two file-moves before a Friday.
 `restart: always` changed to `unless-stopped` in all three mod compose files
 (the port-theft incident), root compose service renamed `zp` to `vanilla` to
 match its profile, stray 438MB `dm/valve.zip` deleted from the box.
+
+## SSH password auth disabled (2026-08-02)
+
+The sshd logs showed constant root-password brute-forcing. Root cause of it
+being possible at all: Ubuntu's cloud-init drop-in
+(`/etc/ssh/sshd_config.d/50-cloud-init.conf`) sets `PasswordAuthentication
+yes`, silently overriding the `no` in the main sshd_config - sshd takes the
+first value it sees and drop-ins load first. Fixed with
+`00-hardening.conf` (sorts ahead, so it wins): password auth off, root
+key-only. Chose this over firewalling port 22 to the home IP because a
+rotating home IP plus keys-only auth would mean locking yourself out of a box
+that is already safe from password guessing. Verified both directions before
+closing the console.
