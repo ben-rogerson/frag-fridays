@@ -9,3 +9,4 @@ cs_militia
 fy_iceworld
 aim_map
 scoutzknivez
+35hp_2

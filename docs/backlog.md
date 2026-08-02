@@ -79,12 +79,18 @@ dependencies first (embedded textures vs wad refs vs skyname) - the trick
 is in the decision log; beware download mirrors serving Source-engine
 (`VBSP`) files under CS 1.6 map names.
 
+Also in: `35hp_2` (1.6MB, both rotations) - YaPB warns "graph is probably
+not for this map" but bots verifiably fight and die on it, so the warning is
+benign. Rejected: `he_glass` - its community bot graph is broken (constant
+`A* Search ... failed` + bot remove/re-add loops; breakable glass floors
+defeat the pathfinder), and a map bots can't play would dead-air the session
+whenever the rotation reached it. Revisit only if a session ever runs
+all-human.
+
 Remaining candidates, roughly in order of appeal:
 
-- `he_glass` - grenade-only concept clashes with frag_dm's rifle handout;
-  fine under GunGame
-- `ka_legoland`, `35hp_2`, `rats_*` - untested
-- `fy_snow` - more iceworld, if the first two land well
+- `ka_legoland`, `rats_*` - untested
+- `fy_snow` - more iceworld, if the first ones land well
 
 Watch on Friday: under dm, scoutzknivez's own scout+knife handout
 (`player_weaponstrip` + `game_player_equip` map entities) races frag_dm's
