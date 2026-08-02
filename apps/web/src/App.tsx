@@ -62,6 +62,7 @@ const App: FC = () => {
   const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [soundOn, setSoundOn] = useState(false)
+  const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
 
   const ytCommand = (func: string, args: unknown[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -102,8 +103,11 @@ const App: FC = () => {
   const play = async () => {
     if (startedRef.current || !zipRef.current || !canvasRef.current) return
     startedRef.current = true
+    // quotes/semicolons would escape the `name "..."` console command
+    const playerName = name.replace(/["';\\]/g, '').trim().slice(0, 31)
+    localStorage.setItem('ff-name', playerName)
     try {
-      await launchGame(canvasRef.current, zipRef.current, (s) =>
+      await launchGame(canvasRef.current, zipRef.current, playerName, (s) =>
         setStage(s.phase === 'engine' ? { id: 'engine' } : { id: 'unpacking', done: s.done, total: s.total }),
       )
       zipRef.current = null
@@ -124,8 +128,9 @@ const App: FC = () => {
           <iframe
             ref={iframeRef}
             className="bgvid"
-            src={`https://www.youtube-nocookie.com/embed/${VIDEO_ID}?autoplay=1&mute=1&controls=0&loop=1&playlist=${VIDEO_ID}&start=${videoStart}&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1`}
+            src={`https://www.youtube-nocookie.com/embed/${VIDEO_ID}?autoplay=1&mute=1&controls=0&loop=1&playlist=${VIDEO_ID}&start=${videoStart}&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`}
             allow="autoplay; encrypted-media"
+            referrerPolicy="strict-origin-when-cross-origin"
             tabIndex={-1}
             title="background video"
           />
@@ -137,6 +142,20 @@ const App: FC = () => {
             Frag<span> Friday</span>
           </h1>
 
+          {(stage.id === 'downloading' || stage.id === 'ready') && (
+            <input
+              className="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && stage.id === 'ready') play()
+              }}
+              placeholder="Player name"
+              maxLength={31}
+              spellCheck={false}
+            />
+          )}
+
           {stage.id === 'error' ? (
             <>
               <p className="status status--error">{stageLabel(stage)}</p>
@@ -146,7 +165,7 @@ const App: FC = () => {
             </>
           ) : stage.id === 'ready' ? (
             <>
-              <button className="play" onClick={play} autoFocus>
+              <button className="play" onClick={play}>
                 Play
               </button>
               <p className="status">{stageLabel(stage)}</p>

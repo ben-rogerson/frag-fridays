@@ -44,6 +44,7 @@ export type LaunchStatus =
 export async function launchGame(
   canvas: HTMLCanvasElement,
   zipBytes: Uint8Array,
+  playerName: string,
   onStatus: (s: LaunchStatus) => void,
 ): Promise<Xash3DWebRTC> {
   const x = new Xash3DWebRTC({
@@ -103,5 +104,8 @@ export async function launchGame(
   x.main()
   x.Cmd_ExecuteString('_vgui_menus 0')
   x.Cmd_ExecuteString('touch_enable 1')
+  if (playerName) {
+    x.Cmd_ExecuteString(`name "${playerName}"`)
+  }
   return x
 }

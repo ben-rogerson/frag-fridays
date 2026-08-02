@@ -68,6 +68,29 @@
   color: #f5a623;
 }
 
+.name {
+  font: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: #e8e6e3;
+  background: rgba(11, 13, 16, 0.55);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  padding: 0.65rem 1rem;
+  width: min(300px, 70vw);
+  transition: border-color 0.15s;
+}
+
+.name::placeholder {
+  color: #5c6167;
+  letter-spacing: 0.08em;
+}
+
+.name:focus-visible {
+  border-color: #f5a623;
+  outline: none;
+}
+
 /* GoldSrc-style chunky segmented loading bar */
 .bar {
   display: flex;

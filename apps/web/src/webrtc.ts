@@ -1,14 +1,24 @@
 import { Packet, Xash3D, Xash3DOptions, Net } from 'xash3d-fwgs'
 
-// Ported from webxash3d-fwgs examples/react-typescript-cs16-webrtc with two
-// fixes: the signalling URL derives from location.host (the example hard-coded
-// localhost:27016), and the mic is optional (getUserMedia does not exist on
-// insecure origins like our plain-http player URL, and players may deny it).
+// WebRTC networking for the Xash3D engine, matching the signalling protocol
+// of the goxash3d-fwgs server embedded in our yohimik/cs-web-server image
+// (ported from the image's stock client, not the upstream example - the
+// example on git main targets a newer server that double-encodes `data`;
+// ours sends plain objects. We accept both).
+//
+// Flow: ws connects -> peer + local tracks created on open -> server sends
+// offer -> we answer -> server-created 'read'/'write' data channels open ->
+// game packets flow over the channels. Remote audio tracks (in-game sound)
+// play through a hidden media element.
 export class Xash3DWebRTC extends Xash3D {
   private channel?: RTCDataChannel
-  private resolve?: (value?: unknown) => void
+  private resolve?: () => void
   private ws?: WebSocket
   private peer?: RTCPeerConnection
+  private stream?: MediaStream
+  private remoteDescription?: RTCSessionDescriptionInit
+  private candidates: RTCIceCandidateInit[] = []
+  private wasRemote = false
 
   constructor(opts?: Xash3DOptions) {
     super(opts)
@@ -19,21 +29,32 @@ export class Xash3DWebRTC extends Xash3D {
     await Promise.all([super.init(), this.connect()])
   }
 
-  private initConnection(stream?: MediaStream) {
+  private wsSend(event: string, data: unknown) {
+    this.ws?.send(JSON.stringify({ event, data }))
+  }
+
+  private startConnection() {
     if (this.peer) return
 
     this.peer = new RTCPeerConnection()
     this.peer.onicecandidate = (e) => {
-      if (!e.candidate) return
-      this.ws!.send(
-        JSON.stringify({
-          event: 'candidate',
-          data: JSON.stringify(e.candidate.toJSON()),
-        }),
-      )
+      if (e.candidate) this.wsSend('candidate', e.candidate.toJSON())
     }
-    stream?.getTracks()?.forEach((t) => {
-      this.peer!.addTrack(t, stream)
+    this.peer.ontrack = (e) => {
+      const el = document.createElement(e.track.kind) as HTMLMediaElement
+      el.srcObject = e.streams[0]
+      el.autoplay = true
+      el.style.display = 'none'
+      document.body.appendChild(el)
+      e.track.onmute = () => {
+        el.play().catch(() => {})
+      }
+      e.streams[0].onremovetrack = () => {
+        el.remove()
+      }
+    }
+    this.stream?.getTracks()?.forEach((t) => {
+      this.peer!.addTrack(t, this.stream!)
     })
     let channelsCount = 0
     this.peer.ondatachannel = (e) => {
@@ -59,44 +80,66 @@ export class Xash3DWebRTC extends Xash3D {
         if (e.channel.label === 'read') {
           this.channel = e.channel
         }
-        if (channelsCount === 2) {
-          if (this.resolve) {
-            const r = this.resolve
-            this.resolve = undefined
-            r()
-          }
+        if (channelsCount === 2 && this.resolve) {
+          const r = this.resolve
+          this.resolve = undefined
+          r()
         }
       }
     }
   }
 
+  private async handleDescription() {
+    if (!this.remoteDescription || !this.peer) return
+    await this.peer.setRemoteDescription(this.remoteDescription)
+    this.remoteDescription = undefined
+    const answer = await this.peer.createAnswer()
+    await this.peer.setLocalDescription(answer)
+    this.wsSend('answer', answer)
+    this.wasRemote = true
+    this.handleCandidates()
+  }
+
+  private handleCandidates() {
+    if (!this.candidates.length || !this.peer) return
+    const pending = this.candidates
+    this.candidates = []
+    pending.forEach((c) => {
+      this.peer!.addIceCandidate(c).catch(() => {
+        this.candidates.push(c)
+      })
+    })
+  }
+
+  private connectWs() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+    this.ws = new WebSocket(`${proto}://${location.host}/websocket`)
+    this.ws.addEventListener('message', async (e: MessageEvent) => {
+      const msg = JSON.parse(e.data)
+      const data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data
+      switch (msg.event) {
+        case 'offer':
+          this.remoteDescription = data
+          await this.handleDescription()
+          break
+        case 'candidate':
+          this.candidates.push(data)
+          if (this.wasRemote) this.handleCandidates()
+          break
+      }
+    })
+    this.ws.onopen = () => this.startConnection()
+  }
+
   private async connect() {
-    const stream = await navigator.mediaDevices
+    // Mic feeds in-game voice. getUserMedia only exists in secure contexts
+    // (the player URL is plain http), and players may deny it - both are fine.
+    this.stream = await navigator.mediaDevices
       ?.getUserMedia({ audio: true })
       .catch(() => undefined)
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       this.resolve = resolve
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      this.ws = new WebSocket(`${proto}://${location.host}/websocket`)
-      const handler = async (e: MessageEvent) => {
-        this.initConnection(stream)
-        const parsed = JSON.parse(e.data)
-        if (parsed.event === 'offer') {
-          await this.peer!.setRemoteDescription(JSON.parse(parsed.data))
-          const answer = await this.peer!.createAnswer()
-          await this.peer!.setLocalDescription(answer)
-          this.ws!.send(
-            JSON.stringify({
-              event: 'answer',
-              data: JSON.stringify(answer),
-            }),
-          )
-        }
-        if (parsed.event === 'candidate') {
-          await this.peer!.addIceCandidate(JSON.parse(parsed.data))
-        }
-      }
-      this.ws.addEventListener('message', handler)
+      this.connectWs()
     })
   }
 
