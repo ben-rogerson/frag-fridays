@@ -5,10 +5,12 @@ FROM yohimik/cs-web-server-metpamx:latest
 # signature-scans the original CS DLL and fails silently against this stack's
 # reimplemented one - see docs/decisions.md.
 COPY addons cstrike/addons
-# curated rotation - all stock maps (already in valve.zip, zero load-time cost)
+# curated rotation. maps.ini is regenerated from it so the end-of-map vote
+# only ever offers maps that are actually in the (trimmed) client valve.zip.
 COPY mapcycle.txt cstrike/mapcycle.txt
 
 USER root
+RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \

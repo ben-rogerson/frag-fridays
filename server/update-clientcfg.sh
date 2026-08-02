@@ -36,26 +36,62 @@ command -v zip >/dev/null || die "zip is not installed (apt install zip)"
 AVAIL_KB="$(df --output=avail -k "$ROOT" | tail -1 | tr -d ' ')"
 (( AVAIL_KB > 1000000 )) || die "less than 1GB free on $ROOT - not risking a rebuild"
 
+# --- client payload trim -----------------------------------------------------
+# The zip is the client download and load time scales with it (no lazy
+# loading). Two cuts, ~120MB compressed:
+#   - valve/maps/ is the Half-Life single-player campaign (~96MB) - CS
+#     multiplayer never loads it
+#   - cstrike maps outside every mod's mapcycle.txt (~20MB). The keep-list is
+#     the union of the mapcycles, so the rotation files stay the single
+#     source of truth. Mod Dockerfiles regenerate maps.ini from mapcycle.txt
+#     so votes can never offer a map clients don't have.
+# The server itself always plays from the full cs/ tree on disk - only the
+# client payload is trimmed.
+# the || true guards set -o pipefail: not every mod has a mapcycle.txt
+KEEP_MAPS="$({ cat "$ROOT"/{gg,dm,zp}/mapcycle.txt 2>/dev/null || true; } | tr -d '\r' | grep -v '^\s*$' | sort -u)"
+[[ -n "$KEEP_MAPS" ]] || die "no mod mapcycle.txt found - refusing to trim every map from the client payload"
+
+list_files() {
+  (cd "$SRC" && find valve cstrike -type f | LC_ALL=C sort) | awk -v keep="$KEEP_MAPS" '
+    BEGIN { split(keep, k, "\n"); for (i in k) keepmap[k[i]] = 1 }
+    /^valve\/maps\// { next }
+    /^cstrike\/(maps|overviews)\// {
+      n = $0; sub(/^cstrike\/(maps|overviews)\//, "", n); sub(/\.[^.]*$/, "", n)
+      if (!(n in keepmap)) next
+    }
+    { print }'
+}
+
 # --- build -------------------------------------------------------------------
 trap 'rm -f "$STAGE"' EXIT
 rm -f "$STAGE"
-log "building $STAGE from $SRC/{valve,cstrike} (one dot per 10MB, ~440MB total)..."
+KEPT_COUNT="$(list_files | wc -l | tr -d ' ')"
+FULL_COUNT="$(find "$SRC/valve" "$SRC/cstrike" -type f | wc -l | tr -d ' ')"
+log "keeping maps: $(echo "$KEEP_MAPS" | tr '\n' ' ')"
+log "building $STAGE: $KEPT_COUNT of $FULL_COUNT files (one dot per 10MB)..."
 START=$SECONDS
-(cd "$SRC" && zip -r -qdgds 10m "$STAGE" valve cstrike)
+(cd "$SRC" && list_files | zip -q -dg -ds 10m "$STAGE" -@)
 echo
 log "built in $((SECONDS - START))s: $(du -h "$STAGE" | cut -f1)"
 
 # --- verify ------------------------------------------------------------------
 log "verifying archive..."
 
-BAD_ROOT="$(unzip -Z1 "$STAGE" | grep -vE '^(valve|cstrike)/' || true)"
+# single listing; per-check pipelines with grep -q die of SIGPIPE under pipefail
+ZIP_LIST="$(unzip -Z1 "$STAGE")"
+
+BAD_ROOT="$(printf '%s\n' "$ZIP_LIST" | grep -vE '^(valve|cstrike)/' || true)"
 [[ -z "$BAD_ROOT" ]] || die "archive root must contain only valve/ and cstrike/, found:
 $BAD_ROOT"
 
-DISK_COUNT="$(find "$SRC/valve" "$SRC/cstrike" -type f | wc -l | tr -d ' ')"
-ZIP_COUNT="$(unzip -Z1 "$STAGE" | grep -cv '/$')"
-[[ "$DISK_COUNT" == "$ZIP_COUNT" ]] \
-  || die "file count mismatch: $DISK_COUNT on disk vs $ZIP_COUNT in archive"
+ZIP_COUNT="$(printf '%s\n' "$ZIP_LIST" | grep -cv '/$')"
+[[ "$KEPT_COUNT" == "$ZIP_COUNT" ]] \
+  || die "file count mismatch: $KEPT_COUNT in keep list vs $ZIP_COUNT in archive"
+
+for m in $KEEP_MAPS; do
+  printf '%s\n' "$ZIP_LIST" | grep -x "cstrike/maps/$m.bsp" >/dev/null \
+    || die "kept map $m has no bsp in the archive - check the mapcycles against cs/cstrike/maps/"
+done
 
 unzip -p "$STAGE" cstrike/userconfig.cfg | cmp -s - "$SRC/cstrike/userconfig.cfg" \
   || die "userconfig.cfg in archive does not match the game tree"
