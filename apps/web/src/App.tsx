@@ -70,6 +70,7 @@ const App: FC = () => {
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [videoDead, setVideoDead] = useState(false)
   const [soundOn, setSoundOn] = useState(false)
+  const soundOnRef = useRef(false)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
@@ -82,6 +83,12 @@ const App: FC = () => {
       try {
         const d = JSON.parse(e.data)
         if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
+        // a toggle clicked before the player was ready would be dropped -
+        // resend the desired state once it reports in
+        if (d.event === 'onReady' && soundOnRef.current) {
+          ytCommand('unMute')
+          ytCommand('setVolume', [65])
+        }
       } catch {
         /* not a widget message */
       }
@@ -114,6 +121,7 @@ const App: FC = () => {
       ytCommand('unMute')
       ytCommand('setVolume', [65])
     }
+    soundOnRef.current = !soundOn
     setSoundOn(!soundOn)
   }
 
