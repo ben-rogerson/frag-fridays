@@ -280,7 +280,7 @@ const App: FC = () => {
         )}
         <div className="tint" />
         <div className="sponsors">
-          <p className="sponsors__label">Proudly sponsored by</p>
+          <p className="sponsors__label">Supported by</p>
           <div className="sponsors__logos">
             <SimplyWallStLogo />
             <MonsterUltraLogo />
