@@ -230,18 +230,20 @@ const App: FC = () => {
     <>
       <canvas id="canvas" ref={canvasRef} />
       <div className={`overlay${stage.id === 'playing' ? ' overlay--hidden' : ''}`}>
-        {stage.id !== 'playing' && !videoDead && (
-          <iframe
-            ref={iframeRef}
-            className="bgvid"
-            src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
-            allow="autoplay; encrypted-media"
-            referrerPolicy="strict-origin-when-cross-origin"
-            tabIndex={-1}
-            title="background video"
-          />
-        )}
         <div className="tint" />
+        {stage.id !== 'playing' && !videoDead && (
+          <div className="pip">
+            <iframe
+              ref={iframeRef}
+              className="bgvid"
+              src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
+              allow="autoplay; encrypted-media"
+              referrerPolicy="strict-origin-when-cross-origin"
+              tabIndex={-1}
+              title="background video"
+            />
+          </div>
+        )}
         <div className="loader">
           <p className="eyebrow">Counter-Strike 1.6 &middot; in your browser</p>
           <h1 className="title">
