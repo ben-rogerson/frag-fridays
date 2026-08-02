@@ -135,10 +135,10 @@ valve.zip - measure the size first; see backlog item 6.
 
 ## Admin
 
-One named admin (`Ben`, full flags) in both mods' `users.ini`
+One named admin (`admin`, full flags) in both mods' `users.ini`
 (`server/<mod>/addons/amxmodx/configs/`, image-baked). Auth from the
 browser client console works but the order is load-bearing: `setinfo _pw
-"<password>"` FIRST, then `name Ben` - AMXX re-auths on the name change and
+"<password>"` FIRST, then `name admin` - AMXX re-auths on the name change and
 needs `_pw` already in the userinfo; the reverse order fails with "no
 access". Once authed, admin console commands work in the WASM client
 (`amx_map <map>` to change map, `amx_who` to check flags) - so a live map
