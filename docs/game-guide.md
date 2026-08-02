@@ -86,7 +86,8 @@ and `yb_difficulty_auto 0`, then `yb_difficulty` alone applies.
 
 Leave alone: `weapon.cfg` (buy priorities - moot when frag_dm hands out
 guns) and voice chatter (`chatter.cfg` needs sound files shipped via
-valve.zip; text chat is enough).
+valve.zip). Text chat is off too (`yb_chat 0`, 2026-08-02) - bots are
+fully silent apart from radio commands (`yb_radio_mode 1`).
 
 ### Verifying bots server-side
 

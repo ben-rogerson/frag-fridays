@@ -38,9 +38,9 @@ YaPB 4.4.957 is installed in both gg and dm images and confirmed working:
 join within seconds of boot (de_dust2 graph ships in the release). Settings: `yb_quota 9`, `yb_kick_after_player_connect 1` (bots leave as
 humans join), difficulty spread Easy-Hard + K/D auto-balance
 (`yb_difficulty_min 1` / `_max 3` / `_auto 1`), `[BOT]` name prefix with
-`BOT` in the ping column, `yb_csdm_mode 1` in dm only. Remaining: play
-against them and fine-tune - quota for small maps, and whether bot text chat
-stays on. All options documented in
+`BOT` in the ping column, `yb_csdm_mode 1` in dm only. Text chat turned off
+2026-08-02 (`yb_chat 0` - the banter was noise). Remaining: play against
+them and fine-tune quota for small maps. All options documented in
 [game-guide.md](game-guide.md); config in
 `server/{gg,dm}/addons/yapb/conf/yapb.cfg` (image-baked - redeploy to apply).
 
