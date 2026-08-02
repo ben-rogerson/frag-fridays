@@ -71,6 +71,11 @@ rsync -tvz "$SERVER_DIR/config/userconfig.cfg" "$HOST:$REMOTE_ROOT/cs/cstrike/us
 log "installing update-clientcfg.sh"
 rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientcfg.sh"
 
+# vanilla's loading-screen mode blurb (gg/dm ship theirs inside their dirs)
+if [[ -f "$SERVER_DIR/info-vanilla.json" ]]; then
+  rsync -tvz "$SERVER_DIR/info-vanilla.json" "$HOST:$REMOTE_ROOT/info-vanilla.json"
+fi
+
 # custom maps go into the game files tree (server plays from it; clientcfg
 # bundles them into valve.zip when a mapcycle references them). Additive on
 # purpose - never --delete against the SteamCMD-installed stock maps.

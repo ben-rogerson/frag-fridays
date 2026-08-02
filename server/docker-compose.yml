@@ -15,6 +15,8 @@ services:
       # a redeploy (same inode rule as valve.zip)
       - "./web/index.html:/xashds/public/index.html:ro"
       - "./web/assets:/xashds/public/assets:ro"
+      # mode blurb shown on the loading screen
+      - "./info-vanilla.json:/xashds/public/info.json:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"

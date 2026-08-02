@@ -46,6 +46,9 @@ const NEWS_TEXT = NEWS.join('  •••  ') + '  •••  '
 
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
+// each mod's compose mounts its own /info.json next to the client
+type ModeInfo = { mode: string; tagline?: string; bullets?: string[] }
+
 // fullscreen muzzle-flash flicker: soft amber bursts (occasionally a
 // whole-screen wash) composited over the page. Low alpha so nothing
 // underneath loses readability; skipped under prefers-reduced-motion.
@@ -218,6 +221,17 @@ const App: FC = () => {
   const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
   const [pipOpen, setPipOpen] = useState(false)
+  const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
+
+  useEffect(() => {
+    // no-store so a mod swap shows fresh info without a hard refresh
+    fetch('/info.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((info: ModeInfo | null) => {
+        if (info?.mode) setModeInfo(info)
+      })
+      .catch(() => {})
+  }, [])
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
@@ -391,6 +405,19 @@ const App: FC = () => {
           <h1 className={`title${!playerMuted ? ' title--dancing' : ''}`}>
             Frag<span> Friday</span>
           </h1>
+
+          {modeInfo && (
+            <div className="mode">
+              <p className="mode__row">
+                <span className="mode__label">Tonight&apos;s mode</span>
+                <span className="mode__chip">{modeInfo.mode}</span>
+              </p>
+              {modeInfo.tagline && <p className="mode__tagline">{modeInfo.tagline}</p>}
+              {modeInfo.bullets && modeInfo.bullets.length > 0 && (
+                <p className="mode__bullets">{modeInfo.bullets.join('  ·  ')}</p>
+              )}
+            </div>
+          )}
 
           {(stage.id === 'downloading' || stage.id === 'ready') && (
             <input

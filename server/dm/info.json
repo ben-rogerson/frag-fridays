@@ -1,0 +1,5 @@
+{
+  "mode": "Deathmatch",
+  "tagline": "Free-for-all frags with instant respawn - highest score when the map ends wins.",
+  "bullets": ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps"]
+}

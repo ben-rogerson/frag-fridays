@@ -153,6 +153,50 @@
   }
 }
 
+/* tonight's mode blurb */
+.mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: min(560px, 86vw);
+}
+
+.mode__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mode__label {
+  font-size: 0.62rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #7a8087;
+}
+
+.mode__chip {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0b0d10;
+  background: #f5a623;
+  padding: 0.28rem 0.6rem;
+  border-radius: 3px;
+}
+
+.mode__tagline {
+  font-size: 0.92rem;
+  color: #cfd3d7;
+}
+
+.mode__bullets {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: #7a8087;
+}
+
 .name {
   font: inherit;
   font-size: 0.95rem;
