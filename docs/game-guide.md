@@ -10,7 +10,7 @@ knobs. For the session-day procedure see [runbook.md](runbook.md).
 - **F1** joins Terrorists, **F2** joins Counter-Terrorists (the team menu
   does not render in the browser). Console fallback (backtick): `jointeam 1`
   then `joinclass 1`.
-- First load pulls the whole ~440MB game into browser RAM - tell people to
+- First load pulls the whole ~300MB game into browser RAM - tell people to
   open the URL early and let it cache (see runbook, midday reminder).
 
 ## Mods
@@ -47,13 +47,13 @@ dm runs `yb_csdm_mode 1` (respawn-aware bots), gg does not.
 
 ### Difficulty
 
-Current setting (both mods): **spread + auto-balance**, not a flat level -
-bots are created anywhere from Easy to Hard (`yb_difficulty_min 1`,
-`yb_difficulty_max 3`, centred on Normal), then rebalance themselves against
-the team's K/D every 30s (`yb_difficulty_auto 1`). `yb_difficulty 2` is the
-fallback if the spread is ever turned off (set min/max back to -1). The
-upstream default was a flat 3 (Hard: 0.2-0.4s reaction, 75% headshots, zero
-aim error) - too brutal for casual mixed-skill play.
+Current setting (both mods): spread **Noob-Normal** (`yb_difficulty_min 0`,
+`yb_difficulty_max 2`), auto-balance OFF - browser-play testing (2026-08-02)
+found even the Easy-Hard spread with K/D auto-balance too strong; the
+auto-balancer can also buff bots back up when they do well, so it's
+deterministic now. `yb_difficulty 1` is the fallback if the spread is turned
+off (min/max -1). The upstream default was a flat 3 (Hard: 0.2-0.4s
+reaction, 75% headshots, zero aim error).
 
 Scale 0-4, defined in `conf/difficulty.cfg`
 (reaction time / headshot % / aim error):
@@ -62,7 +62,7 @@ Scale 0-4, defined in `conf/difficulty.cfg`
 |---|---|---|---|---|
 | 0 | Noob | 0.8-1.0s | 5 | large |
 | 1 | Easy | 0.6-0.8s | 10 | large |
-| 2 | Normal (spread centre) | 0.4-0.6s | 50 | moderate |
+| 2 | Normal (spread top) | 0.4-0.6s | 50 | moderate |
 | 3 | Hard | 0.2-0.4s | 75 | none |
 | 4 | Expert | 0.1-0.2s | 100 | none |
 
@@ -95,6 +95,38 @@ No player needed: `pnpm run logs <mod>` should show
 `Connecting Bot...` lines within ~15s of start. For a full console
 interrogation (bot list, plugin status) use the throwaway-container trick in
 [troubleshooting.md](troubleshooting.md).
+
+## Maps and rotation
+
+The client download only contains the maps in the rotations - valve.zip is
+built from a keep-list (union of the mod mapcycles), which cut it from
+~437MB to 299MB by dropping the HL campaign maps and unused CS maps. All
+rotation maps have bot graphs. Each mod has a curated `mapcycle.txt` in
+`server/<mod>/`; changing a rotation takes `pnpm run deploy <mod>` AND
+`pnpm run clientcfg` (the map list shapes both the image and the client
+zip):
+
+- gg (boots on aim_map): aim_map, dust2, assault, dust, italy, inferno,
+  militia, aztec, fy_iceworld, fy_pool_day
+- dm (boots on awp_map): awp_map, dust2, dust, assault, prodigy, nuke,
+  militia, fy_iceworld, fy_pool_day, aim_map
+
+The boot map is the compose `command:` (`+map ...`) - keep it matching line 1
+of that mod's mapcycle.txt so the rotation flows on from it.
+
+Custom (non-Steam) maps live in `server/maps/` and reach the server via a
+compose mount (`cs/cstrike/maps` -> `custom/maps` in the container), so
+adding one needs no image rebuild - just the deploy + clientcfg pair.
+
+Maps rotate at `mp_timelimit` (30 min). AMXX's end-of-map vote
+(`mapchooser`) is enabled and fires shortly before the limit - whether the
+vote menu renders in the browser client is untested. All players can use
+`say timeleft` and `say nextmap`. To force a specific map now: edit the
+`+map` in the mod's compose `command:` and redeploy (there is no live
+console - stdin is closed and rcon is off).
+
+Adding custom maps (fy_iceworld etc) means bundling `.bsp` + assets into
+valve.zip - measure the size first; see backlog item 6.
 
 ## Shared client config
 

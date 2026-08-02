@@ -165,6 +165,47 @@ lesson that generalises: on this stack, prefer script-only plugins over
 anything shipping a binary `.so`, because binary-module failures are silent
 and the error messages point at the wrong cause.
 
+## Client payload trimmed: no HL campaign, only rotation maps (2026-08-02)
+
+Measuring valve.zip's compressed contents revealed `valve/maps/` - the
+Half-Life single-player campaign, which CS multiplayer never loads - was
+96MB of the 437MB download. Another ~20MB was CS maps outside our rotations.
+`update-clientcfg.sh` now builds the client zip from a keep-list: everything
+except `valve/maps/` and any `cstrike/maps|overviews` entry not in the union
+of the mods' `mapcycle.txt` files. The mapcycles stay the single source of
+truth; mod Dockerfiles regenerate `maps.ini` from them so the end-of-map
+vote can only offer maps clients actually have. The server still plays from
+the full `cs/` tree on disk - only the download is trimmed (~437MB to
+299MB, roughly a quarter off every player's first load). Adding a map to a
+rotation now means: edit `mapcycle.txt`, redeploy the mod, re-run
+`pnpm run clientcfg`.
+
+## Tuned for the 30-minute lunch break (2026-08-02)
+
+The session window is a 30-minute break, and the inherited settings assumed
+an evening: GunGame's `gg_map_setup` forced `mp_timelimit 45` (one map
+outlives the session), 2 kills per weapon (~48 kills - nobody finishes), and
+~5s of dead time per death (3s spawn delay + 2s countdown). Changed to:
+1 kill per level, 1s spawn delay, no countdown, timelimit 20 (gg) / 15 (dm),
+chattime 5. A GunGame game is now winnable inside the window and dm sees two
+maps plus the end-of-map vote. Deliberately NOT doing mid-session mod swaps -
+a swap forces every player through a reload of unverified cost; variety comes
+from per-Friday mod choice and in-session map rotation instead.
+
+## Custom maps: bsp analysis before bundling (2026-08-02)
+
+First two fun maps (fy_iceworld, fy_pool_day) added for <1MB combined. Two
+gotchas worth recording. (1) The obvious mirror (fastdl.me) served
+Source-engine `VBSP` files under CS 1.6 map names - check the four-byte
+header (`1E 00 00 00` = GoldSrc v30) before trusting any download. (2) A
+bsp's real cost is its dependencies: read the texture lump (embedded
+mip offsets vs wad references) and the worldspawn `skyname`. iceworld pulls
+5 textures from stock wads; pool_day embeds everything and uses the stock
+desert sky - so neither needed extra assets. Server-side, custom maps reach
+containers via a read-only compose mount into xash's `cstrike/custom/maps`
+search path (no image rebuild); client-side they ride valve.zip via the
+mapcycle keep-list.
+
 ## SSH password auth disabled (2026-08-02)
 
 The sshd logs showed constant root-password brute-forcing. Root cause of it

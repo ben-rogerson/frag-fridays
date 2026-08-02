@@ -119,6 +119,18 @@ inside the game DLL - dead. Before adopting anything with a `.so`, ask which
 kind it is, and prefer projects that name Xash3D in their compatibility
 list.
 
+## Client sound errors: check for unshipped sound references
+
+Anything server-side that tells clients to play a sound must have that wav
+inside valve.zip, or every trigger throws a client sound error. First
+occurrence (2026-08-02): YaPB's default `yb_radio_mode 2` uses its voice
+chatter pack (`sound/radio/bot/`), which was never bundled - fixed by
+`yb_radio_mode 1` (stock radio sounds only, all shipped). Audit recipe:
+extract configured sound paths (`grep -aoE '"sound/[^"]+\.wav"'` on the
+configs) and check each against `unzip -Z1` of the zip. Custom maps can also
+embed `ambient_generic` references - not covered by the texture/sky
+dependency check.
+
 ## Steam account verification (SteamCMD)
 
 SteamCMD from a new datacentre IP triggers Steam verification, and a wrong

@@ -44,44 +44,48 @@ stays on. All options documented in
 [game-guide.md](game-guide.md); config in
 `server/{gg,dm}/addons/yapb/conf/yapb.cfg` (image-baked - redeploy to apply).
 
-## 5. Map voting investigation
+## 5. Map voting - server side done, browser vote menu unverified
 
-Players should vote on maps in-game. Starting point (unverified): AMXX ships
-map management plugins in the base install - `mapchooser.amxx` (end-of-map
-vote), `nextmap.amxx`, `mapsmenu.amxx` (admin menu), `timeleft.amxx`. Already
-in the image; likely just need enabling in `plugins.ini` plus a populated
-`configs/maps.ini`. Try these first.
+Investigated 2026-08-02. Server side is all in place:
 
-Also evaluate **Galileo** (nominations, runoff voting, map groups) - but
-confirm it works on Metamod-P/AMXX 1.9 **without ReAPI** before investing time.
+- `mapchooser`/`nextmap`/`mapsmenu`/`timeleft` were already enabled and
+  `running` in the base image; `maps.ini` ships pre-populated with all 25
+  stock maps (all of which are in `valve.zip`, and all of which have YaPB
+  graphs).
+- `mapcycle.txt` was the gap (only 2 maps). Now curated per mod in
+  `server/{gg,dm}/mapcycle.txt`, image-baked. Stock maps only - zero
+  valve.zip cost.
+- Verified in throwaway containers: `changelevel` works, the new map's bot
+  graph loads, bots rejoin; `amx_nextmap` steps through the cycle
+  sequentially. End-of-map vote fires near `mp_timelimit` (30 min).
 
-To work out:
+Remaining (needs a browser): does the end-of-map vote menu actually render
+in the WASM client? If yes, item done. If no, players still get the curated
+rotation, and voting needs a chat-command approach like frag_dm's `/guns`
+(write a small say-based vote plugin; skip Galileo - same menu question and
+heavier).
 
-- Which vote plugin actually works in this build (do the menus render?)
-- How `configs/maps.ini` is populated and kept in sync with what is actually
-  bundled in `valve.zip`
-- Vote timing - end-of-map vote vs on-demand player-initiated vote
+## 6. Fun map rotation - first two in (2026-08-02)
 
-## 6. Fun map rotation
+In: `fy_iceworld` (122KB) and `fy_pool_day` (833KB) in both rotations;
+`aim_map` (340KB, both rotations) and `awp_map` (1.5MB, dm only - odd fit
+for GunGame's weapon ladder). ~2.8MB of valve.zip growth total (now 301M),
+each verified booting with bots (YaPB downloads proper community graphs
+from its online DB for all of them). The pipeline for
+any future map: drop `.bsp` in `server/maps/`, add to mapcycles,
+`pnpm run deploy <mod>` + `pnpm run clientcfg`. Analyse dependencies first
+(embedded textures vs wad refs vs skyname) - the trick is in the decision
+log; beware download mirrors serving Source-engine (`VBSP`) files under CS
+1.6 map names.
 
-Wanted: a mix of standard and novelty maps. Candidates suited to GunGame and
-casual mixed-skill play (small, fast, low-asset):
+Remaining candidates, roughly in order of appeal:
 
-- `fy_iceworld` - tiny, chaotic, the classic party map
-- `fy_snow`, `fy_pool_day` - same idea
-- `awp_map`, `aim_map` - pure aim arenas
-- `scoutzknivez` - scouts + knives, low gravity, very silly
-- `ka_legoland` - knife arena
-- `35hp_2` - small and frantic
-- `he_glass` - grenade-only chaos
-- `rats_*` - oversized household maps, novelty value
-
-**Constraint:** every custom map added to `valve.zip` increases initial load
-for all players (no lazy loading). Measure the size cost of a candidate list
-before committing; keep the rotation small - maybe 4-6 maps. Stock maps
-(`de_dust2`, `cs_office`, `fy_iceworld` if present in the Steam files) cost
-nothing extra. Custom maps also need their own assets (textures, models)
-bundled, not just the `.bsp`.
+- `scoutzknivez` - needs `sv_gravity` lowered per-map (AMXX per-map configs
+  in `configs/maps/<map>.cfg`), so slightly more than a drop-in
+- `he_glass` - grenade-only concept clashes with frag_dm's rifle handout;
+  fine under GunGame
+- `ka_legoland`, `35hp_2`, `rats_*` - untested
+- `fy_snow` - more iceworld, if the first two land well
 
 ## 7. Custom spray / wall tag
 
@@ -100,33 +104,18 @@ the spray lives in `cstrike/pldecal.wad` (64x64 8-bit WAD); related cvars are
 - Use an image with clear rights - a team in-joke or something original, not
   lifted game/brand art.
 
-## 8. Claude server-control skill
+## 8. Claude server-control skill - done for local Claude Code (2026-08-02)
 
-The Docker server should be fully controllable by Claude via a skill: start,
-stop, swap mods, rebuild, check status, tail logs, update client config,
-manage the map rotation.
+`.claude/skills/cs16-server/SKILL.md` encodes the full operating surface:
+layout, one-mod-at-a-time rule, swap procedure with the mandatory `docker ps`
+check, clientcfg/valve.zip pipeline, the three registration files, the
+ReAPI/binary-module constraint, the throwaway-console trick, the add-a-map
+recipe, bot verification and the session-day pointers. Transport: local
+Claude Code SSHing via the `cs16` alias (the original blocker assumed the
+code-execution sandbox; the CLI has no such restriction).
 
-**Transport must be decided first.** Claude's code-execution sandbox can only
-reach an allowlist (package registries, GitHub, api.anthropic.com) - it
-cannot SSH to 149.28.172.74. Options:
-
-1. **MCP server on the VPS** - small MCP server wrapping the docker commands,
-   exposed as a connector. Most capable; needs auth and a public endpoint.
-2. **Claude Code running on the VPS itself** - Claude gets a shell where the
-   server lives; the skill becomes documented procedures. Simplest path,
-   probably the right first step.
-3. **Skill that generates commands** for the user to paste. Works everywhere,
-   no infrastructure, but isn't really "controlled by Claude".
-
-Option 1 if it needs to work from the phone/web app.
-
-Whatever the transport, the skill should encode: the directory layout and
-one-mod-at-a-time port constraint, the mod-swap procedure with mandatory
-`docker ps` verification, the `valve.zip` root-structure rule, the build-time
-compile pattern and the `plugins.ini`/`modules.ini` distinction, the ReAPI
-incompatibility, the valve.zip rebuild procedure, and the Friday run-book.
-(Note: local Claude Code can now SSH to the box directly via the `cs16`
-alias, which weakens the case for option 2's VPS install.)
+Still open if wanted later: an MCP server on the VPS so the phone/web app
+can drive the box too - shares a backend with item 9's portal.
 
 ## 9. Web portal / Slack integration (future project)
 

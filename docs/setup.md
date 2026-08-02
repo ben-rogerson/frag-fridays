@@ -70,7 +70,7 @@ SteamCMD install dir, so SteamCMD internals sit alongside the project files:
 │       └── userconfig.cfg   # shared client config, ships to all players
 ├── .env                     # PUBLIC_IP for the root compose (not in repo)
 ├── docker-compose.yml       # profile-based: --profile vanilla runs stock CS
-├── valve.zip                # ~438MB game filesystem archive (rebuild: update-clientcfg.sh)
+├── valve.zip                # ~300MB trimmed client archive (rebuild: update-clientcfg.sh)
 ├── update-clientcfg.sh      # rebuilds valve.zip from cs/, restarts running mod
 ├── mods/                    # bind-mount targets for the root compose (empty)
 ├── src/                     # downloaded mod archives (not in repo)
