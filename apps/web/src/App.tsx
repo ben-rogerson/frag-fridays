@@ -15,8 +15,15 @@ const SEGMENTS = 24
 // Background: Counter Strike 1.6 ANNIHILATION 2 HQ (7:36). Random start so
 // the music differs each load; capped at 400s to leave a stretch before the
 // loop wraps to 0.
+//
+// The embed goes through a relay page (apps/web/shim, a Cloudflare Worker):
+// YouTube refuses embeds from IP-literal http origins like the game server
+// (widget onError 150), but accepts them from the shim's workers.dev domain.
+// The shim relays widget postMessage traffic both ways, so the sound toggle
+// and error fallback below work exactly as if the player were embedded here.
 const VIDEO_ID = 'Y6gcmbioqiE'
 const VIDEO_MAX_START = 400
+const VIDEO_SHIM = 'https://frag-friday-bg.floral-math-a059.workers.dev'
 
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
@@ -156,7 +163,7 @@ const App: FC = () => {
           <iframe
             ref={iframeRef}
             className="bgvid"
-            src={`https://www.youtube-nocookie.com/embed/${VIDEO_ID}?autoplay=1&mute=1&controls=0&loop=1&playlist=${VIDEO_ID}&start=${videoStart}&playsinline=1&rel=0&iv_load_policy=3&disablekb=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`}
+            src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
             allow="autoplay; encrypted-media"
             referrerPolicy="strict-origin-when-cross-origin"
             tabIndex={-1}

@@ -138,11 +138,15 @@ image's, so client and server engine versions match).
   channels surface as a fake UDP peer at that address.
 - The mic is optional - `getUserMedia` does not exist on plain-http origins,
   so voice needs https if ever wanted.
-- The loading screen tries a YouTube background video, but YouTube rejects
-  embeds from IP-literal http origins (onError 150 via the widget API -
-  verified against a known-embeddable control video, so it is the origin,
-  not the video). The client detects the error and drops the iframe. A real
-  domain (+ https) in front of the box would make it work, and would also
-  unlock mic voice chat.
+- The loading screen's YouTube background goes through a relay page:
+  YouTube rejects embeds from IP-literal http origins (onError 150 via the
+  widget API - verified against a known-embeddable control video, so it is
+  the origin, not the video). `apps/web/shim/` is a Cloudflare Worker
+  (deployed with `npx wrangler deploy` from that dir, currently
+  https://frag-friday-bg.floral-math-a059.workers.dev) serving a page that
+  hosts the real YouTube iframe on a workers.dev origin and relays widget
+  postMessage traffic both ways - sound toggle and error fallback work
+  unchanged. If the embed ever breaks again the client detects onError and
+  drops the iframe, falling back to the plain gradient.
 - `pnpm run web:dev` runs Vite locally, proxying `/websocket` and
   `/valve.zip` to the live box.
