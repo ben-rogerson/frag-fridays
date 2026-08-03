@@ -43,50 +43,78 @@ export type LaunchStatus =
 
 // In-game settings (sensitivity, volume, crosshair, binds...) live in cfg
 // files the engine writes into the in-memory FS, which dies with the page.
-// We snapshot them to localStorage while playing and lay them back down
-// before the engine boots, so a returning player keeps their tweaks.
-const SETTINGS_KEY = "ff-settings";
+// We snapshot the player's DELIBERATE changes to localStorage while playing
+// and replay them line-by-line after the next boot (the engine's `exec` is
+// a no-op in this wasm build - see troubleshooting).
+//
+// Only the diff against a boot-time baseline is saved: host_writeconfig
+// archives every cvar (~300), and a full snapshot pinned stale copies of
+// shipped userconfig.cfg defaults over any update shipped later - returning
+// players never received cl_bob 0 or the xhair crosshair (2026-08-03).
+const SETTINGS_KEY = "ff-settings-v2"; // v1 was a full cfg archive - see above
+const LEGACY_SETTINGS_KEY = "ff-settings";
 const SETTINGS_FILES = ["config.cfg", "video.cfg", "opengl.cfg", "touch.cfg"];
 const SETTINGS_DIR = "/rodir/cstrike/";
 
-export function persistSettings(x: Xash3DWebRTC) {
-  const fs = x.em?.FS;
-  if (!fs || x.exited) return;
+// Diff key for a cfg line: binds by key name, cvar sets by cvar name.
+// Anything else (comments, unbindall, blank) keys to null and never persists.
+function cfgKey(line: string): string | null {
+  const t = line.trim();
+  if (!t || t.startsWith("//")) return null;
+  const bind = t.match(/^bind\s+("?)(\S+?)\1\s+/i);
+  if (bind) return "bind " + bind[2].toUpperCase();
+  const cvar = t.match(/^(\w+)\s+\S/);
+  return cvar ? cvar[1].toLowerCase() : null;
+}
+
+function cfgMap(text: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const line of text.split("\n")) {
+    const key = cfgKey(line);
+    if (key) map.set(key, line.trim());
+  }
+  return map;
+}
+
+// Shipped defaults as of this boot, captured after main() (userconfig.cfg
+// has applied by then) and before the saved diff replays. Set by launchGame;
+// persistSettings refuses to run without it.
+let baseline: Record<string, Map<string, string>> | null = null;
+
+function readCfgFiles(x: Xash3DWebRTC): Record<string, string> {
   // Cmd_ExecuteString runs the command immediately (it's not queued), so
   // the files are fresh by the time we read them
   x.Cmd_ExecuteString("host_writeconfig");
   const out: Record<string, string> = {};
   for (const name of SETTINGS_FILES) {
     try {
-      out[name] = fs.readFile(SETTINGS_DIR + name, { encoding: "utf8" }) as string;
+      out[name] = x.em!.FS.readFile(SETTINGS_DIR + name, { encoding: "utf8" }) as string;
     } catch {
       /* engine hasn't written this one - skip it */
     }
   }
-  if (Object.keys(out).length) {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(out));
-  }
+  return out;
 }
 
-// Lays the saved cfg files down in the FS and returns the saved config.cfg
-// text so launchGame can replay it after boot. The replay is line-by-line
-// through Cmd_ExecuteString: in this wasm build `exec` opens the file but
-// its contents never execute (the command buffer never pumps them), and a
-// config.cfg written before main() is ignored the same way - direct
-// command execution is the only path that verifiably applies.
-function restoreSettings(fs: NonNullable<Xash3DWebRTC["em"]>["FS"]): string | null {
-  const raw = localStorage.getItem(SETTINGS_KEY);
-  if (!raw) return null;
-  try {
-    const files = JSON.parse(raw) as Record<string, string>;
-    for (const [name, text] of Object.entries(files)) {
-      fs.writeFile(SETTINGS_DIR + name, text);
+export function persistSettings(x: Xash3DWebRTC) {
+  if (!x.em?.FS || x.exited || !baseline) return;
+  const out: Record<string, string> = {};
+  for (const [name, text] of Object.entries(readCfgFiles(x))) {
+    const base = baseline[name] ?? new Map<string, string>();
+    const live = cfgMap(text);
+    const lines: string[] = [];
+    for (const [key, line] of live) {
+      // the lobby name field is authoritative, never the snapshot
+      if (key === "name") continue;
+      if (base.get(key) !== line) lines.push(line);
     }
-    return files["config.cfg"] ?? null;
-  } catch {
-    /* corrupt snapshot - engine falls back to the zip's defaults */
-    return null;
+    // a key bound at boot but unbound since must be actively unbound on replay
+    for (const key of base.keys()) {
+      if (key.startsWith("bind ") && !live.has(key)) lines.push(`unbind "${key.slice(5)}"`);
+    }
+    if (lines.length) out[name] = lines.join("\n");
   }
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(out));
 }
 
 export async function launchGame(
@@ -152,21 +180,32 @@ export async function launchGame(
   fs.writeFile("/rodir/extras.pk3", extrasBytes);
   fs.writeFile("/extras.pk3", extrasBytes);
 
-  const savedCfg = restoreSettings(fs);
-
   fs.chdir("/rodir");
   x.main();
   // debug handle for poking the live engine from devtools
   (window as unknown as { __xash?: Xash3DWebRTC }).__xash = x;
   x.Cmd_ExecuteString("_vgui_menus 0");
   x.Cmd_ExecuteString("gl_max_size 128");
-  if (savedCfg) {
-    // replay saved settings line by line (see restoreSettings). name lines
-    // are skipped so the lobby input stays authoritative.
-    for (const line of savedCfg.split("\n")) {
-      const cmd = line.trim();
-      if (!cmd || cmd.startsWith("//") || cmd.startsWith("name ")) continue;
-      x.Cmd_ExecuteString(cmd);
+  // baseline BEFORE the saved diff replays: userconfig.cfg has already
+  // applied inside main() (verified - replayed values are never overwritten
+  // afterwards), so this is the shipped defaults for this valve.zip build
+  baseline = Object.fromEntries(
+    Object.entries(readCfgFiles(x)).map(([name, text]) => [name, cfgMap(text)]),
+  );
+  // v1 full archives pinned stale shipped defaults - drop them for good
+  localStorage.removeItem(LEGACY_SETTINGS_KEY);
+  const saved = localStorage.getItem(SETTINGS_KEY);
+  if (saved) {
+    try {
+      for (const text of Object.values(JSON.parse(saved) as Record<string, string>)) {
+        for (const line of text.split("\n")) {
+          const cmd = line.trim();
+          if (!cmd || cmd.startsWith("//") || cmd.startsWith("name ")) continue;
+          x.Cmd_ExecuteString(cmd);
+        }
+      }
+    } catch {
+      /* corrupt snapshot - shipped defaults it is */
     }
   }
   if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {

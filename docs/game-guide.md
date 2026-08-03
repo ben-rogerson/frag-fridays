@@ -155,20 +155,25 @@ tab. Full rules in [setup.md](setup.md) and the decision log.
 ## Per-player settings persist across visits
 
 A player's own tweaks (sensitivity, volume, `cl_righthand`, custom binds -
-anything that lands in `config.cfg`) survive page reloads. The client
-snapshots the engine's cfg files to localStorage every 30s in-game, plus
+anything that lands in `config.cfg`) survive page reloads. The client diffs
+the engine's cfg files against a boot-time baseline and saves only the
+changed lines to localStorage (`ff-settings-v2`) every 30s in-game, plus
 whenever the tab hides or closes, and replays them on the next launch
-(`apps/web/src/launch.ts`, `persistSettings`/`restoreSettings`).
+(`apps/web/src/launch.ts`, `persistSettings`).
 
 - Per browser, per device. Different browser or cleared site data = back
   to the shipped defaults. Nothing is stored server-side.
 - The lobby name field wins over the saved config's `name`.
 - The replay is line-by-line `Cmd_ExecuteString` - the engine's `exec`
   does not work in the browser build (see troubleshooting).
-- Saved settings replay AFTER `userconfig.cfg`, so a player who rebinds
-  F1/F2 keeps their rebind even if we ship new join binds. If a shipped
-  bind change must reach everyone, tell players to clear site data for
-  the server URL (or bump the localStorage key `ff-settings`).
+- Only deviations from the shipped defaults persist. Shipping a new
+  `userconfig.cfg` value reaches every returning player automatically,
+  UNLESS they deliberately changed that exact setting - their change wins.
+- History: v1 (`ff-settings`) snapshotted the full `host_writeconfig`
+  archive (~300 cvars), which pinned stale copies of shipped defaults -
+  returning players never received `cl_bob 0` or the xhair crosshair
+  (2026-08-03). v1 keys are deleted on launch; those players' old tweaks
+  reset to shipped defaults once.
 
 ## Drop screen
 

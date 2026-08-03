@@ -58,6 +58,26 @@ The archive root must contain **only** `valve/` and `cstrike/`. Nesting them
 under an extra directory is the most common boot failure. If the server won't
 boot after a rebuild, check the archive root first.
 
+## Web client changes break the live site until the container restarts
+
+`index.html` is a single-file bind mount (inode rule, same as valve.zip),
+but `web/assets/` is a directory mount. A file-only `pnpm run deploy` after
+a web change therefore HALF-applies: the container keeps serving the stale
+`index.html` (old inode) while rsync `--delete` has already removed the old
+hashed JS bundle it references from `assets/` - fresh page loads 404 on the
+bundle and the site is blank until the container restarts (2026-08-03).
+After any `apps/web` change, restart the running mod (players drop) or ship
+it alongside a `pnpm run deploy <mod>` / `pnpm run clientcfg` that restarts
+anyway. Emergency no-drop fix: overwrite the stale inode through the
+container's mount namespace:
+
+```bash
+ssh cs16 'PID=$(docker inspect -f "{{.State.Pid}}" dm-xash3d-1) && \
+  nsenter -t "$PID" -m sh -c "mount -o remount,rw,bind /xashds/public/index.html && \
+  cat > /xashds/public/index.html && \
+  mount -o remount,ro,bind /xashds/public/index.html" < /opt/cs16/web/index.html'
+```
+
 ## The restart:always port-theft incident
 
 The vanilla container had `restart: always` and silently reclaimed port
