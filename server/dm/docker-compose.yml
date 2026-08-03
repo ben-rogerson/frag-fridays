@@ -20,6 +20,8 @@ services:
       - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"
+      # HL kill logs (log on + mp_logfile in server.cfg) - persisted for the recap
+      - "../logs/dm:/xashds/cstrike/logs"
     ports:
       - "27016:27016"
       - "27038:27038"

@@ -95,7 +95,10 @@ fi
 
 # the root compose bind-mounts these; they must exist even when empty.
 # cmdpipe is the remote-console drop dir (scripts/rc.sh -> cmdpipe.amxx).
-ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs} $REMOTE_ROOT/cmdpipe"
+# logs/<mod> receives HL kill logs; chown so the container's xashds (1000)
+# can write through the bind mount.
+ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm} \
+  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm}"
 
 if [[ -z "$MOD" ]]; then
   log "files synced. No mod named, so nothing was restarted."

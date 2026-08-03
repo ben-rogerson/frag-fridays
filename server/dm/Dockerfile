@@ -20,6 +20,9 @@ RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_limitteams 0\nmp_autoteambal
 # scoreboard/server-browser name (base image default: "My WebXash3D CS Server").
 # Leading \n matters: the base image's server.cfg has no trailing newline.
 RUN printf '\nhostname "Frag Friday"\n' >> cstrike/server.cfg
+# HL kill logging - one line per frag into cstrike/logs (compose-mounts
+# /opt/cs16/logs/<mod> so files survive restarts); feeds the Friday recap
+RUN printf 'log on\nmp_logfile 1\n' >> cstrike/server.cfg
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \
