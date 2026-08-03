@@ -6,6 +6,7 @@ cs_italy
 de_inferno
 cs_militia
 de_aztec
+de_cbble
 fy_iceworld
 fy_pool_day
 scoutzknivez

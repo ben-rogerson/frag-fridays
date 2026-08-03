@@ -4,6 +4,7 @@ de_dust
 cs_assault
 de_prodigy
 de_nuke
+de_cbble
 cs_militia
 fy_iceworld
 aim_map
