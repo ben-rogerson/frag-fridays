@@ -804,7 +804,6 @@ const App: FC = () => {
               <p className="masthead__online">
                 <span className="livedot livedot--blip" key={pollTick} aria-hidden="true" />
                 server online
-                {ping !== null && <> &middot; {ping} ms</>}
               </p>
             )}
           </header>
@@ -894,9 +893,9 @@ const App: FC = () => {
           </section>
 
           <main className="front">
-            <section id="card" className="panel front__card" aria-label="main event">
+            <section id="card" className="panel front__card" aria-label="Current Mode">
               <h2 className="panel__bar">
-                main event
+                Current Mode
                 {clock.id === 'countdown' && (
                   <span className="panel__barnote">{clock.kickoffLabel}</span>
                 )}
@@ -1016,6 +1015,7 @@ const App: FC = () => {
                       <th>players</th>
                       <th>round</th>
                       <th>map time</th>
+                      <th>ping</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1040,10 +1040,11 @@ const App: FC = () => {
                         <td>
                           {serverStatus.mapTimeLeft > 0 ? mmss(serverStatus.mapTimeLeft) : '-'}
                         </td>
+                        <td>{ping !== null ? `${ping} ms` : '-'}</td>
                       </tr>
                     ) : (
                       <tr>
-                        <td className="servers__scanning" colSpan={5}>
+                        <td className="servers__scanning" colSpan={6}>
                           scanning for servers…
                         </td>
                       </tr>
