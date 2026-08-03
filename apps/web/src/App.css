@@ -307,42 +307,6 @@
   }
 }
 
-/* --- navbar ------------------------------------------------------------ */
-
-.navbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 1.4rem;
-  padding: 0.45rem 0.8rem;
-  background: linear-gradient(180deg, var(--panel-hi) 0%, #142347 100%);
-  border: 1px solid var(--bevel-light);
-  border-bottom-color: var(--bevel-dark);
-  border-right-color: var(--bevel-dark);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  font-size: 0.78rem;
-  text-transform: lowercase;
-}
-
-.navbar a {
-  color: var(--link);
-  text-decoration: none;
-  padding: 0.15rem 0;
-}
-
-.navbar a:hover,
-.navbar a:focus-visible {
-  color: var(--acid-hot);
-  text-decoration: underline;
-  outline: none;
-}
-
-.navbar__note {
-  margin-left: auto;
-  font-size: 0.68rem;
-  color: var(--text-mute);
-}
-
 /* --- session strip: countdown / live ----------------------------------- */
 
 .event {
@@ -461,6 +425,25 @@
 .event__when {
   font-size: 0.72rem;
   color: var(--text-mute);
+}
+
+/* pre-kickoff invite: the server's already up, so the strip offers warm-up
+   without stealing the countdown's billing */
+.event__practice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--live);
+}
+
+.event__practice .livedot {
+  width: 5px;
+  height: 5px;
 }
 
 .event__meta {
@@ -628,55 +611,6 @@
   color: var(--text-faint);
 }
 
-/* --- banner ads -------------------------------------------------------- */
-
-.ad {
-  margin-top: 0.9rem;
-}
-
-.ad__caption {
-  font-size: 0.58rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--text-faint);
-  margin-bottom: 0.2rem;
-}
-
-.ad__body {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.7rem 1rem;
-  background: linear-gradient(180deg, #18294e 0%, #101d3a 100%);
-  border: 1px solid var(--bevel-light);
-  border-bottom-color: var(--bevel-dark);
-  border-right-color: var(--bevel-dark);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.ad__body--stack {
-  flex-direction: column;
-  text-align: center;
-  gap: 0.5rem;
-  padding: 1rem;
-}
-
-.ad__mark {
-  width: 34px;
-  height: 34px;
-  flex: none;
-  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
-}
-
-.ad__copy {
-  font-size: 0.8rem;
-  color: var(--text-mute);
-}
-
-.ad__copy strong {
-  color: var(--text);
-}
-
 /* --- front page grid --------------------------------------------------- */
 
 .front {
@@ -684,11 +618,10 @@
   grid-template-columns: 1fr 300px;
   /* row 2 soaks up any height the taller aside forces, so the server
      browser hugs the main-event card instead of drifting down */
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   grid-template-areas:
     "card aside"
-    "servers aside"
-    "standings standings";
+    "servers aside";
   align-items: start;
   gap: 0.9rem;
   margin-top: 0.9rem;
@@ -700,10 +633,6 @@
 
 .front__servers {
   grid-area: servers;
-}
-
-.front__standings {
-  grid-area: standings;
 }
 
 .front__aside {
@@ -720,15 +649,10 @@
     grid-template-areas:
       "card"
       "servers"
-      "aside"
-      "standings";
+      "aside";
   }
 
   .masthead__online {
-    display: none;
-  }
-
-  .navbar__note {
     display: none;
   }
 
@@ -746,9 +670,10 @@
     font-size: 1.4rem;
   }
 
+  /* phones wrap the cell groups, which strands a colon at a line end -
+     the unit labels carry the grouping, so the seps sit out */
   .clock__sep {
-    padding-top: 0.4rem;
-    font-size: 1.15rem;
+    display: none;
   }
 
   /* the round/map-time columns don't fit a phone; the essentials stay */
@@ -937,10 +862,6 @@
   border-top: 1px solid rgba(51, 73, 127, 0.28);
 }
 
-.rotation__row--live {
-  background: rgba(220, 232, 30, 0.05);
-}
-
 .rotation__emblem {
   display: grid;
   place-items: center;
@@ -952,14 +873,7 @@
   height: 18px;
 }
 
-.rotation__row--live .rotation__emblem {
-  color: var(--acid);
-}
-
 .rotation__name {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--text);
@@ -971,14 +885,45 @@
   color: var(--text-faint);
 }
 
-/* live semantics: the running mod's row reads in signal green */
-.rotation__row--live .rotation__blurb {
-  color: var(--live);
-}
-
 .card__pending {
   font-size: 0.78rem;
   color: var(--text-faint);
+}
+
+/* tonight's map pool - thumbnail gallery in the period fansite grammar */
+.pool {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.6rem 0.5rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.pool__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.pool__name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--link);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pool__name .livedot {
+  flex: none;
+}
+
+/* live semantics: the map on the server now reads in signal green */
+.pool__tile--live .pool__name {
+  color: var(--live);
 }
 
 /* --- server browser: toolbar + connect action -------------------------- */
@@ -1026,12 +971,57 @@
 }
 
 /* the connect zone under the server list - progress, then the button */
+.browser__lower {
+  padding: 0.9rem 0.8rem;
+}
+
 .browser__action {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.6rem;
-  padding: 0.9rem 0.8rem;
+  min-width: 0;
+}
+
+/* --- map imagery: sourced 1.6-era screenshots in sunken wells ----------- */
+
+/* a screenshot sunk into the page like the counter cells: inverted bevel,
+   and the well's inset shadow painted over the image by the ::after pane */
+.mapshot {
+  position: relative;
+  display: block;
+  background: #060b18;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+}
+
+.mapshot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.mapshot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* honest fallback for a map with no shot on hand */
+.mapshot__none {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  padding: 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--text-faint);
 }
 
 /* the connect button that is actually the download link */
@@ -1073,6 +1063,49 @@
 
 .join:active {
   transform: translateY(1px);
+}
+
+/* one-shot power-on when the download lands and CONNECT becomes real: a
+   fluorescent tube striking - dark, two flickers, then the resting glow.
+   Glow means powered, and this is the moment the button gets its power.
+   steps(1) holds each frame hard, so it reads as electricity, not easing.
+   The button is live from the first frame; the strike is purely visual. */
+.join--ignite {
+  animation: join-ignite 0.7s steps(1, end) backwards;
+}
+
+@keyframes join-ignite {
+  0%,
+  19% {
+    filter: brightness(0.3);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  }
+  10%,
+  27% {
+    filter: brightness(1.15);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.5),
+      0 0 30px rgba(244, 255, 61, 0.45);
+  }
+  36% {
+    filter: brightness(0.85);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.5),
+      0 0 10px rgba(220, 232, 30, 0.15);
+  }
+  44%,
+  100% {
+    filter: brightness(1);
+    box-shadow:
+      0 3px 10px rgba(0, 0, 0, 0.5),
+      0 0 22px rgba(220, 232, 30, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .join--ignite {
+    animation: none;
+  }
 }
 
 /* GoldSrc-style chunky segmented progress, sunk into a bevelled well */
@@ -1136,11 +1169,6 @@
   color: var(--alert);
 }
 
-.hint {
-  font-size: 0.72rem;
-  color: var(--text-faint);
-}
-
 /* --- server browser ---------------------------------------------------- */
 
 .servers {
@@ -1197,32 +1225,6 @@
 .servers__foot strong {
   color: var(--text);
   font-weight: 700;
-}
-
-/* --- season standings --------------------------------------------------- */
-
-.standings__rank {
-  width: 2.2rem;
-  color: var(--text-mute);
-}
-
-.standings__player {
-  font-weight: 700;
-}
-
-/* the current leader holds the table's only wash of acid */
-.standings__leader td {
-  background: rgba(220, 232, 30, 0.05);
-}
-
-.standings__leader .standings__player {
-  color: var(--acid);
-}
-
-.standings__empty {
-  padding: 0.9rem 0.8rem;
-  font-size: 0.78rem;
-  color: var(--text-faint);
 }
 
 /* --- media player panel ------------------------------------------------ */

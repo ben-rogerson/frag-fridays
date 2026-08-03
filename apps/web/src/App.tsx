@@ -5,7 +5,7 @@ import '@fontsource/black-ops-one'
 import './App.css'
 
 type Stage =
-  | { id: 'downloading'; received: number; total: number | null }
+  | { id: 'downloading'; received: number; total: number | null; rate: number | null }
   | { id: 'ready' }
   | { id: 'engine' }
   | { id: 'unpacking'; done: number; total: number }
@@ -42,14 +42,6 @@ type ServerStatus = {
   mapTimeLeft: number // seconds; 0 = no timelimit
   roundTimeLeft: number // seconds; -1 = no round timer seen yet
   players: { name: string; frags: number; bot: boolean }[]
-}
-
-// generated from the box's kill logs by scripts/standings.sh; lives under
-// assets/ because that's the only web dir mounted into every mod's container
-type Standings = {
-  generated: string
-  season: { name: string; sessions: number; kills: number; deaths: number; kd: number }[]
-  weeks: { date: string; mvp: string | null; kills: number }[]
 }
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -212,10 +204,37 @@ function sessionClock(): SessionClock {
   )
 }
 
+// --- map imagery --------------------------------------------------------
+// Sourced 1.6-era screenshots (160x120, the classic server-browser thumb
+// size), bundled at build time and keyed by lowercase map name. Maps with
+// no shot on hand (kz_summercliff2) get the flat "no map image" tile.
+const MAP_SHOTS = import.meta.glob('./assets/maps/*.jpg', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>
+
+const mapShot = (map: string): string | null =>
+  MAP_SHOTS[`./assets/maps/${map.toLowerCase()}.jpg`] ?? null
+
+// thumb in a sunken well; the well inset has to be painted over the img
+const MapShot: FC<{ map: string }> = ({ map }) => {
+  const shot = mapShot(map)
+  return (
+    <span className="mapshot">
+      {shot ? (
+        <img src={shot} alt="" width={160} height={120} loading="lazy" />
+      ) : (
+        <span className="mapshot__none">no map image</span>
+      )}
+    </span>
+  )
+}
+
 // --- mode roster --------------------------------------------------------
 // One mod runs at a time; /info.json announces the live one. The roster is
 // static because the offering changes rarely - blurbs are condensed from
-// each mod's real info.json copy (server/<mod>/info.json).
+// each mod's real info.json copy (server/<mod>/info.json), map pools from
+// its mapcycle.txt. Vanilla runs the stock cycle, so it carries no pool.
 type ModeEmblem = FC
 type ModeEntry = {
   key: string
@@ -223,6 +242,7 @@ type ModeEntry = {
   name: string
   blurb: string
   emblem: ModeEmblem
+  pool?: string[]
 }
 
 // emblems: one 2.5px-stroke linework family, coloured via currentColor
@@ -262,6 +282,23 @@ const MODES: ModeEntry[] = [
     name: 'GunGame',
     blurb: 'every kill levels you up - 23 weapons to the top',
     emblem: GunGameEmblem,
+    pool: [
+      'aim_map',
+      'de_dust2',
+      'cs_assault',
+      'de_dust',
+      'cs_italy',
+      'de_inferno',
+      'cs_militia',
+      'de_aztec',
+      'de_cbble',
+      'fy_iceworld',
+      'fy_pool_day',
+      'scoutzknivez',
+      '35hp_2',
+      'fy_snow',
+      'de_rats',
+    ],
   },
   {
     key: 'dm',
@@ -269,6 +306,22 @@ const MODES: ModeEntry[] = [
     name: 'Deathmatch',
     blurb: 'free-for-all frags, instant respawn',
     emblem: DeathmatchEmblem,
+    pool: [
+      'fy_pool_day',
+      'de_dust2',
+      'de_dust',
+      'cs_assault',
+      'de_prodigy',
+      'de_nuke',
+      'de_cbble',
+      'cs_militia',
+      'fy_iceworld',
+      'aim_map',
+      'scoutzknivez',
+      '35hp_2',
+      'fy_snow',
+      'de_rats',
+    ],
   },
   {
     key: 'classic',
@@ -283,6 +336,7 @@ const MODES: ModeEntry[] = [
     name: 'KZ / Climb',
     blurb: 'checkpoint climbs against the clock',
     emblem: KzEmblem,
+    pool: ['kz_giantbean_b15', 'kz_summercliff2', 'kz_cellblock'],
   },
 ]
 
@@ -305,27 +359,6 @@ const CrestLogo: FC = () => (
       fill="currentColor"
       d="M43 23h-7v-2h9c-.131-.793-.66-1.501-1.395-1.808-.493-.226-1.044-.19-1.57-.19L36 19c-1 0-2 1-2 2v2c.055.998 1 2 2 2h7v2h-9c.134.637.47 1.237 1.018 1.593.48.346 1.083.424 1.657.407H43c1 0 2-1 2-2v-2C45 24 44.12 23.019 43 23zM5 21h8c0-1.105-.895-2-2-2H5c-1.105 0-2 .895-2 2v6c0 1.105.895 2 2 2h6c1.105 0 2-.895 2-2H5V21z"
     />
-  </svg>
-)
-
-// stylised partner-ad artwork, drawn inline so the page stays self-contained
-const CrtMark: FC = () => (
-  <svg viewBox="0 0 100 100" className="ad__mark" aria-hidden="true">
-    <path d="M10 8h80v62H10z" fill="#eceff1" />
-    <path d="M18 16h64v46H18z" fill="#0a1226" />
-    <path d="M22 22h56v2H22zM22 28h44v2H22z" fill="#dce81e" opacity="0.55" />
-    <path d="M40 70h20v8H40z" fill="#c6ccd2" />
-    <path d="M28 78h44v8H28z" fill="#eceff1" />
-  </svg>
-)
-
-const MouseMark: FC = () => (
-  <svg viewBox="0 0 100 100" className="ad__mark" aria-hidden="true">
-    <path d="M50 2c3 8-9 10 0 18" fill="none" stroke="#eceff1" strokeWidth="3" />
-    <path d="M50 20c16 0 26 12 26 32s-10 42-26 42S24 72 24 52s10-32 26-32z" fill="#eceff1" />
-    <path d="M48.5 22h3v25h-3z" fill="#0a1226" />
-    <path d="M26.5 46h47v3h-47z" fill="#0a1226" />
-    <path d="M46 30h8v11h-8z" fill="#8b9ac0" />
   </svg>
 )
 
@@ -392,10 +425,24 @@ function stageProgress(stage: Stage): number | null {
 
 function stageLabel(stage: Stage): string {
   switch (stage.id) {
-    case 'downloading':
-      return stage.total
-        ? `valve.zip - ${mb(stage.received)} / ${mb(stage.total)} MB`
-        : `valve.zip - ${mb(stage.received)} MB`
+    // the period download-dialog readout: real transfer rate and a flat
+    // time estimate, straight off the byte stream
+    case 'downloading': {
+      const rate = stage.rate === null ? '' : ` - ${(stage.rate / 1048576).toFixed(1)} MB/s`
+      if (!stage.total) return `valve.zip - ${mb(stage.received)} MB${rate}`
+      const secsLeft =
+        stage.rate !== null && stage.rate > 0
+          ? Math.max(1, Math.round((stage.total - stage.received) / stage.rate))
+          : null
+      const est =
+        secsLeft === null
+          ? ''
+          : secsLeft > 90
+            ? ` - est. ${Math.round(secsLeft / 60)} min left`
+            : // 5s steps past 10s so the estimate reads steady, not twitchy
+              ` - est. ${secsLeft > 10 ? Math.round(secsLeft / 5) * 5 : secsLeft} sec left`
+      return `valve.zip - ${mb(stage.received)} / ${mb(stage.total)} MB${rate}${est}`
+    }
     case 'ready':
       return 'download complete - no install, no Steam.'
     case 'engine':
@@ -419,7 +466,12 @@ const App: FC = () => {
   const xashRef = useRef<Xash3DWebRTC | null>(null)
   const startedRef = useRef(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
+  const [stage, setStage] = useState<Stage>({
+    id: 'downloading',
+    received: 0,
+    total: null,
+    rate: null,
+  })
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [videoDead, setVideoDead] = useState(false)
   // Sound is wanted by default, but browsers refuse unmuted playback with
@@ -440,7 +492,6 @@ const App: FC = () => {
   // the masthead livedot so it blips once per real answer from the box
   const [ping, setPing] = useState<number | null>(null)
   const [pollTick, setPollTick] = useState(0)
-  const [standings, setStandings] = useState<Standings | null>(null)
   const [clock, setClock] = useState<SessionClock>(sessionClock)
   // true only when the countdown hit zero on-screen - gates the one-shot
   // on-air sting (radar burst, LIVE NOW flicker); a page merely loaded
@@ -489,16 +540,6 @@ const App: FC = () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     else enterFullscreen()
   }
-
-  // season table regenerated post-session; absent until the first one
-  useEffect(() => {
-    fetch('/assets/standings.json', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((s: Standings | null) => {
-        if (s?.season) setStandings(s)
-      })
-      .catch(() => {})
-  }, [])
 
   // live server snapshot while waiting - stops once in-game. info.json rides
   // the same poll so a mod swap updates the match panel on an already-open
@@ -650,8 +691,17 @@ const App: FC = () => {
 
   useEffect(() => {
     let cancelled = false
+    // transfer rate over a sliding ~3s window of progress samples; needs
+    // ~0.8s of history before it reads as a rate rather than a spike
+    const samples: { t: number; received: number }[] = []
     downloadValveZip((p) => {
-      if (!cancelled) setStage({ id: 'downloading', ...p })
+      if (cancelled) return
+      const now = performance.now()
+      samples.push({ t: now, received: p.received })
+      while (samples.length > 1 && now - samples[0].t > 3000) samples.shift()
+      const span = now - samples[0].t
+      const rate = span > 800 ? ((p.received - samples[0].received) / span) * 1000 : null
+      setStage({ id: 'downloading', ...p, rate })
     })
       .then((bytes) => {
         if (cancelled) return
@@ -725,7 +775,6 @@ const App: FC = () => {
   const humans = serverStatus?.players.filter((p) => !p.bot) ?? []
   const topFrag =
     humans.length > 0 ? humans.reduce((a, b) => (b.frags > a.frags ? b : a)) : null
-  const lastWeek = standings?.weeks.length ? standings.weeks[standings.weeks.length - 1] : null
   // which roster entry is live; unmatched modes (a future mod) still render
   // from info.json with the fallback emblem
   const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null
@@ -749,20 +798,16 @@ const App: FC = () => {
                 counter-strike 1.6 &middot; every friday 2:30 pm &middot; sydney server
               </p>
             </div>
-            <p className="masthead__online">
-              <span className="livedot livedot--blip" key={pollTick} aria-hidden="true" />
-              server online
-              {ping !== null && <> &middot; {ping} ms</>}
-            </p>
+            {/* only claimed once a status poll has actually answered - the
+                page never says "online" about a box it hasn't heard from */}
+            {serverStatus && (
+              <p className="masthead__online">
+                <span className="livedot livedot--blip" key={pollTick} aria-hidden="true" />
+                server online
+                {ping !== null && <> &middot; {ping} ms</>}
+              </p>
+            )}
           </header>
-
-          <nav className="navbar" aria-label="site">
-            <a href="#session">matchday</a>
-            <a href="#servers">servers</a>
-            <a href="#standings">standings</a>
-            <a href="#demos">demos</a>
-            <span className="navbar__note">fridays 2:30 pm &middot; sydney</span>
-          </nav>
 
           <section
             id="session"
@@ -818,6 +863,14 @@ const App: FC = () => {
                   <span className="event__when">
                     {clock.isToday ? 'today' : clock.kickoffLabel} &middot; 2:30 pm sydney
                   </span>
+                  {/* the box runs all week - joining before kickoff is warm-up,
+                      not the event. only claimed once a poll has answered. */}
+                  {serverStatus && (
+                    <span className="event__practice">
+                      <span className="livedot" aria-hidden="true" />
+                      practice open now - warm up before kickoff
+                    </span>
+                  )}
                 </p>
                 <p
                   className="event__clock"
@@ -876,31 +929,46 @@ const App: FC = () => {
                 ) : (
                   <p className="card__pending">reading the card from the server…</p>
                 )}
-                <p className="hint">tip: hit F1 on the team screen to jump straight into the action</p>
               </div>
+              {liveMode?.pool && (
+                <>
+                  <h3 className="card__subbar">
+                    the map pool
+                    <span className="card__subnote">
+                      tonight&apos;s cycle - {liveMode.pool.length} maps
+                    </span>
+                  </h3>
+                  <ul className="pool">
+                    {liveMode.pool.map((m) => {
+                      const isOn = serverStatus?.map.toLowerCase() === m
+                      return (
+                        <li className={`pool__tile${isOn ? ' pool__tile--live' : ''}`} key={m}>
+                          <MapShot map={m} />
+                          <span className="pool__name">
+                            {isOn && <span className="livedot" aria-hidden="true" />}
+                            {m}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </>
+              )}
               <h3 className="card__subbar">
-                the rotation
+                more game modes
                 <span className="card__subnote">one mod runs at a time - swaps between weeks</span>
               </h3>
+              {/* the live mode already headlines the card, so its row sits out */}
               <ul className="rotation">
-                {MODES.map((m) => {
-                  const isLive = m.key === liveMode?.key
+                {MODES.filter((m) => m.key !== liveMode?.key).map((m) => {
                   const Emblem = m.emblem
                   return (
-                    <li
-                      className={`rotation__row${isLive ? ' rotation__row--live' : ''}`}
-                      key={m.key}
-                    >
+                    <li className="rotation__row" key={m.key}>
                       <span className="rotation__emblem" aria-hidden="true">
                         <Emblem />
                       </span>
-                      <span className="rotation__name">
-                        {isLive && <span className="livedot" aria-hidden="true" />}
-                        {m.name}
-                      </span>
-                      <span className="rotation__blurb">
-                        {isLive ? 'on the server now' : m.blurb}
-                      </span>
+                      <span className="rotation__name">{m.name}</span>
+                      <span className="rotation__blurb">{m.blurb}</span>
                     </li>
                   )
                 })}
@@ -908,7 +976,12 @@ const App: FC = () => {
             </section>
 
             <section id="servers" className="panel front__servers" aria-label="server browser">
-              <h2 className="panel__bar">server browser</h2>
+              <h2 className="panel__bar">
+                server browser
+                {clock.id === 'countdown' && serverStatus && (
+                  <span className="panel__barnote">open for practice</span>
+                )}
+              </h2>
               <div className="panel__body panel__body--flush">
                 {(stage.id === 'downloading' || stage.id === 'ready') && (
                   <div className="browser__toolbar">
@@ -972,94 +1045,56 @@ const App: FC = () => {
                   </tbody>
                 </table>
 
-                <div className="browser__action">
-                  {stage.id === 'error' ? (
-                    <>
-                      <p className="status status--error">{stageLabel(stage)}</p>
-                      <button className="join" onClick={() => location.reload()}>
-                        retry download
-                      </button>
-                    </>
-                  ) : stage.id === 'dropped' ? (
-                    <>
-                      <p className="status status--error">{stageLabel(stage)}</p>
-                      <button className="join" onClick={reconnect}>
-                        reconnect
-                      </button>
-                    </>
-                  ) : stage.id === 'ready' ? (
-                    <>
-                      <button className="join" onClick={play}>
-                        » connect «
-                      </button>
-                      <p className="status">{stageLabel(stage)}</p>
-                    </>
-                  ) : (
-                    <>
-                      <div
-                        className={`bar${progress === null ? ' bar--indeterminate' : ''}`}
-                        role="progressbar"
-                        aria-valuenow={progress === null ? undefined : Math.round(progress * 100)}
-                      >
-                        {Array.from({ length: SEGMENTS }, (_, i) => (
-                          <span key={i} className={i < filled ? 'seg seg--on' : 'seg'} />
-                        ))}
-                      </div>
-                      <p className="status">{stageLabel(stage)}</p>
-                    </>
-                  )}
+                <div className="browser__lower">
+                  <div className="browser__action">
+                    {stage.id === 'error' ? (
+                      <>
+                        <p className="status status--error">{stageLabel(stage)}</p>
+                        <button className="join" onClick={() => location.reload()}>
+                          retry download
+                        </button>
+                      </>
+                    ) : stage.id === 'dropped' ? (
+                      <>
+                        <p className="status status--error">{stageLabel(stage)}</p>
+                        <button className="join" onClick={reconnect}>
+                          reconnect
+                        </button>
+                      </>
+                    ) : stage.id === 'ready' ? (
+                      <>
+                        {/* ignites once, when the download lands; retry and
+                            reconnect above stay flat - recovery isn't a show */}
+                        <button className="join join--ignite" onClick={play}>
+                          » connect «
+                        </button>
+                        <p className="status">{stageLabel(stage)}</p>
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          className={`bar${progress === null ? ' bar--indeterminate' : ''}`}
+                          role="progressbar"
+                          aria-label="downloading valve.zip"
+                          aria-valuenow={
+                            progress === null ? undefined : Math.round(progress * 100)
+                          }
+                        >
+                          {Array.from({ length: SEGMENTS }, (_, i) => (
+                            <span key={i} className={i < filled ? 'seg seg--on' : 'seg'} />
+                          ))}
+                        </div>
+                        <p className="status">{stageLabel(stage)}</p>
+                      </>
+                    )}
+                  </div>
+
                 </div>
 
                 {topFrag && (
                   <p className="servers__foot">
-                    top frag right now: <strong>{topFrag.name}</strong> ({topFrag.frags})
-                  </p>
-                )}
-              </div>
-            </section>
-
-            <section id="standings" className="panel front__standings" aria-label="season standings">
-              <h2 className="panel__bar">
-                season standings{' '}
-                <span className="panel__barnote">humans only - bots don&apos;t rank</span>
-              </h2>
-              <div className="panel__body panel__body--flush">
-                {standings && standings.season.length > 0 ? (
-                  <>
-                    <table className="servers standings">
-                      <thead>
-                        <tr>
-                          <th className="standings__rank">#</th>
-                          <th>player</th>
-                          <th>sessions</th>
-                          <th>kills</th>
-                          <th>deaths</th>
-                          <th>k/d</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standings.season.slice(0, 10).map((p, i) => (
-                          <tr key={p.name} className={i === 0 ? 'standings__leader' : undefined}>
-                            <td className="standings__rank">{i + 1}</td>
-                            <td className="standings__player">{p.name}</td>
-                            <td>{p.sessions}</td>
-                            <td>{p.kills}</td>
-                            <td>{p.deaths}</td>
-                            <td>{p.kd.toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {lastWeek?.mvp && (
-                      <p className="servers__foot">
-                        last session {lastWeek.date}: <strong>{lastWeek.mvp}</strong> top-fragged
-                        with {lastWeek.kills}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="standings__empty">
-                    no results yet - the first table publishes after friday&apos;s session.
+                    {clock.id === 'live' ? 'top frag right now' : 'top frag in warm-up'}:{' '}
+                    <strong>{topFrag.name}</strong> ({topFrag.frags})
                   </p>
                 )}
               </div>
@@ -1113,28 +1148,8 @@ const App: FC = () => {
                 </div>
               </section>
 
-              <div className="ad ad--box">
-                <p className="ad__caption">official partner</p>
-                <div className="ad__body ad__body--stack">
-                  <CrtMark />
-                  <p className="ad__copy">
-                    <strong>Monolith M-19 CRT</strong> - 19 inches of flat glass. 85 Hz. 24 kg.
-                  </p>
-                </div>
-              </div>
             </aside>
           </main>
-
-          <div className="ad ad--leaderboard">
-            <p className="ad__caption">official partner</p>
-            <div className="ad__body">
-              <MouseMark />
-              <p className="ad__copy">
-                <strong>SharpEye 400 optical mouse</strong> - 400 dpi optical sensor. no ball to
-                clean. usb + ps/2.
-              </p>
-            </div>
-          </div>
 
           <footer className="footer">
             <p>© 2026 frag fridays &middot; best viewed at 1024×768</p>

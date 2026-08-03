@@ -64,15 +64,12 @@ laptop".
 - **Frag Fridays** name (renamed from Frag Friday, Aug 2026) and the Friday
   framing are fixed. Sessions kick off **Friday 2:30pm Sydney**.
 - **Esports matchday framing**: the page is an event page for the weekly
-  session (countdown to kickoff, main-event card, live/standings data), not a
-  passive fansite.
+  session (countdown to kickoff, main-event card, live data), not a passive
+  fansite. Before kickoff the open server is framed as practice/warm-up, not
+  the event itself.
 - **No written gags**: the humour is the format played completely straight -
-  period chrome, spec-sheet ad copy, real data stated flatly. No invented
-  one-liners, no workplace references (Simply Wall St must not appear on the
-  page).
-- **Retro gamer-product partner ads**: fake early-2000s hardware brands
-  (CRT monitor, optical mouse) in authentic ad slots, drawn inline. Never
-  real trademarks, never the workplace.
+  period chrome, real data stated flatly. No invented one-liners, no
+  workplace references (Simply Wall St must not appear on the page).
 - **Crest artwork**: the supplied crest SVG above the title must be kept.
 - **The frag-movie video with audio must be present** (currently the
   ANNIHILATION 2 YouTube embed with drum & bass audio) - as background
@@ -81,10 +78,13 @@ laptop".
 ## Evidence on Hand
 
 - Live server data feeds (`/info.json`, `/status.json`) - real, not mocked.
-- Season standings feed (`/assets/standings.json`) generated from the box's
-  kill logs by `scripts/standings.sh`; absent until the first session.
+- Season standings feed (`/assets/standings.json`) still generated on the box
+  by `scripts/standings.sh`, but no longer shown on the page.
 - Real server specs (1 vCPU / 2GB / Sydney) shown as a self-deprecating flex.
-- Crest SVG and inline partner-ad artwork in `apps/web/src/App.tsx`.
+- Crest SVG artwork in `apps/web/src/App.tsx`.
+- Sourced 1.6-era map screenshots (160x120) for every map in the mod
+  mapcycles, bundled in `apps/web/src/assets/maps/` (kz_summercliff2 has no
+  shot and falls back to a "no map image" tile).
 - No testimonials, pricing, or marketing claims exist; do not invent any.
 
 ## Product Principles
