@@ -10,7 +10,16 @@ import { Packet, Xash3D, Xash3DOptions, Net } from 'xash3d-fwgs'
 // offer -> we answer -> server-created 'read'/'write' data channels open ->
 // game packets flow over the channels. Remote audio tracks (in-game sound)
 // play through a hidden media element.
+
+// 'transport' = the WebRTC session itself died (server restart, network
+// gone); 'silence' = transport still up but the game server stopped talking
+// (kicked, timed out, sv shutdown)
+export type DropKind = 'transport' | 'silence'
+
 export class Xash3DWebRTC extends Xash3D {
+  // fires once when the connection to the server is lost, however detected
+  onDrop?: (kind: DropKind) => void
+
   private channel?: RTCDataChannel
   private resolve?: () => void
   private ws?: WebSocket
@@ -19,6 +28,13 @@ export class Xash3DWebRTC extends Xash3D {
   private remoteDescription?: RTCSessionDescriptionInit
   private candidates: RTCIceCandidateInit[] = []
   private wasRemote = false
+  private silenceTimer?: number
+  private droppedFired = false
+
+  // Server traffic is continuous while connected, so this much silence after
+  // packets have started flowing means we were dropped at the game level.
+  // Generous enough to ride out map-change hitches.
+  private static readonly SILENCE_MS = 10_000
 
   constructor(opts?: Xash3DOptions) {
     super(opts)
@@ -40,6 +56,12 @@ export class Xash3DWebRTC extends Xash3D {
     this.peer.onicecandidate = (e) => {
       if (e.candidate) this.wsSend('candidate', e.candidate.toJSON())
     }
+    // 'disconnected' is often transient, so it's left to the silence
+    // watchdog; these two are terminal
+    this.peer.onconnectionstatechange = () => {
+      const s = this.peer?.connectionState
+      if (s === 'failed' || s === 'closed') this.fireDrop('transport')
+    }
     this.peer.ontrack = (e) => {
       const el = document.createElement(e.track.kind) as HTMLMediaElement
       el.srcObject = e.streams[0]
@@ -58,8 +80,10 @@ export class Xash3DWebRTC extends Xash3D {
     })
     let channelsCount = 0
     this.peer.ondatachannel = (e) => {
+      e.channel.onclose = () => this.fireDrop('transport')
       if (e.channel.label === 'write') {
         e.channel.onmessage = (ee) => {
+          this.bumpSilence()
           const packet: Packet = {
             ip: [127, 0, 0, 1],
             port: 8080,
@@ -146,5 +170,34 @@ export class Xash3DWebRTC extends Xash3D {
   sendto(packet: Packet) {
     if (!this.channel) return
     this.channel.send(packet.data as Int8Array<ArrayBuffer>)
+  }
+
+  // armed by the first incoming packet, re-armed by every one after
+  private bumpSilence() {
+    if (this.droppedFired) return
+    clearTimeout(this.silenceTimer)
+    this.silenceTimer = window.setTimeout(
+      () => this.fireDrop('silence'),
+      Xash3DWebRTC.SILENCE_MS,
+    )
+  }
+
+  private fireDrop(kind: DropKind) {
+    if (this.droppedFired) return
+    this.droppedFired = true
+    clearTimeout(this.silenceTimer)
+    this.onDrop?.(kind)
+  }
+
+  // Reconnect in-engine after a game-level drop. Returns false when the
+  // transport itself is dead - a full page reload is the only way back then.
+  retryConnect(): boolean {
+    if (this.channel?.readyState !== 'open' || this.peer?.connectionState !== 'connected') {
+      return false
+    }
+    this.droppedFired = false
+    this.bumpSilence()
+    this.Cmd_ExecuteString('retry')
+    return true
   }
 }

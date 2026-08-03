@@ -6,7 +6,7 @@ import menuURL from 'cs16-client/cl_dll/menu_emscripten_wasm32.wasm?url'
 import clientURL from 'cs16-client/cl_dll/client_emscripten_wasm32.wasm?url'
 import serverURL from 'cs16-client/dlls/cs_emscripten_wasm32.wasm?url'
 import extrasURL from 'cs16-client/extras.pk3?url'
-import { Xash3DWebRTC } from './webrtc'
+import { DropKind, Xash3DWebRTC } from './webrtc'
 
 export type DownloadProgress = { received: number; total: number | null }
 
@@ -46,6 +46,7 @@ export async function launchGame(
   zipBytes: Uint8Array,
   playerName: string,
   onStatus: (s: LaunchStatus) => void,
+  onDrop: (kind: DropKind) => void,
 ): Promise<Xash3DWebRTC> {
   const x = new Xash3DWebRTC({
     canvas,
@@ -66,6 +67,9 @@ export async function launchGame(
       '/rodir/filesystem_stdio.wasm': filesystemURL,
     },
   })
+
+  // hook before init so drops during the handshake are caught too
+  x.onDrop = onDrop
 
   onStatus({ phase: 'engine' })
   // init() boots the wasm runtime and completes the WebRTC handshake; the zip
@@ -103,6 +107,7 @@ export async function launchGame(
   fs.chdir('/rodir')
   x.main()
   x.Cmd_ExecuteString('_vgui_menus 0')
+  x.Cmd_ExecuteString('gl_max_size 128')
   if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
     x.Cmd_ExecuteString('touch_enable 1')
   }

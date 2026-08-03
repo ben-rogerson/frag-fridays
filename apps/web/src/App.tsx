@@ -1,5 +1,6 @@
 import { FC, useEffect, useRef, useState } from 'react'
 import { downloadValveZip, launchGame } from './launch'
+import { Xash3DWebRTC } from './webrtc'
 import './App.css'
 
 type Stage =
@@ -8,6 +9,7 @@ type Stage =
   | { id: 'engine' }
   | { id: 'unpacking'; done: number; total: number }
   | { id: 'playing' }
+  | { id: 'dropped'; kind: 'transport' | 'silence' }
   | { id: 'error'; message: string }
 
 const SEGMENTS = 24
@@ -185,6 +187,7 @@ function stageProgress(stage: Stage): number | null {
     case 'engine':
     case 'playing':
       return 1
+    case 'dropped':
     case 'error':
       return 0
   }
@@ -204,6 +207,10 @@ function stageLabel(stage: Stage): string {
       return `Unpacking files - ${stage.done} / ${stage.total}`
     case 'playing':
       return ''
+    case 'dropped':
+      return stage.kind === 'transport'
+        ? 'Connection to the server was lost'
+        : 'You were dropped from the server'
     case 'error':
       return stage.message
   }
@@ -212,6 +219,7 @@ function stageLabel(stage: Stage): string {
 const App: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const zipRef = useRef<Uint8Array | null>(null)
+  const xashRef = useRef<Xash3DWebRTC | null>(null)
   const startedRef = useRef(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [stage, setStage] = useState<Stage>({ id: 'downloading', received: 0, total: null })
@@ -228,8 +236,25 @@ const App: FC = () => {
   const wantSoundRef = useRef(true)
   const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
+  const [musicOver, setMusicOver] = useState(false)
   const [pipOpen, setPipOpen] = useState(false)
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+
+  useEffect(() => {
+    const onFsChange = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  const enterFullscreen = () => {
+    document.documentElement.requestFullscreen?.().catch(() => {})
+  }
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    else enterFullscreen()
+  }
 
   useEffect(() => {
     // no-store so a mod swap shows fresh info without a hard refresh
@@ -248,6 +273,10 @@ const App: FC = () => {
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (typeof e.data !== 'string') return
+      // only trust the pip iframe (the audible one) - the background iframe
+      // is the same shim relaying its own permanently-muted widget, and its
+      // muted:true reports would clobber the real sound state
+      if (e.source !== iframeRef.current?.contentWindow) return
       try {
         const d = JSON.parse(e.data)
         if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
@@ -306,6 +335,10 @@ const App: FC = () => {
   // fading or already audible
   const startSound = () => {
     if (fadeRef.current !== null || !playerMutedRef.current) return
+    // mark unmuted straight away so clicks arriving before the widget's
+    // muted:false report can't restart the fade; a muted:true report will
+    // correct this if the browser actually refused the unmute
+    playerMutedRef.current = false
     ytCommand('setVolume', [0])
     ytCommand('unMute')
     ytCommand('playVideo')
@@ -315,6 +348,27 @@ const App: FC = () => {
       ytCommand('setVolume', [volume])
       if (volume >= 65) stopFade()
     }, 65)
+  }
+
+  // let the track ride for 15s once in-game, then ramp down and drop the iframe
+  const endMusicSoon = () => {
+    window.setTimeout(() => {
+      stopFade()
+      if (playerMutedRef.current) {
+        setMusicOver(true)
+        return
+      }
+      let volume = 65
+      fadeRef.current = window.setInterval(() => {
+        volume = Math.max(0, volume - 8)
+        ytCommand('setVolume', [volume])
+        if (volume <= 0) {
+          stopFade()
+          ytCommand('mute')
+          setMusicOver(true)
+        }
+      }, 65)
+    }, 15000)
   }
 
   const toggleSound = () => {
@@ -350,18 +404,43 @@ const App: FC = () => {
   const play = async () => {
     if (startedRef.current || !zipRef.current || !canvasRef.current) return
     startedRef.current = true
+    // Play is itself a gesture: kick the music off if it hasn't started yet,
+    // then drop the wish so in-game clicks can't restart it once it ends
+    if (wantSoundRef.current) startSound()
+    wantSoundRef.current = false
+    // the Play gesture also covers the fullscreen request
+    enterFullscreen()
     // quotes/semicolons would escape the `name "..."` console command
     const playerName = name.replace(/["';\\]/g, '').trim().slice(0, 31)
     localStorage.setItem('ff-name', playerName)
     try {
-      await launchGame(canvasRef.current, zipRef.current, playerName, (s) =>
-        setStage(s.phase === 'engine' ? { id: 'engine' } : { id: 'unpacking', done: s.done, total: s.total }),
+      xashRef.current = await launchGame(
+        canvasRef.current,
+        zipRef.current,
+        playerName,
+        (s) =>
+          setStage(s.phase === 'engine' ? { id: 'engine' } : { id: 'unpacking', done: s.done, total: s.total }),
+        (kind) => {
+          // the engine may still hold the pointer when the server vanishes
+          document.exitPointerLock?.()
+          setStage({ id: 'dropped', kind })
+        },
       )
       zipRef.current = null
-      setStage({ id: 'playing' })
+      // a drop during launch must not be clobbered by the launch resolving
+      setStage((s) => (s.id === 'dropped' ? s : { id: 'playing' }))
+      // music rides into the game briefly, then fades out
+      endMusicSoon()
     } catch (err) {
       setStage({ id: 'error', message: err instanceof Error ? err.message : String(err) })
     }
+  }
+
+  // in-engine `retry` when only the game link dropped; full reload when the
+  // WebRTC transport itself is gone (the engine can't rebuild it mid-flight)
+  const reconnect = () => {
+    if (xashRef.current?.retryConnect()) setStage({ id: 'playing' })
+    else location.reload()
   }
 
   const progress = stageProgress(stage)
@@ -400,7 +479,7 @@ const App: FC = () => {
             <MonsterUltraLogo />
           </div>
         </div>
-        {stage.id !== 'playing' && !videoDead && (
+        {(stage.id !== 'playing' || !musicOver) && !videoDead && (
           <div
             className={`pip${pipOpen ? ' pip--open' : ''}`}
             onClick={() => setPipOpen((o) => !o)}
@@ -459,6 +538,13 @@ const App: FC = () => {
                 Retry
               </button>
             </>
+          ) : stage.id === 'dropped' ? (
+            <>
+              <p className="status status--error">{stageLabel(stage)}</p>
+              <button className="play" onClick={reconnect}>
+                Reconnect
+              </button>
+            </>
           ) : stage.id === 'ready' ? (
             <>
               <button className="play" onClick={play}>
@@ -504,6 +590,15 @@ const App: FC = () => {
         )}
         {stage.id !== 'playing' && <FlashCanvas />}
       </div>
+      {/* outside the overlay so it stays clickable in-game */}
+      <button
+        className="fs"
+        onClick={toggleFullscreen}
+        aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+      >
+        {fullscreen ? '⤡' : '⤢'}
+      </button>
     </>
   )
 }

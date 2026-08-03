@@ -307,10 +307,10 @@
   color: #5c6167;
 }
 
-/* server spec panel, top left */
+/* server spec panel, top left (below the fullscreen toggle) */
 .specs {
   position: absolute;
-  top: 1rem;
+  top: 4rem;
   left: 1.25rem;
   display: flex;
   flex-direction: column;
@@ -503,6 +503,28 @@
 
 .sound:hover,
 .sound:focus-visible {
+  border-color: #f5a623;
+  outline: none;
+}
+
+/* fullscreen toggle, top left, above overlay AND game canvas */
+.fs {
+  position: fixed;
+  top: 1rem;
+  left: 1.25rem;
+  z-index: 3;
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0.55rem 0.6rem;
+  color: #e8e6e3;
+  background: rgba(11, 13, 16, 0.5);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.fs:hover,
+.fs:focus-visible {
   border-color: #f5a623;
   outline: none;
 }
