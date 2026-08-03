@@ -78,6 +78,7 @@ posts fun, and the refresh step covers stalls anyway).
   F1/F2 are the easy path, not the only path.
 - Never name the current map in posts - maps rotate and there's voting, so
   whatever status.json shows now won't be what's on at session time.
+- The bots aren't pushovers - never pitch them as free frags or easy kills.
 
 ## Tone
 
