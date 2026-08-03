@@ -255,6 +255,50 @@ How it hangs together:
   proxy; see the join-wedge watch item below.)
 
 The https origin unlocks `getUserMedia`, so webrtc.ts now actually gets a
-mic track - exercise voice on Friday. Note: localStorage is per-origin, so
-players switching from the IP URL start with fresh settings and re-enter
-their name once.
+mic track - exercise voice on Friday. Two notes: localStorage is
+per-origin, so players switching from the IP URL start with fresh settings
+and re-enter their name once. And the mic permission prompt now appears on
+PLAY - `connect()` awaits `getUserMedia` before opening the signalling ws,
+so a player who ignores the prompt (neither allow nor deny) sits on
+"Starting engine, connecting to server..." forever. Allow and deny both
+proceed normally. Worth a line in the Friday Slack instructions; a timeout
+race in webrtc.ts is the code fix if it bites.
+
+## 14. Join-wedge incident 2026-08-03 - restart fixed it, cause unknown
+
+While verifying item 13 (~05:00 UTC), the gg server got into a state where
+NEW clients could not complete a join, on both URLs equally: the client
+half-connects (ws + WebRTC handshake fine, world/briefing renders, engine
+`status` shows the slot in "Connect" state) but its client->server packets
+never arrive - `lastmsg` climbs until the 60s timeout reaps the slot, and
+the client's 10s silence watchdog shows "You were dropped from the server".
+An already-connected player survived ~30 min more, then their flow died the
+same way (lastmsg climbing while "playing"). `docker restart gg-xash3d-1`
+(05:13 UTC) cleared it - a fresh join completed normally within a minute.
+
+Context around onset (any could be the trigger, none proven):
+
+- The server had changelevelled de_dust2 -> (something) -> fy_iceworld at
+  04:56/05:02 (2x "Custom resource propagation complete" + vistable
+  rebuild), roughly when the wedge started.
+- I had abandoned a WebRTC handshake mid-flight (a Node ws test that read
+  the offer and exited without answering - sfu logged `close 1006`). A
+  player closing their tab mid-load does exactly this, so if THIS is the
+  trigger it will happen on Friday.
+- statusjson.amxx kept reporting stale de_dust2 data for 10+ min after the
+  changelevel, then recovered by fy_iceworld - possibly just its own bug,
+  possibly a symptom of the same wedge.
+
+Friday risk: if this recurs mid-session, nobody new can join and current
+players drop one by one, all silently. Mitigation for now: `pnpm run rc
+"status"` when joins misbehave (look for humans stuck in "Connect" /
+climbing lastmsg), and `ssh cs16 docker restart gg-xash3d-1` clears it
+(~30s outage, drops everyone). Before Friday, worth a deliberate repro:
+two humans + a changelevel + an abandoned mid-load refresh, watching
+engine `status`. Suspect list: goxash sfu peer-state leak vs changelevel
+interaction. Upstream: yohimik/goxash3d-fwgs (the sfu-ws bit).
+
+Also learned: the address column in engine `status` for emscripten-wasm32
+clients is a synthetic per-peer address from the webrtc bridge, NOT the
+player's real IP (the same player showed 5.110.162.3 before the restart
+and the unroutable 0.53.145.241 after). Don't use it to identify anyone.
