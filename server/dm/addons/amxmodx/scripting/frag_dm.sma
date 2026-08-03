@@ -1,4 +1,4 @@
-// Frag Friday DM - minimal module-free deathmatch.
+// Frag Fridays DM - minimal module-free deathmatch.
 //
 // CSDM's binary module signature-scans the original CS game DLL and fails
 // silently against this stack's reimplemented DLL (see docs/decisions.md), so
@@ -52,7 +52,7 @@ new const g_guns[][] = {
 
 public plugin_init()
 {
-	register_plugin("Frag Friday DM", "0.1.0", "frag-friday");
+	register_plugin("Frag Fridays DM", "0.1.0", "frag-friday");
 
 	g_spawnDelay  = register_cvar("dm_spawn_delay", "0.75");
 	g_protectTime = register_cvar("dm_protect_time", "1.5");

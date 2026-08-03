@@ -1,6 +1,6 @@
 ---
 name: cs16-server
-description: Operate the Frag Friday CS 1.6 server - run live console commands (change map, cvars) via the cmdpipe remote console, swap mods, restart, check status, tail logs, ship client config, manage maps/rotations, tune bots, verify plugins. Use for any request about the game server, the VPS, valve.zip, GunGame, deathmatch, bots or maps.
+description: Operate the Frag Fridays CS 1.6 server - run live console commands (change map, cvars) via the cmdpipe remote console, swap mods, restart, check status, tail logs, ship client config, manage maps/rotations, tune bots, verify plugins. Use for any request about the game server, the VPS, valve.zip, GunGame, deathmatch, bots or maps.
 ---
 
 # CS 1.6 server operations
@@ -26,15 +26,18 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 
 ## Commands (from the repo root)
 
-| Task | Command |
-|---|---|
-| Status | `pnpm run status` |
-| Logs | `pnpm run logs <mod>` |
-| Sync files only | `pnpm run deploy` |
-| Swap/restart mod | `pnpm run deploy <vanilla\|gg\|dm\|kz>` |
-| Ship client config / rebuild valve.zip | `pnpm run clientcfg` |
-| Live server console (gg/dm/kz only) | `pnpm run rc "<command>"` |
-| Start a map vote ("votemap") | `pnpm run votemap` - 4 random mapcycle picks (script-side shuffle; never hand-pick maps) |
+| Task                                             | Command                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status                                           | `pnpm run status`                                                                                                                                                                                                                                                                                 |
+| Logs                                             | `pnpm run logs <mod>`                                                                                                                                                                                                                                                                             |
+| Sync files only                                  | `pnpm run deploy`                                                                                                                                                                                                                                                                                 |
+| Swap/restart mod ("swap to gg/dm/kz/vanilla")    | `pnpm run swap <vanilla\|gg\|dm\|kz>` - announces the switch in-game first (when the running mod has cmdpipe), then runs deploy.sh. DROPS all players - never mid-session; still check for a sibling session first (memory: concurrent-sessions). Bare `pnpm run deploy <mod>` skips the announce |
+| Ship client config / rebuild valve.zip           | `pnpm run clientcfg`                                                                                                                                                                                                                                                                              |
+| Live server console (gg/dm/kz only)              | `pnpm run rc "<command>"`                                                                                                                                                                                                                                                                         |
+| Start a map vote ("votemap" / "vote map")        | `pnpm run votemap` - 4 random mapcycle picks (script-side shuffle; never hand-pick maps). Run directly - no status/log checks first                                                                                                                                                               |
+| Next map ("next map")                            | `pnpm run nextmap` - one shot: detects mod + current map, announces a 5s amx_csay warning, changelevels to the next mapcycle entry (wraps). Run directly - no status/log checks first                                                                                                             |
+| Announce ("announce <msg>" / "tell the players") | `pnpm run announce "message"` - green centre-screen HUD message to all players (amx_csay). Run directly - no status/log checks first                                                                                                                                                              |
+| Restart map ("restart map" / "restart the map")  | `pnpm run restartmap` - announces a 5s amx_csay warning, then changelevels to the current map (full reload: entities, timer, scores; players stay connected). Run directly - no status/log checks first                                                                                           |
 
 ## Iron rules
 

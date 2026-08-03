@@ -1,4 +1,4 @@
-// Frag Friday status JSON - live server snapshot for the web loading screen.
+// Frag Fridays status JSON - live server snapshot for the web loading screen.
 //
 // Writes ../public/status.json every 5s. The game server and the Go web
 // server share the container and /xashds is the working dir, so the AMXX
@@ -17,7 +17,7 @@ new Float:g_roundEnd;
 
 public plugin_init()
 {
-	register_plugin("Frag Friday Status JSON", "0.1.0", "frag-friday");
+	register_plugin("Frag Fridays Status JSON", "0.1.0", "frag-friday");
 
 	g_roundtime = get_cvar_pointer("mp_roundtime");
 	register_logevent("logev_round_start", 2, "1=Round_Start");

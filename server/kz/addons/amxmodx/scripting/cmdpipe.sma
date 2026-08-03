@@ -1,4 +1,4 @@
-// Frag Friday command pipe - remote console for a stack with no rcon.
+// Frag Fridays command pipe - remote console for a stack with no rcon.
 //
 // This Xash3D build answers no rcon/A2S queries and the container's stdin is
 // closed (see docs/troubleshooting.md), so this plugin polls a compose-mounted
@@ -25,7 +25,7 @@ new g_lastSerial;
 
 public plugin_init()
 {
-	register_plugin("Frag Friday Command Pipe", "0.1.0", "frag-friday");
+	register_plugin("Frag Fridays Command Pipe", "0.1.0", "frag-friday");
 
 	g_lastSerial = read_serial();
 	set_task(POLL_INTERVAL, "task_poll", _, _, _, "b");

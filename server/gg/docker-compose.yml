@@ -10,7 +10,7 @@ services:
       IP: 149.28.172.74
     volumes:
       - "../valve.zip:/xashds/public/valve.zip"
-      # custom web client (Frag Friday loading screen) over the image's stock
+      # custom web client (Frag Fridays loading screen) over the image's stock
       # client; index.html is a file mount, so containers restart to pick up
       # a redeploy (same inode rule as valve.zip)
       - "../web/index.html:/xashds/public/index.html:ro"

@@ -1,4 +1,4 @@
-// Frag Friday KZ - minimal module-free jump/climb mode.
+// Frag Fridays KZ - minimal module-free jump/climb mode.
 //
 // Same constraints as frag_dm.sma: script-only Ham/fakemeta, no binary
 // modules, and no Ham hooks on non-player classes (unverified on this
@@ -35,7 +35,7 @@ new bool:g_hinted[33];
 
 public plugin_init()
 {
-	register_plugin("Frag Friday KZ", "0.1.0", "frag-friday");
+	register_plugin("Frag Fridays KZ", "0.1.0", "frag-friday");
 
 	g_spawnDelay = register_cvar("kz_spawn_delay", "0.75");
 
