@@ -111,6 +111,7 @@ render in-browser).
 
 Follow `docs/runbook.md`: bring up the mod, `docker ps` check, three Slack
 messages (morning / midday "open the URL now to preload ~300MB" / final call
-with F1-F2 + `/guns` instructions). Don't swap mods mid-session - forces
+with F1-F2 + `/guns` instructions) - generate the text with the
+`/friday-posts` skill. Don't swap mods mid-session - forces
 every player through a reload. Mid-session map changes are fine:
 `pnpm run rc "changelevel <map>"` keeps everyone connected.

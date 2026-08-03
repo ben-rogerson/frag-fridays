@@ -30,6 +30,9 @@ files tree - players won't see it.)
 
 ## 2. The three Slack messages
 
+Generate the text with the `/friday-posts` skill - it checks the live
+server for the running mod and emits all three, paste-ready.
+
 Three messages on the day, each doing a specific job:
 
 1. **Morning announcement** - what's on, what mode, what time. Sets turnout.
