@@ -6,8 +6,11 @@ description: Generate the two Friday-session Slack posts (morning announcement, 
 # Friday Slack posts
 
 Generate both session-day Slack posts in one run, ready to copy-paste.
-Session default: **Friday 2:30pm Sydney time** (a 30-minute lunch-break
-session). An argument overrides the time, e.g. `/friday-posts 1pm`.
+Session default: **Friday 2:30pm Sydney time** - 30 minutes at the end of
+the half-day Friday, so it's the wind-down after work wraps, not a
+lunch-break squeeze. Pitch it that way (finish the week fragging), never as
+"sneak off and be back at your desk". An argument overrides the time, e.g.
+`/friday-posts 1pm`.
 
 ## Step 1: check what's actually running (no SSH needed)
 
