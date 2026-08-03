@@ -37,4 +37,8 @@ RUN touch public/status.json && chown xashds public/status.json
 RUN echo 'linux addons/yapb/bin/yapb.so' >> cstrike/addons/metamod/plugins.ini \
  && mkdir -p cstrike/addons/yapb/data/logs cstrike/addons/yapb/data/pwf cstrike/addons/yapb/data/train \
  && chown -R xashds cstrike/addons/yapb
+# AMXX creates logs/L<date>.log at map start; without a writable logs dir it
+# fails and disables its own logging for the map
+RUN mkdir -p cstrike/addons/amxmodx/logs && chown xashds cstrike/addons/amxmodx/logs
+
 USER xashds
