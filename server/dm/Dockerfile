@@ -57,4 +57,11 @@ RUN chown xashds cstrike/maps
 # fails and disables its own logging for the map
 RUN mkdir -p cstrike/addons/amxmodx/logs && chown xashds cstrike/addons/amxmodx/logs
 
+# shuffle the rotation on every container start and boot into the shuffled
+# first map - see entrypoint.sh. mapcycle.txt must be writable by the runtime
+# user for the in-place shuffle.
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && chown xashds cstrike/mapcycle.txt
+ENTRYPOINT ["/entrypoint.sh"]
+
 USER xashds

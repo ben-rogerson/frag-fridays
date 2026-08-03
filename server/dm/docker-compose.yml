@@ -3,8 +3,9 @@ services:
     build: .
     restart: unless-stopped
     platform: linux/386
-    # boot map (image default is de_dust2); keep in sync with mapcycle.txt line 1
-    command: ["+map fy_pool_day", "+maxplayers 16"]
+    # boot map comes from the shuffled mapcycle - entrypoint.sh randomises the
+    # rotation order on every container start and strips any +map given here
+    command: ["+maxplayers 16"]
     environment:
       PORT: 27038
       IP: 149.28.172.74
