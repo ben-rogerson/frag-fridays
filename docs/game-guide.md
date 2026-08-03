@@ -151,3 +151,31 @@ Every player gets `userconfig.cfg` (join binds, rates, mouse raw input,
 crosshair) via valve.zip. Edit `server/config/userconfig.cfg`, then
 `pnpm run clientcfg` to bake and ship it - players must hard-refresh the
 tab. Full rules in [setup.md](setup.md) and the decision log.
+
+## Per-player settings persist across visits
+
+A player's own tweaks (sensitivity, volume, `cl_righthand`, custom binds -
+anything that lands in `config.cfg`) survive page reloads. The client
+snapshots the engine's cfg files to localStorage every 30s in-game, plus
+whenever the tab hides or closes, and replays them on the next launch
+(`apps/web/src/launch.ts`, `persistSettings`/`restoreSettings`).
+
+- Per browser, per device. Different browser or cleared site data = back
+  to the shipped defaults. Nothing is stored server-side.
+- The lobby name field wins over the saved config's `name`.
+- The replay is line-by-line `Cmd_ExecuteString` - the engine's `exec`
+  does not work in the browser build (see troubleshooting).
+- Saved settings replay AFTER `userconfig.cfg`, so a player who rebinds
+  F1/F2 keeps their rebind even if we ship new join binds. If a shipped
+  bind change must reach everyone, tell players to clear site data for
+  the server URL (or bump the localStorage key `ff-settings`).
+
+## Drop screen
+
+If the connection dies, the lobby overlay returns with a reason and a
+Reconnect button instead of a frozen game. Two detectors in
+`apps/web/src/webrtc.ts`: WebRTC transport death (container restart, network
+gone - Reconnect does a full page reload) and a 10s packet-silence watchdog
+(kicked / timed out / server shutdown - Reconnect does an in-engine `retry`,
+no re-download). Kicking a player is therefore safe to demo: they get a
+Reconnect button, not a dead tab.

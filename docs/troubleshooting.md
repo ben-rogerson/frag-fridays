@@ -161,3 +161,21 @@ last line rendered as `Chat commands: !gu` - a player duly typed `!gu`.
 Budget menu text (all lines + colour codes + "press key" footer) under 175
 chars total, and keep player-facing hints in chat (`client_print`) where
 there is no such limit.
+
+## `exec` is a no-op in the browser client
+
+The wasm client's `exec <file>.cfg` opens and reads the file (visible via an
+FS.open trace) but its contents never execute - the command buffer never
+pumps them. The same applies at boot: a `config.cfg` written into the FS
+before `main()` is ignored, so players always started from compiled-in cvar
+defaults. Direct `Cmd_ExecuteString` calls DO work, so settings persistence
+(2026-08-03) replays the saved `config.cfg` line-by-line instead of exec'ing
+it (`apps/web/src/launch.ts`). If a future feature needs to run a cfg file
+client-side, feed it through `Cmd_ExecuteString` per line.
+
+Debug aid: the client exposes the live engine as `window.__xash` in
+devtools - `__xash.Cmd_ExecuteString(...)`, `__xash.em.FS.readFile(...)`.
+Engine console output does not reach the browser console, and `waitLog`/
+`getCVar` promises never settle because no log lines flow at runtime;
+verify cvar state with `host_writeconfig` + reading back
+`/rodir/cstrike/config.cfg`.

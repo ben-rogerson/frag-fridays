@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from 'react'
-import { downloadValveZip, launchGame } from './launch'
+import { downloadValveZip, launchGame, persistSettings } from './launch'
 import { Xash3DWebRTC } from './webrtc'
 import './App.css'
 
@@ -140,25 +140,26 @@ const CrestLogo: FC = () => (
 )
 
 // stylised sponsor marks, drawn inline so the page stays self-contained
-const SWS_COLOURS = [
-  '#2ecc71', '#71e0d6', '#2394df', '#5d3fd3',
-  '#e64c4c', '#f5a623', '#f7d154', '#9acd32',
-]
+const SWS_DEFAULT = '#EDEBE1'
+const SWS_HIGHLIGHT = '#D9B97A'
 
 const SimplyWallStLogo: FC = () => (
   <span className="sponsor">
-    <svg viewBox="0 0 40 40" className="sponsor__mark" aria-hidden="true">
-      {SWS_COLOURS.map((c, i) => (
-        <ellipse
-          key={c}
-          cx="20"
-          cy="9"
-          rx="3.2"
-          ry="9"
-          fill={c}
-          transform={`rotate(${i * 45} 20 20)`}
-        />
-      ))}
+    <svg viewBox="0 0 140 131" className="sponsor__mark" aria-hidden="true">
+      <defs>
+        <linearGradient id="sws-mark-gradient" x1="0" x2="0" y1="1" y2="0">
+          <stop offset="0%" stopColor={SWS_HIGHLIGHT} />
+          <stop offset="52%" stopColor={SWS_DEFAULT} />
+        </linearGradient>
+      </defs>
+      <path
+        fill={SWS_DEFAULT}
+        d="M106.133 17.305c1.305 2.648 1.785 5.373 1.535 7.963-.48 4.817-3.761 9.326-8.903 11.705-.384.173-.384.73 0 .94 0 0 2.823 1.388 5.89 2.82s6.122 2.803 6.122 2.803c.211.115.479.038.633-.134 3.895-4.932 5.488-11.053 4.509-17.02a21.3 21.3 0 0 0-.959-3.723 20.2 20.2 0 0 0-2.341-4.625c-3.377-5.008-8.501-8.846-14.775-9.21-.403-.039-.557.556-.192.729 3.607 1.765 6.658 4.164 8.462 7.79z"
+      />
+      <path
+        fill="url(#sws-mark-gradient)"
+        d="M120.562 83.87a64 64 0 0 1 3.3-.192c5.507-.25 10.611-3.377 12.991-8.577 2.897-6.332 3.934-13.586 1.285-18.498-1.074-1.995-2.993-3.377-5.2-3.857-3.204-.71-6.792-1.151-6.792-1.151a84.4 84.4 0 0 1-19.899-6.467l-9.575-4.509c-19.745-10.726-28.84-8.846-38.607-7.445-22.47 3.224-31.24-9.44-31.24-9.44-4.24-5.259-4.087-12.243.058-17.443a14.1 14.1 0 0 1 2.974-2.802c1.727-1.228.403-3.972-1.63-3.415-2.495.69-4.875 1.9-7.043 3.607-4.47 3.512-7.637 9.172-7.963 15.543-.825 16.08 14.506 26.749 28.63 31.718a.465.465 0 0 1 .076.845c-4.72 2.724-8.904 5.737-13.01 9.287-3.3 2.84-6.87 4.95-11.417 5.469-.307.038-.422.422-.192.633 5.45 4.989 12.799 5.833 20.206 4.644.115-.02.191.134.115.21L0 107.78c23.386 11.571 48.175 22.547 75.2 23.18a185.8 185.8 0 0 0-36.996-29.551L19.956 90.337s0-.039.02 0c2.935 1.362 11.014 4.95 21.337 8.289 10.343 3.339 22.93 6.447 34.885 6.793l-.384 7.023 7.81 6.908-2.02 11.609c7.848-.346 15.48-1.291 23.369-4.293l-13.021-10.041-.269-7.407-4.222-4.413.538-.096a41 41 0 0 0 6.908-1.804c.901 1.593 4.279 7.58 8.116 14.449l.346.633c1.093 2.031 2.351 4.652 3.636 7.664h.039c.441-.287 5.689-3.749 8.663-9.237a96.8 96.8 0 0 0-18.114-12.358l-2.61-1.247c1.19-3.454 2.975-9.019 5.392-12.971 1.478-2.418 3.915-4.087 6.678-4.644.326-.058.652-.096.998-.134zM85.946 54.109c-.73.978-2.86-.595-7.12-.308-4.26.288-8.864 3.301-9.651 1.229-.365-.96 5.833-5.373 10.074-5.661 4.26-.288 7.234 4.03 6.697 4.74"
+      />
     </svg>
     <span className="sponsor__name">Simply Wall St</span>
   </span>
@@ -431,6 +432,17 @@ const App: FC = () => {
       setStage((s) => (s.id === 'dropped' ? s : { id: 'playing' }))
       // music rides into the game briefly, then fades out
       endMusicSoon()
+      // snapshot in-game settings every 30s, plus when the tab hides or the
+      // page unloads, so they survive reloads. play() runs once, so these
+      // never stack.
+      const persist = () => {
+        if (xashRef.current) persistSettings(xashRef.current)
+      }
+      window.setInterval(persist, 30_000)
+      window.addEventListener('pagehide', persist)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') persist()
+      })
     } catch (err) {
       setStage({ id: 'error', message: err instanceof Error ? err.message : String(err) })
     }
