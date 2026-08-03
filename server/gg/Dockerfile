@@ -6,8 +6,9 @@ COPY mapcycle.txt cstrike/mapcycle.txt
 USER root
 RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 # amxx.cfg runs every map start, BEFORE configs/maps/<map>.cfg - so these are
-# the baseline that per-map overrides (scoutzknivez low gravity) reset from.
-RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_friendlyfire 0\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
+# the baseline that per-map overrides (scoutzknivez low gravity, small-map
+# round time) reset from.
+RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_friendlyfire 0\nmp_roundtime 5\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
 # scoreboard/server-browser name (base image default: "My WebXash3D CS Server").
 # Leading \n matters: the base image's server.cfg has no trailing newline.
 RUN printf '\nhostname "Frag Friday"\n' >> cstrike/server.cfg

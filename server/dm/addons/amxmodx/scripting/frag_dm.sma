@@ -76,7 +76,7 @@ public plugin_init()
 	server_cmd("mp_freezetime 0");
 	server_cmd("mp_roundtime 9");
 	server_cmd("mp_buytime 0.25");
-	server_cmd("mp_timelimit 15");
+	server_cmd("mp_timelimit 10");
 }
 
 public client_putinserver(id)
