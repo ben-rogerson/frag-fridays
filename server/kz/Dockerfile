@@ -17,7 +17,7 @@ RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_limitteams 0\nmp_autoteambalance 0\nmp_friendlyfire 0\nmp_roundtime 9\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
 # scoreboard/server-browser name (base image default: "My WebXash3D CS Server").
 # Leading \n matters: the base image's server.cfg has no trailing newline.
-RUN printf '\nhostname "Frag Friday"\n' >> cstrike/server.cfg
+RUN printf '\nhostname "Frag Fridays"\n' >> cstrike/server.cfg
 # HL logging - kz.sma writes one kz_finish line per completed run into
 # cstrike/logs (compose-mounts /opt/cs16/logs/kz); feeds the Friday recap
 RUN printf 'log on\nmp_logfile 1\n' >> cstrike/server.cfg
