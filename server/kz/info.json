@@ -1,5 +1,5 @@
 {
-  "mode": "KZ / Jump",
-  "tagline": "Climb, longjump and bhop your way up three classic kz maps - the map's buttons time your run.",
+  "mode": "KZ / Climb",
+  "tagline": "Three all-time classic climbs - the beanstalk, the cliffs, the cellblock. The map's buttons time your run.",
   "bullets": ["/cp saves a checkpoint, /tp returns to it", "press the start button, race to the stop button", "deaths cost nothing - you respawn on your checkpoint", "no bots, no guns, no excuses"]
 }

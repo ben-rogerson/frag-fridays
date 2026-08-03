@@ -105,9 +105,42 @@ for target in "${TARGETS[@]}"; do
 done
 rm -f "$STAGE"
 
+# --- Cloudflare purge --------------------------------------------------------
+# cs.benrogerson.dev fronts the box via Cloudflare, which caches valve.zip at
+# the edge (default 4h TTL for .zip) - without a purge players on the domain
+# get the PREVIOUS build until the TTL expires. Credentials live in
+# $ROOT/cf.env (CF_ZONE_ID + CF_API_TOKEN, token scoped to Zone.Cache Purge).
+# Must run only after the restart: the container serves the old zip by inode
+# until it goes down/up, and a premature purge lets the edge re-cache it.
+# purge_everything, not purge-by-URL: the 443->27016 proxy layer caches the
+# zip under a key the public URL never matches (verified 2026-08-03 - URL
+# purges returned success but the stale entry survived; purge_everything
+# cleared it). The zone only hosts the personal site, so the collateral is
+# a few cheap refetches.
+purge_cloudflare() {
+  if [[ ! -f "$ROOT/cf.env" ]]; then
+    log "WARNING: $ROOT/cf.env missing - Cloudflare serves the OLD valve.zip for up to 4h"
+    return 0
+  fi
+  # shellcheck source=/dev/null
+  source "$ROOT/cf.env"
+  log "purging valve.zip from the Cloudflare edge..."
+  local resp
+  resp="$(curl -sS --max-time 30 -X POST \
+    "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/purge_cache" \
+    -H "Authorization: Bearer $CF_API_TOKEN" \
+    -H "Content-Type: application/json" \
+    --data '{"purge_everything":true}')" \
+    || die "Cloudflare purge request failed"
+  grep -q '"success": *true' <<<"$resp" || die "Cloudflare purge rejected: $resp"
+  log "Cloudflare edge purged"
+}
+
 # --- restart running mod -----------------------------------------------------
 RUNNING="$(docker ps --filter publish=27016 --format '{{.Names}}' || true)"
 if [[ -z "$RUNNING" ]]; then
+  # nothing is serving the old zip, so the purge cannot race a re-cache
+  purge_cloudflare
   log "no mod is running - new valve.zip will be served on next start. Done."
   exit 0
 fi
@@ -134,4 +167,6 @@ printf '%s\n' "$PS"
 COUNT="$(printf '%s\n' "$PS" | grep -c '27016' || true)"
 [[ "$COUNT" -eq 1 ]] || die "expected exactly one container on 27016, found $COUNT - fix before announcing"
 
-log "done. $MOD is serving the new valve.zip on http://149.28.172.74:27016"
+purge_cloudflare
+
+log "done. $MOD is serving the new valve.zip on https://cs.benrogerson.dev"

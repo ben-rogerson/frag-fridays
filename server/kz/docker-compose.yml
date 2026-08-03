@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     platform: linux/386
     # boot map (image default is de_dust2); keep in sync with mapcycle.txt line 1
-    command: ["+map kz_longjumps2", "+maxplayers 16"]
+    command: ["+map kz_giantbean_b15", "+maxplayers 16"]
     environment:
       PORT: 27048
       IP: 149.28.172.74
