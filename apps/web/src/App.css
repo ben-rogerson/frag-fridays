@@ -197,6 +197,48 @@
   color: #7a8087;
 }
 
+.live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.live__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #cfd3d7;
+}
+
+.live__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 6px #2ecc71;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  50% { opacity: 0.4; }
+}
+
+.live__map {
+  font-weight: 600;
+}
+
+.live__sep {
+  color: #7a8087;
+}
+
+.live__leader {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: #7a8087;
+}
+
 .name {
   font: inherit;
   font-size: 0.95rem;

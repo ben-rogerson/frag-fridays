@@ -20,6 +20,13 @@ RUN cd cstrike/addons/amxmodx/scripting \
 RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'cmdpipe.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 
+# live status for the web loading screen - see scripting/statusjson.sma.
+# The plugin writes into the statically-served public/ dir; pre-create the
+# file writable so the dir itself can stay root-owned.
+RUN grep -qx 'statusjson.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'statusjson.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
+RUN touch public/status.json && chown xashds public/status.json
+
 # YaPB registers with METAMOD's plugins.ini (not AMXX's - third registration
 # file, see docs/troubleshooting.md). Bots need write access to data/ at
 # runtime (logs, learned files).

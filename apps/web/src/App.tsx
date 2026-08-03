@@ -51,6 +51,19 @@ const mb = (bytes: number) => Math.round(bytes / 1048576)
 // each mod's compose mounts its own /info.json next to the client
 type ModeInfo = { mode: string; tagline?: string; bullets?: string[] }
 
+// written every 5s by the statusjson.amxx plugin into the served public/ dir
+type ServerStatus = {
+  map: string
+  maxplayers: number
+  humans: number
+  bots: number
+  mapTimeLeft: number // seconds; 0 = no timelimit
+  roundTimeLeft: number // seconds; -1 = no round timer seen yet
+  players: { name: string; frags: number; bot: boolean }[]
+}
+
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+
 // the Vultr box (update if the VPS is ever resized)
 const SERVER_SPECS: [string, string][] = [
   ['vCPUs', '1 vCPU'],
@@ -240,6 +253,7 @@ const App: FC = () => {
   const [musicOver, setMusicOver] = useState(false)
   const [pipOpen, setPipOpen] = useState(false)
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
+  const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
   const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
@@ -266,6 +280,28 @@ const App: FC = () => {
       })
       .catch(() => {})
   }, [])
+
+  // live server snapshot while waiting - stops once in-game. Parse failures
+  // (mid-write reads, plugin absent on this mod) just skip the tick.
+  const playing = stage.id === 'playing'
+  useEffect(() => {
+    if (playing) return
+    let cancelled = false
+    const poll = () => {
+      fetch('/status.json', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((s: ServerStatus | null) => {
+          if (!cancelled && s?.map) setServerStatus(s)
+        })
+        .catch(() => {})
+    }
+    poll()
+    const t = window.setInterval(poll, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(t)
+    }
+  }, [playing])
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
@@ -525,6 +561,42 @@ const App: FC = () => {
               {modeInfo.tagline && <p className="mode__tagline">{modeInfo.tagline}</p>}
               {modeInfo.bullets && modeInfo.bullets.length > 0 && (
                 <p className="mode__bullets">{modeInfo.bullets.join('  ·  ')}</p>
+              )}
+            </div>
+          )}
+
+          {serverStatus && stage.id !== 'playing' && (
+            <div className="live">
+              <p className="live__row">
+                <span className="live__dot" aria-hidden="true" />
+                <span className="live__map">{serverStatus.map}</span>
+                <span className="live__sep">&middot;</span>
+                <span>
+                  {serverStatus.humans} player{serverStatus.humans === 1 ? '' : 's'} +{' '}
+                  {serverStatus.bots} bots
+                </span>
+                {serverStatus.roundTimeLeft >= 0 && (
+                  <>
+                    <span className="live__sep">&middot;</span>
+                    <span>round {mmss(serverStatus.roundTimeLeft)}</span>
+                  </>
+                )}
+                {serverStatus.mapTimeLeft > 0 && (
+                  <>
+                    <span className="live__sep">&middot;</span>
+                    <span>map {mmss(serverStatus.mapTimeLeft)}</span>
+                  </>
+                )}
+              </p>
+              {serverStatus.players.length > 0 && (
+                <p className="live__leader">
+                  {(() => {
+                    const top = serverStatus.players.reduce((a, b) =>
+                      b.frags > a.frags ? b : a,
+                    )
+                    return `top frag: ${top.name} (${top.frags})`
+                  })()}
+                </p>
               )}
             </div>
           )}

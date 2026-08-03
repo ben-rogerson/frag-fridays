@@ -16,7 +16,7 @@ RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 # limitteams/autoteambalance off: stock CS blocks joining the larger team
 # mid-map ("only 1 team change is allowed"), which locks humans out of a
 # bot-filled deathmatch. Uneven teams don't matter in DM.
-RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_limitteams 0\nmp_autoteambalance 0\nmp_friendlyfire 0\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
+RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_limitteams 0\nmp_autoteambalance 0\nmp_friendlyfire 0\nmp_roundtime 9\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
 # scoreboard/server-browser name (base image default: "My WebXash3D CS Server").
 # Leading \n matters: the base image's server.cfg has no trailing newline.
 RUN printf '\nhostname "Frag Friday"\n' >> cstrike/server.cfg
@@ -28,6 +28,13 @@ RUN cd cstrike/addons/amxmodx/scripting \
 # remote console via compose-mounted command file - see scripting/cmdpipe.sma
 RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'cmdpipe.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
+
+# live status for the web loading screen - see scripting/statusjson.sma.
+# The plugin writes into the statically-served public/ dir; pre-create the
+# file writable so the dir itself can stay root-owned.
+RUN grep -qx 'statusjson.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'statusjson.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
+RUN touch public/status.json && chown xashds public/status.json
 
 # YaPB registers with METAMOD's plugins.ini (not AMXX's - third registration
 # file, see docs/troubleshooting.md). Bots need write access to data/ at
