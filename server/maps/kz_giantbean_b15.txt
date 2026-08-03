@@ -1,0 +1,12 @@
+kz_giantbean
+*** Visit www.kreedz.com for kz map downloads ***
+by Kreedz (kreedzz@hotmail.com)
+textures from cstrike and half-life
+
+CTs Only !
+mp_autoteambalance 0
+mp_limitteams 99
+Climb the big bean or go to the cavern
+Have fun!
+
+(Press FIRE to continue)
