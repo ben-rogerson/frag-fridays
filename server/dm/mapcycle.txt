@@ -10,5 +10,4 @@ fy_iceworld
 aim_map
 scoutzknivez
 35hp_2
-fy_snow
 de_rats
