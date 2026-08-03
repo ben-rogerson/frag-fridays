@@ -10,15 +10,15 @@ import { DropKind, Xash3DWebRTC } from "./webrtc";
 
 export type DownloadProgress = { received: number; total: number | null };
 
-export async function downloadValveZip(
+const ZIP_URL = "/valve.zip";
+const ZIP_CACHE = "ff-valve-v1";
+
+async function readBody(
+  res: Response,
   onProgress: (p: DownloadProgress) => void,
-): Promise<Uint8Array> {
-  const res = await fetch("/valve.zip");
-  if (!res.ok || !res.body) {
-    throw new Error(`valve.zip download failed (HTTP ${res.status})`);
-  }
+): Promise<Uint8Array<ArrayBuffer>> {
   const total = Number(res.headers.get("content-length")) || null;
-  const reader = res.body.getReader();
+  const reader = res.body!.getReader();
   const chunks: Uint8Array[] = [];
   let received = 0;
   for (;;) {
@@ -33,6 +33,53 @@ export async function downloadValveZip(
   for (const chunk of chunks) {
     out.set(chunk, offset);
     offset += chunk.length;
+  }
+  return out;
+}
+
+export async function downloadValveZip(
+  onProgress: (p: DownloadProgress) => void,
+): Promise<Uint8Array> {
+  // The zip is far bigger than Chrome's per-entry HTTP cache cap (~1/8 of the
+  // disk cache), so the regular browser cache never stores it and every visit
+  // re-downloads ~330MB. Instead we keep it in Cache Storage (https origin
+  // only) and revalidate by Last-Modified each boot: unchanged zip -> 304 and
+  // a local read; changed zip (new maps) -> fresh bytes, cache updated. A
+  // stale zip missing a map would make the engine request it from the game
+  // server mid-connect, so never skip the revalidation.
+  const cache =
+    "caches" in globalThis
+      ? await caches.open(ZIP_CACHE).catch(() => null)
+      : null;
+  const cached = (cache && (await cache.match(ZIP_URL))) || null;
+  const lastModified = cached?.headers.get("last-modified");
+
+  const res = await fetch(ZIP_URL, {
+    cache: "no-store",
+    headers: lastModified ? { "If-Modified-Since": lastModified } : {},
+  });
+  if (res.status === 304 && cached) {
+    return readBody(cached, onProgress);
+  }
+  if (!res.ok || !res.body) {
+    throw new Error(`valve.zip download failed (HTTP ${res.status})`);
+  }
+  const out = await readBody(res, onProgress);
+  const freshModified = res.headers.get("last-modified");
+  if (cache && freshModified) {
+    // best-effort: a quota refusal just means a re-download next visit
+    await cache
+      .put(
+        ZIP_URL,
+        new Response(out, {
+          headers: {
+            "content-type": "application/zip",
+            "content-length": String(out.length),
+            "last-modified": freshModified,
+          },
+        }),
+      )
+      .catch(() => {});
   }
   return out;
 }

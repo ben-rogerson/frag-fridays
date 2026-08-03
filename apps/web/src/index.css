@@ -9,17 +9,12 @@ body,
 #root {
   height: 100%;
   overflow: hidden;
-  background: #0b0d10;
+  background: #080e1e;
 }
 
 body {
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  color: #e8e6e3;
+  font-family: Tahoma, Verdana, 'Segoe UI', sans-serif;
+  color: #d7e0f2;
   -webkit-font-smoothing: antialiased;
 }
 

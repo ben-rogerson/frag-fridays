@@ -18,6 +18,8 @@ export default defineConfig({
     proxy: {
       '/websocket': { target: GAME_SERVER, ws: true },
       '/valve.zip': { target: GAME_SERVER },
+      '/info.json': { target: GAME_SERVER },
+      '/status.json': { target: GAME_SERVER },
     },
   },
 })

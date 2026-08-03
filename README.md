@@ -1,4 +1,4 @@
-# Frag Friday
+# Frag Fridays
 
 Browser-playable Counter-Strike 1.6 for the weekly Friday work social. No
 installs, no Steam accounts - players open a URL and play. The server runs in
@@ -13,13 +13,13 @@ to the server with a deploy script - nothing is configured by hand on the box.
 
 ## Repo layout
 
-| Path | What it is |
-|---|---|
-| `server/` | Everything synced to the VPS (`/opt/cs16`): one directory per mod, each with its own Dockerfile and docker-compose, plus `config/` (client/server configs, map lists) and scripts that run on the box |
-| `scripts/` | Local deploy tooling - `deploy.sh`, `logs.sh` and friends, run from your machine over SSH |
-| `docs/` | Runbook, troubleshooting guide and decision log |
-| `apps/` | Future web portal (map voting, schedule, RSVP, server status) |
-| `packages/` | Future shared packages and Slack bot |
+| Path        | What it is                                                                                                                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/`   | Everything synced to the VPS (`/opt/cs16`): one directory per mod, each with its own Dockerfile and docker-compose, plus `config/` (client/server configs, map lists) and scripts that run on the box |
+| `scripts/`  | Local deploy tooling - `deploy.sh`, `logs.sh` and friends, run from your machine over SSH                                                                                                             |
+| `docs/`     | Runbook, troubleshooting guide and decision log                                                                                                                                                       |
+| `apps/`     | Future web portal (map voting, schedule, RSVP, server status)                                                                                                                                         |
+| `packages/` | Future shared packages and Slack bot                                                                                                                                                                  |
 
 `apps/` and `packages/` are pnpm workspaces; the server side needs no Node at
 all.

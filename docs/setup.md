@@ -21,11 +21,11 @@ How the VPS was built, so it can be rebuilt from nothing. The player URL is
 - **SSH keys only** - no password auth.
 - Firewall rules:
 
-| Port | Protocol | Purpose |
-|---|---|---|
-| 22 | tcp | SSH - restrict to admin IP only |
-| 27016 | tcp | Player URL / game server |
-| 27018 | tcp + udp | Game networking |
+| Port  | Protocol  | Purpose                         |
+| ----- | --------- | ------------------------------- |
+| 22    | tcp       | SSH - restrict to admin IP only |
+| 27016 | tcp       | Player URL / game server        |
+| 27018 | tcp + udp | Game networking                 |
 
 ## 3. Docker and the 32-bit image check
 
@@ -34,7 +34,7 @@ but verifying that has a trap:
 
 - **False alarm:** `uname -m` inside a `--platform linux/386` container
   reports `x86_64`. That looks like missing 32-bit support - it is not.
-  `uname` reports the *kernel* architecture, and the container has already
+  `uname` reports the _kernel_ architecture, and the container has already
   run a 32-bit binary successfully by that point.
 - **Correct check:**
 
@@ -54,7 +54,7 @@ entirely. The recovery questionnaire is built around scam pretexts ("collect
 a free skin", "assist a Valve employee") - none describe downloading files
 you own. Correct answers:
 
-- "What were you using?" -> **"Steam client"** (SteamCMD *is* the Steam client)
+- "What were you using?" -> **"Steam client"** (SteamCMD _is_ the Steam client)
 - Purpose -> **"Other"**
 
 ## 5. Directory layout
@@ -116,7 +116,7 @@ Image: `yohimik/cs-web-server-metpamx:latest`
 ## 8. Custom web client (apps/web)
 
 The image ships a stock browser client in `/xashds/public/`. We replace it
-with our own (Frag Friday loading screen, download progress bar) built from
+with our own (Frag Fridays loading screen, download progress bar) built from
 `apps/web` - a Vite + React port of the upstream
 `examples/react-typescript-cs16-webrtc`, pinned to `xash3d-fwgs@1.2.2` +
 `cs16-client@0.1.2` npm packages (their `xash.wasm` is byte-identical to the

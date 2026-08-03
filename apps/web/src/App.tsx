@@ -1,6 +1,7 @@
-import { FC, useEffect, useRef, useState } from 'react'
+import { FC, Fragment, useEffect, useRef, useState } from 'react'
 import { downloadValveZip, launchGame, persistSettings } from './launch'
 import { Xash3DWebRTC } from './webrtc'
+import '@fontsource/black-ops-one'
 import './App.css'
 
 type Stage =
@@ -27,25 +28,6 @@ const VIDEO_ID = 'Y6gcmbioqiE'
 const VIDEO_MAX_START = 400
 const VIDEO_SHIM = 'https://frag-friday-bg.floral-math-a059.workers.dev'
 
-const NEWS = [
-  'BREAKING: Bomb has been planted. Authorities urge residents to gather directly on top of it',
-  'de_dust2 voted best holiday destination for 26th consecutive year',
-  'Local CT spotted defusing with a kit he never bought. Investigation ongoing',
-  'Study finds 9 out of 10 knife-round losses caused by "lag"',
-  'Chicken population on cs_italy reaches critical low. Scientists baffled, Ts blamed',
-  'Man who bought AWP on pistol round says he is "confident in the strategy"',
-  'Friendly fire incident ruled "definitely an accident" for the 14th consecutive time',
-  'Rush B strategy peer-reviewed, found to be "no worse than anything else we tried"',
-  'Hostages develop Stockholm syndrome: "at least the Ts never made us rush long A"',
-  'Door on de_nuke opened loudly for 4 billionth time, neighbours furious',
-  'Economy in shambles: player saves for full armour, dies to headshot anyway',
-  'Bot difficulty raised by one. Server population mysteriously halves',
-  'Flashbang sales soar as teammates report finally "seeing the light"',
-  'AFK player commended for "anchoring the site", awarded MVP',
-  'Weather forecast for de_aztec: rain. Tomorrow: rain. Forever: rain',
-]
-const NEWS_TEXT = NEWS.join('  •••  ') + '  •••  '
-
 const mb = (bytes: number) => Math.round(bytes / 1048576)
 
 // each mod's compose mounts its own /info.json next to the client
@@ -62,83 +44,257 @@ type ServerStatus = {
   players: { name: string; frags: number; bot: boolean }[]
 }
 
+// generated from the box's kill logs by scripts/standings.sh; lives under
+// assets/ because that's the only web dir mounted into every mod's container
+type Standings = {
+  generated: string
+  season: { name: string; sessions: number; kills: number; deaths: number; kd: number }[]
+  weeks: { date: string; mvp: string | null; kills: number }[]
+}
+
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+// Rolls a live number up from 0 on first mount - the broadcast scoreboard
+// filling in when the strip flips to LIVE. Later feed updates snap.
+const CountUp: FC<{ value: number }> = ({ value }) => {
+  const [shown, setShown] = useState(REDUCED_MOTION ? value : 0)
+  const animatedRef = useRef(false)
+  useEffect(() => {
+    if (REDUCED_MOTION || animatedRef.current) {
+      animatedRef.current = true
+      setShown(value)
+      return
+    }
+    animatedRef.current = true
+    const t0 = performance.now()
+    let raf = 0
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / 700)
+      setShown(Math.round(value * (1 - (1 - p) ** 3)))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+  return <>{shown}</>
+}
+
+// One scoreboard counter cell. When its digit changes, the reel remounts
+// (key) carrying both glyphs: the old one rolls out of the sunken window and
+// the incoming one flashes hot, then decays back to acid - a phosphor tick.
+// Reduced-motion kills both animations in CSS; the reel then just shows the
+// current glyph.
+function ClockDigit({ d }: { d: string }) {
+  const prevRef = useRef(d)
+  const prev = prevRef.current
+  useEffect(() => {
+    prevRef.current = d
+  })
+  const changed = prev !== d
+  return (
+    <span className="clock__digit">
+      <span className="clock__reel" key={changed ? prev + d : d}>
+        <span className={`clock__glyph${changed ? ' clock__glyph--in' : ''}`}>{d}</span>
+        {changed && <span className="clock__glyph clock__glyph--out">{prev}</span>}
+      </span>
+    </span>
+  )
+}
+
+// A row of counter-cell groups joined by blinking scoreboard colons.
+// Shared by the pre-kickoff countdown and the live map-time clock.
+const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
+  <>
+    {groups.map(([value, unit], gi) => (
+      <Fragment key={unit}>
+        {gi > 0 && (
+          <span className="clock__sep" aria-hidden="true">
+            :
+          </span>
+        )}
+        <span className="clock__group">
+          <span className="clock__cells" aria-hidden="true">
+            {pad2(value)
+              .split('')
+              .map((d, i) => (
+                <ClockDigit d={d} key={i} />
+              ))}
+          </span>
+          <span className="clock__unit">{unit}</span>
+        </span>
+      </Fragment>
+    ))}
+  </>
+)
+
+// --- session clock ------------------------------------------------------
+// Sessions kick off Friday 2:30pm Sydney; the strip reads LIVE for the two
+// hours after kickoff, then the countdown rolls to next week.
+const SESSION_DAY = 5 // Friday
+const SESSION_HOUR = 14
+const SESSION_MINUTE = 30
+const SESSION_LIVE_MS = 2 * 3_600_000
+
+type SessionClock =
+  | { id: 'live' }
+  | {
+      id: 'countdown'
+      msLeft: number
+      days: number
+      hours: number
+      mins: number
+      secs: number
+      isToday: boolean
+      kickoffLabel: string // e.g. "fri 7 aug"
+    }
+
+// The page's energy tracks the countdown: calm midweek, charged on matchday,
+// climbing through the final hour, held breath in the last minute, then the
+// on-air flip. Applied as data-tier on the overlay; CSS does the rest.
+type Tier = 'idle' | 'matchday' | 'finalhour' | 'final60' | 'live'
+
+const clockTier = (c: SessionClock): Tier => {
+  if (c.id === 'live') return 'live'
+  if (c.msLeft < 60_000) return 'final60'
+  if (c.msLeft < 3_600_000) return 'finalhour'
+  if (c.isToday) return 'matchday'
+  return 'idle'
+}
+
+// QA override: ?t-minus=90 opens the page 90 seconds before kickoff (0 or
+// negative lands on the live state) so every escalation tier can be checked
+// on any day of the week. Absent in normal use.
+const DEBUG_KICKOFF = (() => {
+  const v = new URLSearchParams(window.location.search).get('t-minus')
+  return v === null ? null : Date.now() + Number(v) * 1000
+})()
+
+// A Date whose local fields mimic Sydney wall time. Fine for a countdown:
+// it's recomputed from scratch every tick, so DST edges self-correct.
+const sydneyNow = () =>
+  new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Sydney' }))
+
+const countdownFrom = (ms: number, isToday: boolean, kickoffLabel: string): SessionClock => ({
+  id: 'countdown',
+  msLeft: ms,
+  days: Math.floor(ms / 86_400_000),
+  hours: Math.floor(ms / 3_600_000) % 24,
+  mins: Math.floor(ms / 60_000) % 60,
+  secs: Math.floor(ms / 1_000) % 60,
+  isToday,
+  kickoffLabel,
+})
+
+function sessionClock(): SessionClock {
+  if (DEBUG_KICKOFF !== null) {
+    const ms = DEBUG_KICKOFF - Date.now()
+    return ms <= 0 ? { id: 'live' } : countdownFrom(ms, true, 'today')
+  }
+  const now = sydneyNow()
+  const kickoff = new Date(now)
+  kickoff.setDate(kickoff.getDate() + ((SESSION_DAY - now.getDay() + 7) % 7))
+  kickoff.setHours(SESSION_HOUR, SESSION_MINUTE, 0, 0)
+  if (kickoff.getTime() <= now.getTime()) {
+    if (now.getTime() - kickoff.getTime() < SESSION_LIVE_MS) return { id: 'live' }
+    kickoff.setDate(kickoff.getDate() + 7)
+  }
+  const ms = kickoff.getTime() - now.getTime()
+  return countdownFrom(
+    ms,
+    ms < 86_400_000 && kickoff.getDay() === now.getDay(),
+    kickoff
+      .toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+      .replace(',', '')
+      .toLowerCase(),
+  )
+}
+
+// --- mode roster --------------------------------------------------------
+// One mod runs at a time; /info.json announces the live one. The roster is
+// static because the offering changes rarely - blurbs are condensed from
+// each mod's real info.json copy (server/<mod>/info.json).
+type ModeEmblem = FC
+type ModeEntry = {
+  key: string
+  match: RegExp // matches the live info.json mode string
+  name: string
+  blurb: string
+  emblem: ModeEmblem
+}
+
+// emblems: one 2.5px-stroke linework family, coloured via currentColor
+const GunGameEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M3 35h8v-8h8v-8h8v-8h8" />
+    <path d="M29 5h7v7" />
+  </svg>
+)
+
+const DeathmatchEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <circle cx="20" cy="20" r="11" />
+    <path d="M20 3v7M20 30v7M3 20h7M30 20h7" />
+    <circle cx="20" cy="20" r="1.6" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+const ClassicEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M20 3l14 5v10c0 9-6 15-14 19-8-4-14-10-14-19V8z" />
+    <path d="M9 24l22-10" />
+  </svg>
+)
+
+const KzEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M2 35l12-17 7 10 8-12 9 19" />
+    <path d="M29 14V4M29 4h7v5h-7" />
+  </svg>
+)
+
+const MODES: ModeEntry[] = [
+  {
+    key: 'gungame',
+    match: /gun\s*game/i,
+    name: 'GunGame',
+    blurb: 'every kill levels you up - 23 weapons to the top',
+    emblem: GunGameEmblem,
+  },
+  {
+    key: 'dm',
+    match: /death\s*match/i,
+    name: 'Deathmatch',
+    blurb: 'free-for-all frags, instant respawn',
+    emblem: DeathmatchEmblem,
+  },
+  {
+    key: 'classic',
+    match: /classic|vanilla/i,
+    name: 'Classic',
+    blurb: 'stock 1.6 - buy your kit, win the round',
+    emblem: ClassicEmblem,
+  },
+  {
+    key: 'kz',
+    match: /kz|climb/i,
+    name: 'KZ / Climb',
+    blurb: 'checkpoint climbs against the clock',
+    emblem: KzEmblem,
+  },
+]
 
 // the Vultr box (update if the VPS is ever resized)
 const SERVER_SPECS: [string, string][] = [
   ['vCPUs', '1 vCPU'],
   ['RAM', '2048.00 MB'],
   ['Storage', '25 GB NVMe'],
-  ['Location', '\u{1F1E6}\u{1F1FA} Sydney'],
+  ['Location', 'Sydney, AU'],
 ]
 
-// fullscreen muzzle-flash flicker: soft amber bursts (occasionally a
-// whole-screen wash) composited over the page. Low alpha so nothing
-// underneath loses readability; skipped under prefers-reduced-motion.
-const FlashCanvas: FC = () => {
-  const ref = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const canvas = ref.current!
-    const ctx = canvas.getContext('2d')!
-
-    const resize = () => {
-      canvas.width = Math.floor(window.innerWidth * devicePixelRatio)
-      canvas.height = Math.floor(window.innerHeight * devicePixelRatio)
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    type Flash = { x: number; y: number; r: number; born: number; span: number; full: boolean }
-    let flashes: Flash[] = []
-    let nextAt = performance.now() + 900
-    let raf = 0
-
-    const tick = (t: number) => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      if (t >= nextAt) {
-        flashes.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          r: (0.18 + Math.random() * 0.3) * Math.min(canvas.width, canvas.height),
-          born: t,
-          span: 180 + Math.random() * 260,
-          full: Math.random() < 0.18,
-        })
-        nextAt = t + 500 + Math.random() * 2400
-      }
-      ctx.globalCompositeOperation = 'lighter'
-      flashes = flashes.filter((f) => {
-        const life = (t - f.born) / f.span
-        if (life >= 1) return false
-        const a = Math.sin(Math.PI * life)
-        if (f.full) {
-          ctx.fillStyle = `rgba(255, 205, 130, ${(a * 0.05).toFixed(3)})`
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-        } else {
-          const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r)
-          g.addColorStop(0, `rgba(255, 214, 150, ${(a * 0.16).toFixed(3)})`)
-          g.addColorStop(1, 'rgba(255, 214, 150, 0)')
-          ctx.fillStyle = g
-          ctx.fillRect(f.x - f.r, f.y - f.r, f.r * 2, f.r * 2)
-        }
-        return true
-      })
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', resize)
-    }
-  }, [])
-
-  return <canvas className="flashfx" ref={ref} aria-hidden="true" />
-}
-
-// crest above the heading (supplied artwork, recoloured white via currentColor)
+// crest above the heading (supplied artwork, recoloured via currentColor)
 const CrestLogo: FC = () => (
   <svg viewBox="0 0 48 48" className="crest" aria-hidden="true">
     <path
@@ -152,43 +308,70 @@ const CrestLogo: FC = () => (
   </svg>
 )
 
-// stylised sponsor marks, drawn inline so the page stays self-contained
-const SWS_DEFAULT = '#EDEBE1'
-const SWS_HIGHLIGHT = '#D9B97A'
-
-const SimplyWallStLogo: FC = () => (
-  <span className="sponsor">
-    <svg viewBox="0 0 140 131" className="sponsor__mark" aria-hidden="true">
-      <defs>
-        <linearGradient id="sws-mark-gradient" x1="0" x2="0" y1="1" y2="0">
-          <stop offset="0%" stopColor={SWS_HIGHLIGHT} />
-          <stop offset="52%" stopColor={SWS_DEFAULT} />
-        </linearGradient>
-      </defs>
-      <path
-        fill={SWS_DEFAULT}
-        d="M106.133 17.305c1.305 2.648 1.785 5.373 1.535 7.963-.48 4.817-3.761 9.326-8.903 11.705-.384.173-.384.73 0 .94 0 0 2.823 1.388 5.89 2.82s6.122 2.803 6.122 2.803c.211.115.479.038.633-.134 3.895-4.932 5.488-11.053 4.509-17.02a21.3 21.3 0 0 0-.959-3.723 20.2 20.2 0 0 0-2.341-4.625c-3.377-5.008-8.501-8.846-14.775-9.21-.403-.039-.557.556-.192.729 3.607 1.765 6.658 4.164 8.462 7.79z"
-      />
-      <path
-        fill="url(#sws-mark-gradient)"
-        d="M120.562 83.87a64 64 0 0 1 3.3-.192c5.507-.25 10.611-3.377 12.991-8.577 2.897-6.332 3.934-13.586 1.285-18.498-1.074-1.995-2.993-3.377-5.2-3.857-3.204-.71-6.792-1.151-6.792-1.151a84.4 84.4 0 0 1-19.899-6.467l-9.575-4.509c-19.745-10.726-28.84-8.846-38.607-7.445-22.47 3.224-31.24-9.44-31.24-9.44-4.24-5.259-4.087-12.243.058-17.443a14.1 14.1 0 0 1 2.974-2.802c1.727-1.228.403-3.972-1.63-3.415-2.495.69-4.875 1.9-7.043 3.607-4.47 3.512-7.637 9.172-7.963 15.543-.825 16.08 14.506 26.749 28.63 31.718a.465.465 0 0 1 .076.845c-4.72 2.724-8.904 5.737-13.01 9.287-3.3 2.84-6.87 4.95-11.417 5.469-.307.038-.422.422-.192.633 5.45 4.989 12.799 5.833 20.206 4.644.115-.02.191.134.115.21L0 107.78c23.386 11.571 48.175 22.547 75.2 23.18a185.8 185.8 0 0 0-36.996-29.551L19.956 90.337s0-.039.02 0c2.935 1.362 11.014 4.95 21.337 8.289 10.343 3.339 22.93 6.447 34.885 6.793l-.384 7.023 7.81 6.908-2.02 11.609c7.848-.346 15.48-1.291 23.369-4.293l-13.021-10.041-.269-7.407-4.222-4.413.538-.096a41 41 0 0 0 6.908-1.804c.901 1.593 4.279 7.58 8.116 14.449l.346.633c1.093 2.031 2.351 4.652 3.636 7.664h.039c.441-.287 5.689-3.749 8.663-9.237a96.8 96.8 0 0 0-18.114-12.358l-2.61-1.247c1.19-3.454 2.975-9.019 5.392-12.971 1.478-2.418 3.915-4.087 6.678-4.644.326-.058.652-.096.998-.134zM85.946 54.109c-.73.978-2.86-.595-7.12-.308-4.26.288-8.864 3.301-9.651 1.229-.365-.96 5.833-5.373 10.074-5.661 4.26-.288 7.234 4.03 6.697 4.74"
-      />
-    </svg>
-    <span className="sponsor__name">Simply Wall St</span>
-  </span>
+// stylised partner-ad artwork, drawn inline so the page stays self-contained
+const CrtMark: FC = () => (
+  <svg viewBox="0 0 100 100" className="ad__mark" aria-hidden="true">
+    <path d="M10 8h80v62H10z" fill="#eceff1" />
+    <path d="M18 16h64v46H18z" fill="#0a1226" />
+    <path d="M22 22h56v2H22zM22 28h44v2H22z" fill="#dce81e" opacity="0.55" />
+    <path d="M40 70h20v8H40z" fill="#c6ccd2" />
+    <path d="M28 78h44v8H28z" fill="#eceff1" />
+  </svg>
 )
 
-const MonsterUltraLogo: FC = () => (
-  <span className="sponsor">
-    <svg viewBox="0 0 100 100" className="sponsor__mark sponsor__mark--claw" aria-hidden="true">
-      <path d="M28 8 L40 8 L42 46 L36 74 L30 46 Z" />
-      <path d="M46 4 L60 4 L57 52 L51 92 L46 52 Z" />
-      <path d="M66 8 L78 8 L72 46 L62 74 L64 46 Z" />
-    </svg>
-    <span className="sponsor__name sponsor__name--monster">
-      Monster <em>Ultra</em>
-    </span>
-  </span>
+const MouseMark: FC = () => (
+  <svg viewBox="0 0 100 100" className="ad__mark" aria-hidden="true">
+    <path d="M50 2c3 8-9 10 0 18" fill="none" stroke="#eceff1" strokeWidth="3" />
+    <path d="M50 20c16 0 26 12 26 32s-10 42-26 42S24 72 24 52s10-32 26-32z" fill="#eceff1" />
+    <path d="M48.5 22h3v25h-3z" fill="#0a1226" />
+    <path d="M26.5 46h47v3h-47z" fill="#0a1226" />
+    <path d="M46 30h8v11h-8z" fill="#8b9ac0" />
+  </svg>
+)
+
+// icons drawn inline, one 2px stroke family
+const SpeakerIcon: FC<{ muted: boolean }> = ({ muted }) => (
+  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
+    <path
+      d="M4 9v6h4l5 4V5L8 9H4z"
+      fill="currentColor"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    {muted ? (
+      <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    ) : (
+      <path
+        d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    )}
+  </svg>
+)
+
+const FullscreenIcon: FC<{ active: boolean }> = ({ active }) => (
+  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
+    {active ? (
+      <path
+        d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    ) : (
+      <path
+        d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    )}
+  </svg>
 )
 
 function stageProgress(stage: Stage): number | null {
@@ -211,20 +394,20 @@ function stageLabel(stage: Stage): string {
   switch (stage.id) {
     case 'downloading':
       return stage.total
-        ? `Downloading game files - ${mb(stage.received)} / ${mb(stage.total)} MB`
-        : `Downloading game files - ${mb(stage.received)} MB`
+        ? `valve.zip - ${mb(stage.received)} / ${mb(stage.total)} MB`
+        : `valve.zip - ${mb(stage.received)} MB`
     case 'ready':
-      return 'Game files loaded'
+      return 'download complete - no install, no Steam.'
     case 'engine':
-      return 'Starting engine, connecting to server…'
+      return 'starting engine, connecting to server…'
     case 'unpacking':
-      return `Unpacking files - ${stage.done} / ${stage.total}`
+      return `unpacking files - ${stage.done} / ${stage.total}`
     case 'playing':
       return ''
     case 'dropped':
       return stage.kind === 'transport'
-        ? 'Connection to the server was lost'
-        : 'You were dropped from the server'
+        ? 'connection to the server was lost'
+        : 'you were dropped from the server'
     case 'error':
       return stage.message
   }
@@ -251,10 +434,46 @@ const App: FC = () => {
   const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
   const [musicOver, setMusicOver] = useState(false)
-  const [pipOpen, setPipOpen] = useState(false)
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
+  // measured round-trip of the last successful status poll; pollTick remounts
+  // the masthead livedot so it blips once per real answer from the box
+  const [ping, setPing] = useState<number | null>(null)
+  const [pollTick, setPollTick] = useState(0)
+  const [standings, setStandings] = useState<Standings | null>(null)
+  const [clock, setClock] = useState<SessionClock>(sessionClock)
+  // true only when the countdown hit zero on-screen - gates the one-shot
+  // on-air sting (radar burst, LIVE NOW flicker); a page merely loaded
+  // mid-session gets the calm live state
+  const [wentLive, setWentLive] = useState(false)
+  const prevClockIdRef = useRef(clock.id)
   const [fullscreen, setFullscreen] = useState(false)
+
+  useEffect(() => {
+    const t = window.setInterval(() => setClock(sessionClock()), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    if (prevClockIdRef.current === 'countdown' && clock.id === 'live') setWentLive(true)
+    prevClockIdRef.current = clock.id
+  }, [clock.id])
+
+  // While LIVE the scoreboard cells count the map's remaining time instead:
+  // resynced to the feed on every poll, ticked down locally between polls.
+  // null = the mod runs no map timelimit, and the cells sit out.
+  const [mapClock, setMapClock] = useState<number | null>(null)
+  useEffect(() => {
+    setMapClock(serverStatus && serverStatus.mapTimeLeft > 0 ? serverStatus.mapTimeLeft : null)
+  }, [serverStatus])
+  useEffect(() => {
+    if (clock.id !== 'live') return
+    const t = window.setInterval(
+      () => setMapClock((m) => (m === null ? null : Math.max(0, m - 1))),
+      1000,
+    )
+    return () => window.clearInterval(t)
+  }, [clock.id])
 
   useEffect(() => {
     const onFsChange = () => setFullscreen(Boolean(document.fullscreenElement))
@@ -271,27 +490,39 @@ const App: FC = () => {
     else enterFullscreen()
   }
 
+  // season table regenerated post-session; absent until the first one
   useEffect(() => {
-    // no-store so a mod swap shows fresh info without a hard refresh
-    fetch('/info.json', { cache: 'no-store' })
+    fetch('/assets/standings.json', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((info: ModeInfo | null) => {
-        if (info?.mode) setModeInfo(info)
+      .then((s: Standings | null) => {
+        if (s?.season) setStandings(s)
       })
       .catch(() => {})
   }, [])
 
-  // live server snapshot while waiting - stops once in-game. Parse failures
-  // (mid-write reads, plugin absent on this mod) just skip the tick.
+  // live server snapshot while waiting - stops once in-game. info.json rides
+  // the same poll so a mod swap updates the match panel on an already-open
+  // page. Parse failures (mid-write reads, plugin absent) just skip the tick.
   const playing = stage.id === 'playing'
   useEffect(() => {
     if (playing) return
     let cancelled = false
     const poll = () => {
+      const t0 = performance.now()
       fetch('/status.json', { cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : null))
         .then((s: ServerStatus | null) => {
-          if (!cancelled && s?.map) setServerStatus(s)
+          if (!cancelled && s?.map) {
+            setServerStatus(s)
+            setPing(Math.round(performance.now() - t0))
+            setPollTick((n) => n + 1)
+          }
+        })
+        .catch(() => {})
+      fetch('/info.json', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((info: ModeInfo | null) => {
+          if (!cancelled && info?.mode) setModeInfo(info)
         })
         .catch(() => {})
     }
@@ -305,14 +536,11 @@ const App: FC = () => {
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
-  // iframe so players get the plain gradient instead of YouTube's error box.
+  // iframe so players get the offline notice instead of YouTube's error box.
   // The widget only reports errors after a 'listening' handshake.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (typeof e.data !== 'string') return
-      // only trust the pip iframe (the audible one) - the background iframe
-      // is the same shim relaying its own permanently-muted widget, and its
-      // muted:true reports would clobber the real sound state
       if (e.source !== iframeRef.current?.contentWindow) return
       try {
         const d = JSON.parse(e.data)
@@ -493,186 +721,433 @@ const App: FC = () => {
 
   const progress = stageProgress(stage)
   const filled = progress === null ? 0 : Math.round(progress * SEGMENTS)
+  // humans only - a bot topping the board isn't news, and bots never rank
+  const humans = serverStatus?.players.filter((p) => !p.bot) ?? []
+  const topFrag =
+    humans.length > 0 ? humans.reduce((a, b) => (b.frags > a.frags ? b : a)) : null
+  const lastWeek = standings?.weeks.length ? standings.weeks[standings.weeks.length - 1] : null
+  // which roster entry is live; unmatched modes (a future mod) still render
+  // from info.json with the fallback emblem
+  const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null
+  const HeroEmblem = liveMode?.emblem ?? ClassicEmblem
+  const tier = clockTier(clock)
 
   return (
     <>
       <canvas id="canvas" ref={canvasRef} />
-      <div className={`overlay${stage.id === 'playing' ? ' overlay--hidden' : ''}`}>
-        {stage.id !== 'playing' && !videoDead && (
-          <iframe
-            className="bgvid"
-            src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
-            allow="autoplay; encrypted-media"
-            referrerPolicy="strict-origin-when-cross-origin"
-            tabIndex={-1}
-            title="background video"
-          />
-        )}
-        <div className="tint" />
-        <div className="specs">
-          <p className="specs__label">Server</p>
-          <dl className="specs__list">
-            {SERVER_SPECS.map(([k, v]) => (
-              <div className="specs__row" key={k}>
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className="sponsors">
-          <p className="sponsors__label">Supported by</p>
-          <div className="sponsors__logos">
-            <SimplyWallStLogo />
-            <MonsterUltraLogo />
-          </div>
-        </div>
-        {(stage.id !== 'playing' || !musicOver) && !videoDead && (
-          <div
-            className={`pip${pipOpen ? ' pip--open' : ''}`}
-            onClick={() => setPipOpen((o) => !o)}
-            role="button"
-            aria-label={pipOpen ? 'Tuck the frag movie away' : 'Slide the frag movie in'}
-          >
-            <iframe
-              ref={iframeRef}
-              className="pipvid"
-              src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
-              allow="autoplay; encrypted-media"
-              referrerPolicy="strict-origin-when-cross-origin"
-              tabIndex={-1}
-              title="frag movie"
-            />
-          </div>
-        )}
-        <div className="loader">
-          <CrestLogo />
-          <p className="eyebrow">Counter-Strike 1.6 &middot; in your browser</p>
-          <h1 className={`title${!playerMuted ? ' title--dancing' : ''}`}>
-            Frag<span> Friday</span>
-          </h1>
-
-          {modeInfo && (
-            <div className="mode">
-              <p className="mode__row">
-                <span className="mode__label">Tonight&apos;s mode</span>
-                <span className="mode__chip">{modeInfo.mode}</span>
+      <div className={`overlay${playing ? ' overlay--hidden' : ''}`} data-tier={tier}>
+        <div className={`radar${wentLive ? ' radar--burst' : ''}`} aria-hidden="true" />
+        <div className="streaks" aria-hidden="true" />
+        <div className="page">
+          <header className="masthead">
+            <CrestLogo />
+            <div className="masthead__id">
+              <h1 className="masthead__logo">
+                FRAG<span>FRIDAYS</span>
+              </h1>
+              <p className="masthead__tag">
+                counter-strike 1.6 &middot; every friday 2:30 pm &middot; sydney server
               </p>
-              {modeInfo.tagline && <p className="mode__tagline">{modeInfo.tagline}</p>}
-              {modeInfo.bullets && modeInfo.bullets.length > 0 && (
-                <p className="mode__bullets">{modeInfo.bullets.join('  ·  ')}</p>
-              )}
             </div>
-          )}
+            <p className="masthead__online">
+              <span className="livedot livedot--blip" key={pollTick} aria-hidden="true" />
+              server online
+              {ping !== null && <> &middot; {ping} ms</>}
+            </p>
+          </header>
 
-          {serverStatus && stage.id !== 'playing' && (
-            <div className="live">
-              <p className="live__row">
-                <span className="live__dot" aria-hidden="true" />
-                <span className="live__map">{serverStatus.map}</span>
-                <span className="live__sep">&middot;</span>
-                <span>
-                  {serverStatus.humans} player{serverStatus.humans === 1 ? '' : 's'} +{' '}
-                  {serverStatus.bots} bots
-                </span>
-                {serverStatus.roundTimeLeft >= 0 && (
-                  <>
-                    <span className="live__sep">&middot;</span>
-                    <span>round {mmss(serverStatus.roundTimeLeft)}</span>
-                  </>
-                )}
-                {serverStatus.mapTimeLeft > 0 && (
-                  <>
-                    <span className="live__sep">&middot;</span>
-                    <span>map {mmss(serverStatus.mapTimeLeft)}</span>
-                  </>
-                )}
-              </p>
-              {serverStatus.players.length > 0 && (
-                <p className="live__leader">
-                  {(() => {
-                    const top = serverStatus.players.reduce((a, b) =>
-                      b.frags > a.frags ? b : a,
-                    )
-                    return `top frag: ${top.name} (${top.frags})`
-                  })()}
+          <nav className="navbar" aria-label="site">
+            <a href="#session">matchday</a>
+            <a href="#servers">servers</a>
+            <a href="#standings">standings</a>
+            <a href="#demos">demos</a>
+            <span className="navbar__note">fridays 2:30 pm &middot; sydney</span>
+          </nav>
+
+          <section
+            id="session"
+            className={`event${clock.id === 'live' ? ' event--live' : ''}${
+              tier === 'final60' ? ' event--imminent' : ''
+            }${wentLive ? ' event--onair' : ''}`}
+            aria-label="next session"
+          >
+            {clock.id === 'live' ? (
+              <>
+                <p className="event__label">
+                  <span className="event__livetitle">
+                    <span className="livedot" aria-hidden="true" />
+                    live now
+                  </span>
+                  {serverStatus ? (
+                    <span className="event__meta">
+                      <span className="event__map">{serverStatus.map}</span> &middot;{' '}
+                      <CountUp value={serverStatus.humans} />{' '}
+                      {serverStatus.humans === 1 ? 'player' : 'players'} in &middot;{' '}
+                      <CountUp value={serverStatus.bots} /> bots
+                    </span>
+                  ) : (
+                    <span className="event__when">session in progress</span>
+                  )}
                 </p>
-              )}
-            </div>
-          )}
+                {mapClock !== null && (
+                  <p
+                    className="event__clock"
+                    role="timer"
+                    aria-label={`map time remaining ${mmss(mapClock)}`}
+                  >
+                    <span className="event__clocklabel" aria-hidden="true">
+                      map
+                      <br />
+                      time
+                    </span>
+                    <ClockRow
+                      groups={[
+                        [Math.min(99, Math.floor(mapClock / 60)), 'min'],
+                        [mapClock % 60, 'sec'],
+                      ]}
+                    />
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="event__label">
+                  <span className="event__title">
+                    {clock.isToday ? 'matchday' : 'next session'}
+                  </span>
+                  <span className="event__when">
+                    {clock.isToday ? 'today' : clock.kickoffLabel} &middot; 2:30 pm sydney
+                  </span>
+                </p>
+                <p
+                  className="event__clock"
+                  role="timer"
+                  aria-label={`time until next session: ${clock.days} days ${clock.hours} hours ${clock.mins} minutes`}
+                >
+                  <ClockRow
+                    groups={(
+                      [
+                        [clock.days, 'days'],
+                        [clock.hours, 'hrs'],
+                        [clock.mins, 'min'],
+                        [clock.secs, 'sec'],
+                      ] as [number, string][]
+                      // the days group drops off on matchday for a tighter clock
+                    ).filter(([value, unit]) => !(unit === 'days' && value === 0))}
+                  />
+                </p>
+              </>
+            )}
+          </section>
 
-          {(stage.id === 'downloading' || stage.id === 'ready') && (
-            <input
-              className="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && stage.id === 'ready') play()
-              }}
-              placeholder="Player name"
-              maxLength={31}
-              spellCheck={false}
-            />
-          )}
-
-          {stage.id === 'error' ? (
-            <>
-              <p className="status status--error">{stageLabel(stage)}</p>
-              <button className="play" onClick={() => location.reload()}>
-                Retry
-              </button>
-            </>
-          ) : stage.id === 'dropped' ? (
-            <>
-              <p className="status status--error">{stageLabel(stage)}</p>
-              <button className="play" onClick={reconnect}>
-                Reconnect
-              </button>
-            </>
-          ) : stage.id === 'ready' ? (
-            <>
-              <button className="play" onClick={play}>
-                Play
-              </button>
-              <p className="status">{stageLabel(stage)}</p>
-            </>
-          ) : (
-            <>
-              <div
-                className={`bar${progress === null ? ' bar--indeterminate' : ''}`}
-                role="progressbar"
-                aria-valuenow={progress === null ? undefined : Math.round(progress * 100)}
-              >
-                {Array.from({ length: SEGMENTS }, (_, i) => (
-                  <span key={i} className={i < filled ? 'seg seg--on' : 'seg'} />
-                ))}
+          <main className="front">
+            <section id="card" className="panel front__card" aria-label="main event">
+              <h2 className="panel__bar">
+                main event
+                {clock.id === 'countdown' && (
+                  <span className="panel__barnote">{clock.kickoffLabel}</span>
+                )}
+              </h2>
+              <div className="panel__body">
+                {modeInfo ? (
+                  <div className="card__mode">
+                    <div className="card__hero">
+                      <span className="card__emblem" aria-hidden="true">
+                        <HeroEmblem />
+                      </span>
+                      <div className="card__herotext">
+                        <p className="card__name">{liveMode?.name ?? modeInfo.mode}</p>
+                        {modeInfo.tagline && (
+                          <p className="card__tagline">{modeInfo.tagline}</p>
+                        )}
+                      </div>
+                    </div>
+                    {modeInfo.bullets && modeInfo.bullets.length > 0 && (
+                      <div className="card__rules">
+                        <p className="card__ruleslabel">rules</p>
+                        <ul className="card__rulelist">
+                          {modeInfo.bullets.map((b) => (
+                            <li key={b}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="card__pending">reading the card from the server…</p>
+                )}
+                <p className="hint">tip: hit F1 on the team screen to jump straight into the action</p>
               </div>
-              <p className="status">{stageLabel(stage)}</p>
-            </>
-          )}
+              <h3 className="card__subbar">
+                the rotation
+                <span className="card__subnote">one mod runs at a time - swaps between weeks</span>
+              </h3>
+              <ul className="rotation">
+                {MODES.map((m) => {
+                  const isLive = m.key === liveMode?.key
+                  const Emblem = m.emblem
+                  return (
+                    <li
+                      className={`rotation__row${isLive ? ' rotation__row--live' : ''}`}
+                      key={m.key}
+                    >
+                      <span className="rotation__emblem" aria-hidden="true">
+                        <Emblem />
+                      </span>
+                      <span className="rotation__name">
+                        {isLive && <span className="livedot" aria-hidden="true" />}
+                        {m.name}
+                      </span>
+                      <span className="rotation__blurb">
+                        {isLive ? 'on the server now' : m.blurb}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
 
-          <p className="hint">Tip: hit F1 on the team screen to jump straight into the action</p>
-        </div>
-        <div className="ticker" aria-hidden="true">
-          <span className="ticker__badge">FF NEWS</span>
-          <div className="ticker__viewport">
-            {/* two copies so the -50% translate loops seamlessly */}
-            <div className="ticker__track">
-              <span>{NEWS_TEXT}</span>
-              <span>{NEWS_TEXT}</span>
+            <section id="servers" className="panel front__servers" aria-label="server browser">
+              <h2 className="panel__bar">server browser</h2>
+              <div className="panel__body panel__body--flush">
+                {(stage.id === 'downloading' || stage.id === 'ready') && (
+                  <div className="browser__toolbar">
+                    <label className="browser__aliaslabel" htmlFor="alias">
+                      your alias:
+                    </label>
+                    <input
+                      id="alias"
+                      className="alias"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && stage.id === 'ready') play()
+                      }}
+                      placeholder="Player"
+                      maxLength={31}
+                      spellCheck={false}
+                    />
+                  </div>
+                )}
+                <table className="servers">
+                  <thead>
+                    <tr>
+                      <th>server</th>
+                      <th>map</th>
+                      <th>players</th>
+                      <th>round</th>
+                      <th>map time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serverStatus ? (
+                      <tr
+                        className="servers__row"
+                        onDoubleClick={() => {
+                          if (stage.id === 'ready') play()
+                        }}
+                      >
+                        <td className="servers__name">
+                          <span className="livedot" aria-hidden="true" />
+                          Frag Fridays #1 - Sydney
+                        </td>
+                        <td className="servers__map">{serverStatus.map}</td>
+                        <td>
+                          {serverStatus.humans}+{serverStatus.bots} bots / {serverStatus.maxplayers}
+                        </td>
+                        <td>
+                          {serverStatus.roundTimeLeft >= 0 ? mmss(serverStatus.roundTimeLeft) : '-'}
+                        </td>
+                        <td>
+                          {serverStatus.mapTimeLeft > 0 ? mmss(serverStatus.mapTimeLeft) : '-'}
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <td className="servers__scanning" colSpan={5}>
+                          scanning for servers…
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+
+                <div className="browser__action">
+                  {stage.id === 'error' ? (
+                    <>
+                      <p className="status status--error">{stageLabel(stage)}</p>
+                      <button className="join" onClick={() => location.reload()}>
+                        retry download
+                      </button>
+                    </>
+                  ) : stage.id === 'dropped' ? (
+                    <>
+                      <p className="status status--error">{stageLabel(stage)}</p>
+                      <button className="join" onClick={reconnect}>
+                        reconnect
+                      </button>
+                    </>
+                  ) : stage.id === 'ready' ? (
+                    <>
+                      <button className="join" onClick={play}>
+                        » connect «
+                      </button>
+                      <p className="status">{stageLabel(stage)}</p>
+                    </>
+                  ) : (
+                    <>
+                      <div
+                        className={`bar${progress === null ? ' bar--indeterminate' : ''}`}
+                        role="progressbar"
+                        aria-valuenow={progress === null ? undefined : Math.round(progress * 100)}
+                      >
+                        {Array.from({ length: SEGMENTS }, (_, i) => (
+                          <span key={i} className={i < filled ? 'seg seg--on' : 'seg'} />
+                        ))}
+                      </div>
+                      <p className="status">{stageLabel(stage)}</p>
+                    </>
+                  )}
+                </div>
+
+                {topFrag && (
+                  <p className="servers__foot">
+                    top frag right now: <strong>{topFrag.name}</strong> ({topFrag.frags})
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section id="standings" className="panel front__standings" aria-label="season standings">
+              <h2 className="panel__bar">
+                season standings{' '}
+                <span className="panel__barnote">humans only - bots don&apos;t rank</span>
+              </h2>
+              <div className="panel__body panel__body--flush">
+                {standings && standings.season.length > 0 ? (
+                  <>
+                    <table className="servers standings">
+                      <thead>
+                        <tr>
+                          <th className="standings__rank">#</th>
+                          <th>player</th>
+                          <th>sessions</th>
+                          <th>kills</th>
+                          <th>deaths</th>
+                          <th>k/d</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.season.slice(0, 10).map((p, i) => (
+                          <tr key={p.name} className={i === 0 ? 'standings__leader' : undefined}>
+                            <td className="standings__rank">{i + 1}</td>
+                            <td className="standings__player">{p.name}</td>
+                            <td>{p.sessions}</td>
+                            <td>{p.kills}</td>
+                            <td>{p.deaths}</td>
+                            <td>{p.kd.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {lastWeek?.mvp && (
+                      <p className="servers__foot">
+                        last session {lastWeek.date}: <strong>{lastWeek.mvp}</strong> top-fragged
+                        with {lastWeek.kills}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="standings__empty">
+                    no results yet - the first table publishes after friday&apos;s session.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <aside className="front__aside">
+              <section id="demos" className="panel" aria-label="now streaming">
+                <h2 className="panel__bar panel__bar--player">
+                  <span className="panel__file">annihilation_2.wmv</span>
+                  {!videoDead && (
+                    <button
+                      className="sound"
+                      onClick={toggleSound}
+                      aria-label={playerMuted ? 'Play music' : 'Mute music'}
+                    >
+                      <SpeakerIcon muted={playerMuted} />
+                      {playerMuted ? 'sound off' : 'sound on'}
+                    </button>
+                  )}
+                </h2>
+                {!videoDead && (stage.id !== 'playing' || !musicOver) ? (
+                  <div className="player">
+                    <iframe
+                      ref={iframeRef}
+                      className="player__vid"
+                      src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
+                      allow="autoplay; encrypted-media"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      tabIndex={-1}
+                      title="frag movie"
+                    />
+                  </div>
+                ) : (
+                  <div className="player player--dead">
+                    <p>stream offline.</p>
+                  </div>
+                )}
+              </section>
+
+              <section className="panel" aria-label="server hardware">
+                <h2 className="panel__bar">server hardware</h2>
+                <div className="panel__body">
+                  <dl className="specs">
+                    {SERVER_SPECS.map(([k, v]) => (
+                      <div className="specs__row" key={k}>
+                        <dt>{k}</dt>
+                        <dd>{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </section>
+
+              <div className="ad ad--box">
+                <p className="ad__caption">official partner</p>
+                <div className="ad__body ad__body--stack">
+                  <CrtMark />
+                  <p className="ad__copy">
+                    <strong>Monolith M-19 CRT</strong> - 19 inches of flat glass. 85 Hz. 24 kg.
+                  </p>
+                </div>
+              </div>
+            </aside>
+          </main>
+
+          <div className="ad ad--leaderboard">
+            <p className="ad__caption">official partner</p>
+            <div className="ad__body">
+              <MouseMark />
+              <p className="ad__copy">
+                <strong>SharpEye 400 optical mouse</strong> - 400 dpi optical sensor. no ball to
+                clean. usb + ps/2.
+              </p>
             </div>
           </div>
+
+          <footer className="footer">
+            <p>© 2026 frag fridays &middot; best viewed at 1024×768</p>
+            <p className="footer__counter" aria-hidden="true">
+              you are visitor{' '}
+              {['0', '0', '1', '3', '3', '7'].map((d, i) => (
+                <span className="footer__digit" key={i}>
+                  {d}
+                </span>
+              ))}
+            </p>
+          </footer>
         </div>
-        {stage.id !== 'playing' && !videoDead && (
-          <button
-            className="sound"
-            onClick={toggleSound}
-            aria-label={playerMuted ? 'Play music' : 'Mute music'}
-          >
-            {playerMuted ? '\u{1F507}' : '\u{1F50A}'}
-          </button>
-        )}
-        {stage.id !== 'playing' && <FlashCanvas />}
       </div>
       {/* outside the overlay so it stays clickable in-game */}
       <button
@@ -681,7 +1156,7 @@ const App: FC = () => {
         aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
       >
-        {fullscreen ? '⤡' : '⤢'}
+        <FullscreenIcon active={fullscreen} />
       </button>
     </>
   )

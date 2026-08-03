@@ -10,6 +10,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource/black-ops-one':
+        specifier: ^5.3.0
+        version: 5.3.0
       cs16-client:
         specifier: 0.1.2
         version: 0.1.2
@@ -282,6 +285,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/black-ops-one@5.3.0':
+    resolution: {integrity: sha512-kDqkJFtvMErjajEeMXv6nyIW3t6UKb5usW+1/sQox9vA5q8dyMpAdAW9tU6+aIWo6xIQlatqNrfUlrBdJu6D4A==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -896,6 +902,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.1':
     optional: true
+
+  '@fontsource/black-ops-one@5.3.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

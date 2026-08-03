@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/black-ops-one": "^5.3.0",
     "cs16-client": "0.1.2",
     "jszip": "3.10.1",
     "react": "^19.1.0",

@@ -8,6 +8,7 @@ server/**/steam-files/
 *.log
 dist
 *.tsbuildinfo
+.impeccable
 
 # YaPB runtime output - bots write learned data + logs here on the box,
 # and pull.sh would otherwise drag it into the repo

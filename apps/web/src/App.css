@@ -1,87 +1,69 @@
+/* ============================================================
+   The Matchday — a CPL/HLTV-era event page for Frag Fridays,
+   themed from the CS 1.6 splash wallpaper: deep navy ground,
+   acid-yellow scanline streaks, radar arcs. Tahoma/Verdana body,
+   bevelled panels, countdown clock in sunken counter cells.
+   ============================================================ */
+
+:root {
+  --ink-deep: #080e1e; /* page ground, darkest */
+  --ink: #0d1730; /* ambient navy */
+  --panel: #121f3d; /* panel body */
+  --panel-hi: #1a2b52; /* panel title bars, raised chrome */
+  --bevel-light: #33497f; /* top/left bevel edge */
+  --bevel-dark: #05080f; /* bottom/right bevel edge */
+  --acid: #dce81e; /* the wallpaper's scanline yellow */
+  --acid-hot: #f4ff3d;
+  --link: #8fb6f0; /* fansite hyperlink blue */
+  --text: #d7e0f2;
+  --text-mute: #8b9ac0;
+  --text-faint: #7e8db8;
+  --live: #4be381;
+  --alert: #ff6b57;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 2;
-  display: grid;
-  place-items: center;
-  background: #0b0d10;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 120% 80% at 70% -10%, #16264a 0%, transparent 55%),
+    linear-gradient(165deg, var(--ink) 0%, var(--ink-deep) 60%, #060a16 100%);
   transition: opacity 0.6s ease-out;
+  /* the countdown is a fuse: data-tier (set from the session clock) drives
+     the atmosphere - radar sweep speed and streak burn climb as kickoff
+     nears. Baseline = midweek idle. */
+  --radar-speed: 24s;
+  --streak-o: 0.75;
+  --streak-b: 1;
 }
 
-/* fullscreen 16:9 cover; blurred + darkened so the loader stays readable.
-   scale hides the blur's soft edges. Permanently muted - sound comes from
-   the pip copy */
-.bgvid {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: max(100vw, 177.78vh);
-  height: max(100vh, 56.25vw);
-  transform: translate(-50%, -50%) scale(1.25);
-  border: 0;
-  pointer-events: none;
-  filter: blur(14px) brightness(0.35) saturate(0.85);
+.overlay[data-tier="matchday"] {
+  --radar-speed: 17s;
+  --streak-o: 0.9;
+  --streak-b: 1.2;
 }
 
-.tint {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse at 50% 40%,
-    rgba(22, 27, 33, 0.35) 0%,
-    rgba(11, 13, 16, 0.75) 80%
-  );
+.overlay[data-tier="finalhour"] {
+  --radar-speed: 10s;
+  --streak-o: 1;
+  --streak-b: 1.45;
 }
 
-/* mini frag-movie window, bottom right above the ticker. Rests 4/5 off
-   the right edge; clicking slides it fully in (and back out) */
-.pip {
-  position: absolute;
-  right: 1.25rem;
-  bottom: 3.4rem;
-  width: min(320px, 38vw);
-  aspect-ratio: 16 / 9;
-  border: 1px solid rgba(245, 166, 35, 0.45);
-  border-radius: 6px;
-  overflow: hidden;
-  background: #000;
-  box-shadow:
-    0 14px 36px rgba(0, 0, 0, 0.65),
-    0 4px 10px rgba(0, 0, 0, 0.5),
-    0 0 22px rgba(245, 166, 35, 0.14);
-  cursor: pointer;
-  transform: translateX(94%);
-  opacity: 0.55;
-  transition:
-    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.4s ease;
+/* last minute: the streaks pull back while the clock runs hot -
+   the page holds its breath */
+.overlay[data-tier="final60"] {
+  --radar-speed: 7s;
+  --streak-o: 0.45;
+  --streak-b: 1;
 }
 
-.pip:hover {
-  transform: translateX(88%);
-  opacity: 0.85;
-}
-
-.pip--open,
-.pip--open:hover {
-  transform: translateX(0);
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pip {
-    transition: none;
-  }
-}
-
-.pipvid {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  pointer-events: none;
+.overlay[data-tier="live"] {
+  --radar-speed: 13s;
+  --streak-o: 0.95;
+  --streak-b: 1.3;
 }
 
 .overlay--hidden {
@@ -89,197 +71,1032 @@
   pointer-events: none;
 }
 
-.loader {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.4rem;
-  padding: 1rem;
-  text-align: center;
+/* --- wallpaper atmosphere: radar arcs + acid scanline streaks ---------- */
+
+/* concentric radar rings sweeping in the top-right, like the splash art */
+.radar {
+  position: fixed;
+  top: -220px;
+  right: -220px;
+  width: 720px;
+  height: 720px;
+  pointer-events: none;
+  background: repeating-radial-gradient(
+    circle at center,
+    transparent 0 78px,
+    rgba(143, 182, 240, 0.07) 78px 80px
+  );
+  -webkit-mask-image: radial-gradient(circle at center, #000 0%, transparent 68%);
+  mask-image: radial-gradient(circle at center, #000 0%, transparent 68%);
 }
 
-.crest {
-  width: 64px;
-  height: 64px;
-  color: #fff;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55));
+.radar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    from 0deg,
+    rgba(220, 232, 30, 0.14) 0deg,
+    transparent 70deg,
+    transparent 360deg
+  );
+  border-radius: 50%;
+  animation: radar-sweep var(--radar-speed, 24s) linear infinite;
 }
 
-.eyebrow {
-  font-size: 0.7rem;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  color: #7a8087;
-}
-
-.title {
-  font-size: clamp(2.8rem, 9vw, 5.5rem);
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #e8e6e3;
-}
-
-.title span {
-  color: #f5a623;
-}
-
-/* bops when the music is audible: ~174bpm dnb, one bounce per two beats */
-.title--dancing {
-  animation: dance 0.69s ease-in-out infinite;
-}
-
-@keyframes dance {
-  0%,
-  100% {
-    transform: scale(1) rotate(-1.8deg);
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
   }
-  25% {
-    transform: scale(1.08) rotate(0.9deg);
+}
+
+/* one-shot green double-sweep fired when the countdown hits zero on-screen */
+.radar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(75, 227, 129, 0.35) 0deg,
+    transparent 85deg,
+    transparent 360deg
+  );
+  opacity: 0;
+}
+
+.radar--burst::before {
+  animation: radar-burst 1.5s ease-out forwards;
+}
+
+@keyframes radar-burst {
+  from {
+    opacity: 1;
+    transform: rotate(0deg);
   }
-  50% {
-    transform: scale(0.97) rotate(1.8deg);
+  to {
+    opacity: 0;
+    transform: rotate(720deg);
   }
-  75% {
-    transform: scale(1.06) rotate(-0.9deg);
+}
+
+/* clustered horizontal acid-yellow streaks, drifting like the wallpaper's
+   light trails */
+.streaks {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 5px,
+      rgba(220, 232, 30, 0.16) 5px 6px,
+      transparent 6px 14px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 3px,
+      rgba(220, 232, 30, 0.1) 3px 4px,
+      transparent 4px 9px
+    );
+  background-size:
+    100% 90px,
+    100% 46px;
+  background-position:
+    0 18vh,
+    0 64vh;
+  background-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0, 0, 0, 0.25) 45%, #000 100%);
+  mask-image: linear-gradient(90deg, #000 0%, rgba(0, 0, 0, 0.25) 45%, #000 100%);
+  animation: streak-drift 14s ease-in-out infinite alternate;
+  /* burn tracks the escalation tier; eased so tier changes breathe, not snap */
+  opacity: var(--streak-o, 0.75);
+  filter: brightness(var(--streak-b, 1));
+  transition:
+    opacity 1.6s ease,
+    filter 1.6s ease;
+}
+
+@keyframes streak-drift {
+  to {
+    background-position:
+      0 20vh,
+      0 61vh;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .title--dancing {
+  .radar::after,
+  .radar--burst::before,
+  .streaks {
     animation: none;
   }
 }
 
-/* tonight's mode blurb */
-.mode {
+/* --- page frame -------------------------------------------------------- */
+
+.page {
+  position: relative;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.4rem 1.25rem 2rem;
+}
+
+/* --- masthead ---------------------------------------------------------- */
+
+.masthead {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0 1rem;
+}
+
+.crest {
+  width: 62px;
+  height: 62px;
+  flex: none;
+  color: var(--acid);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+}
+
+.masthead__id {
+  flex: 1;
+  min-width: 0;
+}
+
+.masthead__logo {
+  font-family: "Black Ops One", "Arial Narrow", sans-serif;
+  font-size: clamp(1.7rem, 4.5vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
+.masthead__logo span {
+  color: var(--acid);
+}
+
+.masthead__tag {
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-mute);
+}
+
+.masthead__online {
+  display: flex;
   align-items: center;
   gap: 0.45rem;
-  max-width: min(560px, 86vw);
-}
-
-.mode__row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.mode__label {
-  font-size: 0.62rem;
-  letter-spacing: 0.3em;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  color: #7a8087;
+  letter-spacing: 0.12em;
+  color: var(--live);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-.mode__chip {
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #0b0d10;
-  background: #f5a623;
-  padding: 0.28rem 0.6rem;
-  border-radius: 3px;
-}
-
-.mode__tagline {
-  font-size: 0.92rem;
-  color: #cfd3d7;
-}
-
-.mode__bullets {
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  color: #7a8087;
-}
-
-.live {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.live__row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: #cfd3d7;
-}
-
-.live__dot {
+.livedot {
+  display: inline-block;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #2ecc71;
-  box-shadow: 0 0 6px #2ecc71;
+  background: var(--live);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.6),
+    0 0 6px var(--live);
   animation: live-pulse 2s ease-in-out infinite;
 }
 
 @keyframes live-pulse {
-  50% { opacity: 0.4; }
+  50% {
+    opacity: 0.4;
+  }
 }
 
-.live__map {
-  font-weight: 600;
+/* the masthead dot drops the ambient pulse: it blips once per answered
+   status poll instead (the element remounts on each successful fetch) */
+.livedot--blip {
+  animation: live-blip 0.55s ease-out;
 }
 
-.live__sep {
-  color: #7a8087;
+@keyframes live-blip {
+  0% {
+    transform: scale(0.7);
+    box-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.6),
+      0 0 2px var(--live);
+  }
+  45% {
+    transform: scale(1.3);
+    box-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.6),
+      0 0 12px var(--live);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 1px 4px rgba(0, 0, 0, 0.6),
+      0 0 6px var(--live);
+  }
 }
 
-.live__leader {
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  color: #7a8087;
+@media (prefers-reduced-motion: reduce) {
+  .livedot,
+  .livedot--blip {
+    animation: none;
+  }
 }
 
-.name {
-  font: inherit;
-  font-size: 0.95rem;
-  letter-spacing: 0.08em;
-  text-align: center;
-  color: #e8e6e3;
-  background: rgba(11, 13, 16, 0.55);
-  border: 1px solid rgba(245, 166, 35, 0.4);
-  padding: 0.65rem 1rem;
-  width: min(300px, 70vw);
-  transition: border-color 0.15s;
+/* --- navbar ------------------------------------------------------------ */
+
+.navbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1.4rem;
+  padding: 0.45rem 0.8rem;
+  background: linear-gradient(180deg, var(--panel-hi) 0%, #142347 100%);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  font-size: 0.78rem;
+  text-transform: lowercase;
 }
 
-.name::placeholder {
-  color: #5c6167;
-  letter-spacing: 0.08em;
+.navbar a {
+  color: var(--link);
+  text-decoration: none;
+  padding: 0.15rem 0;
 }
 
-.name:focus-visible {
-  border-color: #f5a623;
+.navbar a:hover,
+.navbar a:focus-visible {
+  color: var(--acid-hot);
+  text-decoration: underline;
   outline: none;
 }
 
-/* GoldSrc-style chunky segmented loading bar */
+.navbar__note {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--text-mute);
+}
+
+/* --- session strip: countdown / live ----------------------------------- */
+
+.event {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem 1.4rem;
+  margin-top: 0.9rem;
+  padding: 0.9rem 1.1rem;
+  background: linear-gradient(180deg, #1a2b52 0%, #121f3d 55%, #0f1a38 100%);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* final hour: the strip's chrome charges up in acid (raised bevel kept -
+   light acid top/left, dark acid bottom/right) */
+.overlay[data-tier="finalhour"] .event,
+.overlay[data-tier="final60"] .event {
+  border-color: rgba(220, 232, 30, 0.5);
+  border-bottom-color: rgba(122, 130, 12, 0.7);
+  border-right-color: rgba(122, 130, 12, 0.7);
+}
+
+/* on air: the strip's chrome reads in signal green */
+.event--live {
+  border-color: rgba(75, 227, 129, 0.45);
+  border-bottom-color: rgba(16, 82, 44, 0.85);
+  border-right-color: rgba(16, 82, 44, 0.85);
+}
+
+/* the LIVE NOW title cuts in like a broadcast bug - only when the countdown
+   actually hit zero on-screen, never on a mid-session page load */
+.event--onair .event__livetitle {
+  animation: onair-flicker 0.8s steps(1, end);
+}
+
+@keyframes onair-flicker {
+  0%,
+  14%,
+  34% {
+    opacity: 0;
+  }
+  8%,
+  24%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* one-shot acid band sweeping across the strip when it flips to LIVE */
+.event--live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 32%,
+    rgba(220, 232, 30, 0.16) 50%,
+    transparent 68%
+  );
+  transform: translateX(-100%);
+  animation: live-sweep 0.9s ease-out 0.15s forwards;
+}
+
+@keyframes live-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.event__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.event__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--text);
+}
+
+/* the news-square in acid, marking the event line */
+.event__title::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  background: var(--acid);
+}
+
+.event__livetitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--live);
+}
+
+.event__when {
+  font-size: 0.72rem;
+  color: var(--text-mute);
+}
+
+.event__meta {
+  font-size: 0.82rem;
+  color: var(--text-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.event__map {
+  color: var(--link);
+}
+
+.event__clock {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* broadcast-style referent tag beside the live map-time cells */
+.event__clocklabel {
+  align-self: center;
+  margin-right: 0.3rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  line-height: 1.6;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+/* scoreboard colon between cell groups, blinking on the seconds beat */
+.clock__sep {
+  align-self: flex-start;
+  padding-top: 0.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--acid);
+  opacity: 0.5;
+  animation: sep-blink 1s steps(1) infinite;
+}
+
+@keyframes sep-blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.clock__group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.clock__cells {
+  display: flex;
+  gap: 3px;
+}
+
+/* the visitor counter's sunken cells, scaled up into a scoreboard clock.
+   Each cell is a 1em window onto a reel: on a tick the reel carries the old
+   glyph out of the well while the incoming digit flashes hot and decays
+   back to acid, like phosphor */
+.clock__digit {
+  min-width: 1.1em;
+  padding: 0.3rem 0.26rem;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--acid);
+  background: #060b18;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.clock__reel {
+  position: relative;
+  display: block;
+  height: 1em;
+  overflow: hidden;
+}
+
+/* phosphor ghost: every cell faintly holds a full '8' under the live glyph,
+   like an LCD's unlit segments */
+.clock__reel::before {
+  content: "8";
+  position: absolute;
+  inset: 0;
+  line-height: 1;
+  color: var(--acid);
+  opacity: 0.08;
+}
+
+.clock__glyph {
+  position: relative;
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+
+.clock__glyph--in {
+  animation:
+    clock-roll-in 0.28s cubic-bezier(0.2, 0.7, 0.3, 1),
+    phosphor-decay 0.6s ease-out;
+}
+
+.clock__glyph--out {
+  position: absolute;
+  inset: 0;
+  animation: clock-roll-out 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes clock-roll-in {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes clock-roll-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes phosphor-decay {
+  from {
+    color: var(--acid-hot);
+    text-shadow: 0 0 9px rgba(244, 255, 61, 0.85);
+  }
+}
+
+/* final minute before kickoff: the whole clock runs hot */
+.event--imminent .clock__glyph {
+  color: var(--acid-hot);
+}
+
+.event--imminent .clock__digit {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(244, 255, 61, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock__glyph--in,
+  .event--live::after,
+  .event--onair .event__livetitle,
+  .clock__sep {
+    animation: none;
+  }
+
+  .clock__glyph--out {
+    display: none;
+  }
+}
+
+.clock__unit {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+}
+
+/* --- banner ads -------------------------------------------------------- */
+
+.ad {
+  margin-top: 0.9rem;
+}
+
+.ad__caption {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-faint);
+  margin-bottom: 0.2rem;
+}
+
+.ad__body {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 1rem;
+  background: linear-gradient(180deg, #18294e 0%, #101d3a 100%);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.ad__body--stack {
+  flex-direction: column;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.ad__mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+}
+
+.ad__copy {
+  font-size: 0.8rem;
+  color: var(--text-mute);
+}
+
+.ad__copy strong {
+  color: var(--text);
+}
+
+/* --- front page grid --------------------------------------------------- */
+
+.front {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  /* row 2 soaks up any height the taller aside forces, so the server
+     browser hugs the main-event card instead of drifting down */
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "card aside"
+    "servers aside"
+    "standings standings";
+  align-items: start;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+.front__card {
+  grid-area: card;
+}
+
+.front__servers {
+  grid-area: servers;
+}
+
+.front__standings {
+  grid-area: standings;
+}
+
+.front__aside {
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .front {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "card"
+      "servers"
+      "aside"
+      "standings";
+  }
+
+  .masthead__online {
+    display: none;
+  }
+
+  .navbar__note {
+    display: none;
+  }
+
+  .event {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .event__clock {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .clock__digit {
+    font-size: 1.4rem;
+  }
+
+  .clock__sep {
+    padding-top: 0.4rem;
+    font-size: 1.15rem;
+  }
+
+  /* the round/map-time columns don't fit a phone; the essentials stay */
+  .servers th:nth-child(n + 4),
+  .servers td:nth-child(n + 4) {
+    display: none;
+  }
+
+  .servers__name {
+    white-space: normal;
+  }
+
+  .panel__body--flush {
+    overflow-x: auto;
+  }
+}
+
+/* --- panels ------------------------------------------------------------ */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+.panel__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.42rem 0.8rem;
+  background: linear-gradient(180deg, #24396b 0%, #182a52 100%);
+  border-bottom: 1px solid var(--bevel-dark);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text);
+}
+
+.panel__barnote {
+  font-weight: 400;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--text-mute);
+}
+
+.panel__body {
+  padding: 1rem 0.9rem 0.9rem;
+}
+
+.panel__body--flush {
+  padding: 0;
+}
+
+/* --- main event card --------------------------------------------------- */
+
+.front__card .panel__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.card__mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: 100%;
+}
+
+.card__hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+/* sunken emblem tile - the counter-cell chrome scaled up to hold the mark */
+.card__emblem {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  color: var(--acid);
+  background: #060b18;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.card__emblem svg {
+  width: 36px;
+  height: 36px;
+}
+
+.card__name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text);
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+.card__tagline {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-mute);
+}
+
+.card__ruleslabel {
+  margin-bottom: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-mute);
+}
+
+.card__rulelist {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.3rem 1.2rem;
+}
+
+.card__rulelist li {
+  position: relative;
+  padding-left: 0.9rem;
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.card__rulelist li::before {
+  content: "»";
+  position: absolute;
+  left: 0;
+  color: var(--acid);
+}
+
+/* the rotation - sub-bar plus roster rows, flush like a table */
+.card__subbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--bevel-dark);
+  border-bottom: 1px solid var(--bevel-dark);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-mute);
+}
+
+.card__subnote {
+  font-weight: 400;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--text-mute);
+}
+
+.rotation {
+  list-style: none;
+  padding: 0.25rem 0;
+}
+
+.rotation__row {
+  display: grid;
+  grid-template-columns: 24px minmax(7.5rem, auto) 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.rotation__row + .rotation__row {
+  border-top: 1px solid rgba(51, 73, 127, 0.28);
+}
+
+.rotation__row--live {
+  background: rgba(220, 232, 30, 0.05);
+}
+
+.rotation__emblem {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+
+.rotation__emblem svg {
+  width: 18px;
+  height: 18px;
+}
+
+.rotation__row--live .rotation__emblem {
+  color: var(--acid);
+}
+
+.rotation__name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rotation__blurb {
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+/* live semantics: the running mod's row reads in signal green */
+.rotation__row--live .rotation__blurb {
+  color: var(--live);
+}
+
+.card__pending {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+/* --- server browser: toolbar + connect action -------------------------- */
+
+.browser__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--bevel-dark);
+}
+
+.browser__aliaslabel {
+  flex: none;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-mute);
+}
+
+.alias {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: #0a1226;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+  padding: 0.5rem 0.7rem;
+  width: min(240px, 60vw);
+  transition: border-color 0.15s;
+}
+
+.alias::placeholder {
+  color: var(--text-faint);
+}
+
+.alias:focus-visible {
+  border-color: var(--acid);
+  outline: none;
+}
+
+/* the connect zone under the server list - progress, then the button */
+.browser__action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.9rem 0.8rem;
+}
+
+/* the connect button that is actually the download link */
+.join {
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-deep);
+  background: linear-gradient(180deg, var(--acid-hot) 0%, var(--acid) 55%, #b8c313 100%);
+  border: 1px solid #f8ffa0;
+  border-bottom-color: #7a820c;
+  border-right-color: #7a820c;
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.5),
+    0 0 22px rgba(220, 232, 30, 0.28);
+  padding: 0.8rem 2.4rem;
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    box-shadow 0.15s,
+    transform 0.05s;
+}
+
+.join:hover,
+.join:focus-visible {
+  filter: brightness(1.12);
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(244, 255, 61, 0.45);
+  outline: none;
+}
+
+.join:focus-visible {
+  outline: 2px solid var(--acid-hot);
+  outline-offset: 2px;
+}
+
+.join:active {
+  transform: translateY(1px);
+}
+
+/* GoldSrc-style chunky segmented progress, sunk into a bevelled well */
 .bar {
   display: flex;
   gap: 3px;
   padding: 4px;
-  border: 1px solid rgba(245, 166, 35, 0.6);
-  width: min(420px, 80vw);
+  background: #0a1226;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
+  width: min(420px, 100%);
 }
 
 .seg {
   flex: 1;
-  height: 14px;
-  background: rgba(245, 166, 35, 0.08);
+  height: 13px;
+  background: rgba(220, 232, 30, 0.08);
 }
 
 .seg--on {
-  background: #f5a623;
-  box-shadow: 0 0 6px rgba(245, 166, 35, 0.55);
+  background: linear-gradient(180deg, var(--acid-hot) 0%, var(--acid) 100%);
+  box-shadow: 0 0 6px rgba(220, 232, 30, 0.5);
 }
 
 @keyframes indeterminate {
@@ -295,278 +1112,280 @@
 }
 
 .bar--indeterminate .seg {
-  background: #f5a623;
+  background: var(--acid);
   animation: indeterminate 1.2s ease-in-out infinite;
 }
 
+/* staggered so the pulse reads as activity, not completion */
+.bar--indeterminate .seg:nth-child(2n) {
+  animation-delay: 0.2s;
+}
+
+.bar--indeterminate .seg:nth-child(3n) {
+  animation-delay: 0.4s;
+}
+
 .status {
-  font-size: 0.85rem;
-  letter-spacing: 0.06em;
-  color: #a8adb3;
+  font-size: 0.8rem;
+  color: var(--text-mute);
   font-variant-numeric: tabular-nums;
   min-height: 1.2em;
 }
 
 .status--error {
-  color: #e05c4b;
-}
-
-.play {
-  font: inherit;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: #f5a623;
-  background: transparent;
-  border: 2px solid #f5a623;
-  padding: 0.9rem 3.2rem 0.9rem 3.5rem; /* extra left pad offsets tracking */
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s,
-    box-shadow 0.15s;
-  animation: breathe 2.2s ease-in-out infinite;
-}
-
-@keyframes breathe {
-  50% {
-    box-shadow: 0 0 18px rgba(245, 166, 35, 0.35);
-  }
-}
-
-.play:hover,
-.play:focus-visible {
-  background: #f5a623;
-  color: #0b0d10;
-  outline: none;
-  animation: none;
+  color: var(--alert);
 }
 
 .hint {
-  margin-top: 1.2rem;
-  font-size: 0.75rem;
-  color: #5c6167;
+  font-size: 0.72rem;
+  color: var(--text-faint);
 }
 
-/* server spec panel, top left (below the fullscreen toggle) */
-.specs {
-  position: absolute;
-  top: 4rem;
-  left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+/* --- server browser ---------------------------------------------------- */
+
+.servers {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.specs__label {
-  font-size: 0.6rem;
-  letter-spacing: 0.3em;
+.servers th {
+  padding: 0.45rem 0.8rem;
+  text-align: left;
+  font-size: 0.62rem;
+  font-weight: 700;
   text-transform: uppercase;
-  color: #5c6167;
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+  border-bottom: 1px solid var(--bevel-dark);
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.specs__label::before {
-  content: '';
-  display: inline-block;
-  width: 7px;
-  height: 7px;
+.servers td {
+  padding: 0.55rem 0.8rem;
+  color: var(--text);
+  border-bottom: 1px solid rgba(51, 73, 127, 0.35);
+}
+
+.servers tbody tr:hover td {
+  background: rgba(143, 182, 240, 0.05);
+}
+
+.servers__name {
+  white-space: nowrap;
+}
+
+.servers__name .livedot {
   margin-right: 0.5rem;
-  border-radius: 50%;
-  background: #2ecc71;
-  box-shadow: 0 0 6px rgba(46, 204, 113, 0.8);
 }
 
-.specs__list {
+.servers__map {
+  color: var(--link);
+}
+
+.servers__scanning {
+  color: var(--text-faint);
+}
+
+.servers__foot {
+  padding: 0.5rem 0.8rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+.servers__foot strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* --- season standings --------------------------------------------------- */
+
+.standings__rank {
+  width: 2.2rem;
+  color: var(--text-mute);
+}
+
+.standings__player {
+  font-weight: 700;
+}
+
+/* the current leader holds the table's only wash of acid */
+.standings__leader td {
+  background: rgba(220, 232, 30, 0.05);
+}
+
+.standings__leader .standings__player {
+  color: var(--acid);
+}
+
+.standings__empty {
+  padding: 0.9rem 0.8rem;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+/* --- media player panel ------------------------------------------------ */
+
+.panel__bar--player {
+  align-items: center;
+}
+
+.panel__file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: var(--text-mute);
+}
+
+.sound {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  font: inherit;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  background: linear-gradient(180deg, #2c4278 0%, #1d2f5c 100%);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.sound:hover,
+.sound:focus-visible {
+  filter: brightness(1.2);
+  outline: none;
+}
+
+.sound:focus-visible {
+  outline: 2px solid var(--acid-hot);
+  outline-offset: 1px;
+}
+
+.player {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.player__vid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.player--dead {
+  display: grid;
+  place-items: center;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+}
+
+/* --- server hardware --------------------------------------------------- */
+
+.specs {
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  gap: 0.3rem;
 }
 
 .specs__row {
   display: flex;
   gap: 0.7rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
 }
 
 .specs__row dt {
-  width: 4.2rem;
+  width: 4.6rem;
+  flex: none;
   text-transform: uppercase;
   font-size: 0.62rem;
-  letter-spacing: 0.14em;
-  color: #5c6167;
-  line-height: 1.5;
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+  line-height: 1.6;
 }
 
 .specs__row dd {
-  color: #a8adb3;
+  color: var(--text);
 }
 
-/* sponsor strip, bottom left above the ticker */
-.sponsors {
-  position: absolute;
-  left: 1.25rem;
-  bottom: 3.4rem;
+/* --- footer ------------------------------------------------------------ */
+
+.footer {
   display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-
-.sponsors__label {
-  font-size: 0.6rem;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: #5c6167;
-}
-
-.sponsors__logos {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.6rem;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(51, 73, 127, 0.4);
+  font-size: 0.68rem;
+  color: var(--text-faint);
 }
 
-.sponsor {
+.footer__counter {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  opacity: 0.85;
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.6));
+  gap: 0.5rem;
 }
 
-.sponsor__mark {
-  width: 26px;
-  height: 26px;
+.footer__digit {
+  display: inline-block;
+  min-width: 1.15em;
+  margin-left: 2px;
+  padding: 0.1rem 0.15rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--acid);
+  background: #060b18;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
 }
 
-.sponsor__mark--claw path {
-  fill: #e8e6e3;
-}
+/* --- fullscreen toggle (above overlay AND game canvas) ----------------- */
 
-.sponsor__name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #e8e6e3;
-  white-space: nowrap;
-}
-
-/* the white can: silvery caps, spiky vibes */
-.sponsor__name--monster {
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #eceff1;
-}
-
-.sponsor__name--monster em {
-  font-style: normal;
-  font-weight: 300;
-  letter-spacing: 0.28em;
-  color: #b8bfc4;
-}
-
-/* fake-news marquee pinned to the bottom of the overlay */
-.ticker {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: stretch;
-  border-top: 1px solid rgba(245, 166, 35, 0.35);
-  background: rgba(11, 13, 16, 0.7);
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  color: #a8adb3;
-}
-
-.ticker__badge {
-  display: flex;
-  align-items: center;
-  padding: 0.55rem 0.8rem;
-  background: #f5a623;
-  color: #0b0d10;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  white-space: nowrap;
-  z-index: 1;
-}
-
-.ticker__viewport {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  mask-image: linear-gradient(to right, transparent, #000 2rem);
-}
-
-.ticker__track {
-  display: inline-flex;
-  white-space: nowrap;
-  animation: ticker 90s linear infinite;
-}
-
-@keyframes ticker {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ticker__track {
-    animation: none;
-  }
-}
-
-/* muzzle-flash flicker layer above everything, purely decorative */
-.flashfx {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
-
-.sound {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  font-size: 1.15rem;
-  line-height: 1;
-  padding: 0.55rem 0.6rem;
-  background: rgba(11, 13, 16, 0.5);
-  border: 1px solid rgba(245, 166, 35, 0.4);
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.sound:hover,
-.sound:focus-visible {
-  border-color: #f5a623;
-  outline: none;
-}
-
-/* fullscreen toggle, top left, above overlay AND game canvas */
 .fs {
   position: fixed;
-  top: 1rem;
-  left: 1.25rem;
+  top: 0.9rem;
+  right: 0.9rem;
   z-index: 3;
-  font-size: 1.15rem;
-  line-height: 1;
-  padding: 0.55rem 0.6rem;
-  color: #e8e6e3;
-  background: rgba(11, 13, 16, 0.5);
-  border: 1px solid rgba(245, 166, 35, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--text);
+  background: rgba(13, 23, 48, 0.75);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: filter 0.15s;
 }
 
 .fs:hover,
 .fs:focus-visible {
-  border-color: #f5a623;
+  filter: brightness(1.3);
   outline: none;
+}
+
+.fs:focus-visible {
+  outline: 2px solid var(--acid-hot);
+  outline-offset: 1px;
 }
