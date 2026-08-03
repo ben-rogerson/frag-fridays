@@ -769,10 +769,12 @@ const App: FC = () => {
 
   const progress = stageProgress(stage)
   const filled = progress === null ? 0 : Math.round(progress * SEGMENTS)
-  // humans only - a bot topping the board isn't news, and bots never rank
+  // humans only - a bot topping the board isn't news, and bots never rank;
+  // fragless leaders stay hidden (no "top frag: X (0)")
   const humans = serverStatus?.players.filter((p) => !p.bot) ?? []
-  const topFrag =
+  const best =
     humans.length > 0 ? humans.reduce((a, b) => (b.frags > a.frags ? b : a)) : null
+  const topFrag = best && best.frags > 0 ? best : null
   // which roster entry is live; unmatched modes (a future mod) still render
   // from info.json with the fallback emblem
   const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null
