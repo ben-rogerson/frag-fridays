@@ -16,6 +16,11 @@
     "clientcfg": "scripts/deploy.sh && ssh cs16 /opt/cs16/update-clientcfg.sh",
     "rc": "scripts/rc.sh",
     "votemap": "scripts/votemap.sh",
+    "nextmap": "scripts/nextmap.sh",
+    "restartmap": "scripts/restartmap.sh",
+    "announce": "scripts/announce.sh",
+    "standings": "scripts/standings.sh",
+    "swap": "scripts/swap.sh",
     "status": "ssh cs16 'docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"'",
     "logs": "scripts/logs.sh"
   }
