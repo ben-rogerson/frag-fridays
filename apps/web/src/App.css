@@ -784,6 +784,22 @@
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
 }
 
+/* "bots" chip - flags modes that fill empty slots with bots, so a quiet
+   server still reads as playable; sits inline after the mode name */
+.botbadge {
+  display: inline-block;
+  margin-left: 0.55em;
+  padding: 0.1em 0.45em;
+  vertical-align: 0.15em;
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--acid);
+  border: 1px solid rgba(220, 232, 30, 0.45);
+  text-shadow: none;
+}
+
 .card__tagline {
   margin-top: 0.25rem;
   font-size: 0.8rem;

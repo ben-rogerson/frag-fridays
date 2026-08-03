@@ -234,7 +234,7 @@ const MapShot: FC<{ map: string }> = ({ map }) => {
 // One mod runs at a time; /info.json announces the live one. The roster is
 // static because the offering changes rarely - blurbs are condensed from
 // each mod's real info.json copy (server/<mod>/info.json), map pools from
-// its mapcycle.txt. Vanilla runs the stock cycle, so it carries no pool.
+// its mapcycle.txt (vanilla's lives in server/vanilla/mapcycle.txt).
 type ModeEmblem = FC
 type ModeEntry = {
   key: string
@@ -243,6 +243,7 @@ type ModeEntry = {
   blurb: string
   emblem: ModeEmblem
   pool?: string[]
+  bots?: boolean // the mod fills empty slots with bots
 }
 
 // emblems: one 2.5px-stroke linework family, coloured via currentColor
@@ -282,6 +283,7 @@ const MODES: ModeEntry[] = [
     name: 'GunGame',
     blurb: 'every kill levels you up - 23 weapons to the top',
     emblem: GunGameEmblem,
+    bots: true,
     pool: [
       'aim_map',
       'de_dust2',
@@ -306,6 +308,7 @@ const MODES: ModeEntry[] = [
     name: 'Deathmatch',
     blurb: 'free-for-all frags, instant respawn',
     emblem: DeathmatchEmblem,
+    bots: true,
     pool: [
       'fy_pool_day',
       'de_dust2',
@@ -329,6 +332,18 @@ const MODES: ModeEntry[] = [
     name: 'Classic',
     blurb: 'stock 1.6 - buy your kit, win the round',
     emblem: ClassicEmblem,
+    pool: [
+      'de_dust2',
+      'de_dust',
+      'cs_italy',
+      'cs_assault',
+      'cs_militia',
+      'de_inferno',
+      'de_aztec',
+      'de_cbble',
+      'de_nuke',
+      'de_prodigy',
+    ],
   },
   {
     key: 'kz',
@@ -474,15 +489,13 @@ const App: FC = () => {
   })
   const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
   const [videoDead, setVideoDead] = useState(false)
-  // Sound is wanted by default, but browsers refuse unmuted playback with
-  // no user gesture (and unmuting early PAUSES the video), so it applies on
-  // the first click/keypress. The icon reflects the PLAYER's actual muted
-  // state (reported via infoDelivery), not our wish - otherwise it shows
-  // sound-on while the browser still has it muted, and the first toggle
-  // press mutes instead of unmuting.
+  // Sound starts muted and only unmutes via the sound toggle (which is a
+  // user gesture, so the browser allows it). The icon reflects the PLAYER's
+  // actual muted state (reported via infoDelivery), not our wish - otherwise
+  // it shows sound-on while the browser still has it muted, and the first
+  // toggle press mutes instead of unmuting.
   const [playerMuted, setPlayerMuted] = useState(true)
   const playerMutedRef = useRef(true)
-  const wantSoundRef = useRef(true)
   const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
   const [musicOver, setMusicOver] = useState(false)
@@ -575,6 +588,14 @@ const App: FC = () => {
     }
   }, [playing])
 
+  // tab title carries tonight's mode, e.g. "Classic Mode | Frag Fridays";
+  // plain "Frag Fridays" (from index.html) until info.json answers
+  useEffect(() => {
+    if (!modeInfo) return
+    const name = MODES.find((m) => m.match.test(modeInfo.mode))?.name ?? modeInfo.mode
+    document.title = `${name} Mode | Frag Fridays`
+  }, [modeInfo])
+
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
   // iframe so players get the offline notice instead of YouTube's error box.
@@ -601,23 +622,8 @@ const App: FC = () => {
         '*',
       )
     }, 1000)
-    // Gestures apply the wanted-by-default sound: any click, or Enter
-    // (typing a name shouldn't kick the music off early - Enter commits).
-    // Skipped when the gesture is the toggle itself, so a mute press is
-    // not immediately overridden.
-    const onPointer = (e: Event) => {
-      if (e.target instanceof Element && e.target.closest('.sound')) return
-      if (wantSoundRef.current) startSound()
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && wantSoundRef.current) startSound()
-    }
-    window.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('message', onMsg)
-      window.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
       clearInterval(handshake)
       stopFade()
     }
@@ -680,10 +686,8 @@ const App: FC = () => {
   const toggleSound = () => {
     if (playerMuted) {
       // unmuting needs a user gesture, which this click is
-      wantSoundRef.current = true
       startSound()
     } else {
-      wantSoundRef.current = false
       stopFade()
       ytCommand('mute')
     }
@@ -719,10 +723,6 @@ const App: FC = () => {
   const play = async () => {
     if (startedRef.current || !zipRef.current || !canvasRef.current) return
     startedRef.current = true
-    // Play is itself a gesture: kick the music off if it hasn't started yet,
-    // then drop the wish so in-game clicks can't restart it once it ends
-    if (wantSoundRef.current) startSound()
-    wantSoundRef.current = false
     // the Play gesture also covers the fullscreen request
     enterFullscreen()
     // quotes/semicolons would escape the `name "..."` console command
@@ -909,7 +909,10 @@ const App: FC = () => {
                         <HeroEmblem />
                       </span>
                       <div className="card__herotext">
-                        <p className="card__name">{liveMode?.name ?? modeInfo.mode}</p>
+                        <p className="card__name">
+                          {liveMode?.name ?? modeInfo.mode}
+                          {liveMode?.bots && <span className="botbadge">bots</span>}
+                        </p>
                         {modeInfo.tagline && (
                           <p className="card__tagline">{modeInfo.tagline}</p>
                         )}
@@ -967,7 +970,10 @@ const App: FC = () => {
                       <span className="rotation__emblem" aria-hidden="true">
                         <Emblem />
                       </span>
-                      <span className="rotation__name">{m.name}</span>
+                      <span className="rotation__name">
+                        {m.name}
+                        {m.bots && <span className="botbadge">bots</span>}
+                      </span>
                       <span className="rotation__blurb">{m.blurb}</span>
                     </li>
                   )
