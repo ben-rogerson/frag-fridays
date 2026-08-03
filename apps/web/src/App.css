@@ -866,16 +866,34 @@
   padding: 0.25rem 0;
 }
 
-.rotation__row {
-  display: grid;
-  grid-template-columns: 24px minmax(7.5rem, auto) 1fr;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.4rem 0.8rem;
+.rotation__item + .rotation__item {
+  border-top: 1px solid rgba(51, 73, 127, 0.28);
 }
 
-.rotation__row + .rotation__row {
-  border-top: 1px solid rgba(51, 73, 127, 0.28);
+/* each row is a disclosure button: click to unfold that mode's setup sheet */
+.rotation__row {
+  display: grid;
+  grid-template-columns: 24px minmax(7.5rem, auto) 1fr 14px;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.4rem 0.8rem;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* same wash as a server-browser row under the pointer */
+.rotation__row:hover {
+  background: rgba(143, 182, 240, 0.05);
+}
+
+.rotation__row:focus-visible {
+  outline: 2px solid var(--acid-hot);
+  outline-offset: -2px;
 }
 
 .rotation__emblem {
@@ -889,6 +907,10 @@
   height: 18px;
 }
 
+.rotation__item--open .rotation__emblem {
+  color: var(--acid);
+}
+
 .rotation__name {
   font-size: 0.78rem;
   font-weight: 700;
@@ -899,6 +921,57 @@
   min-width: 0;
   font-size: 0.72rem;
   color: var(--text-faint);
+}
+
+.rotation__caret {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  transition: transform 0.25s ease-out;
+}
+
+.rotation__caret svg {
+  width: 12px;
+  height: 12px;
+}
+
+.rotation__item--open .rotation__caret {
+  transform: rotate(90deg);
+}
+
+/* the fold-out: a 0fr -> 1fr grid track so the sheet unrolls to its own
+   height; the clip layer keeps the contents from painting mid-fold */
+.rotation__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out;
+}
+
+.rotation__panel--open {
+  grid-template-rows: 1fr;
+}
+
+.rotation__clip {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* the setup sheet reads like the sub-bar: a faint wash, flush edges */
+.rotation__preview {
+  padding: 0.6rem 0.8rem 0.7rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(51, 73, 127, 0.28);
+}
+
+.rotation__poollabel {
+  margin-top: 0.8rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotation__panel,
+  .rotation__caret {
+    transition: none;
+  }
 }
 
 .card__pending {
@@ -940,6 +1013,12 @@
 /* live semantics: the map on the server now reads in signal green */
 .pool__tile--live .pool__name {
   color: var(--live);
+}
+
+/* pool strip inside a mode preview - the sheet already pads, thumbs shrink */
+.pool--preview {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  padding: 0;
 }
 
 /* --- server browser: toolbar + connect action -------------------------- */

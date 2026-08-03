@@ -232,15 +232,16 @@ const MapShot: FC<{ map: string }> = ({ map }) => {
 
 // --- mode roster --------------------------------------------------------
 // One mod runs at a time; /info.json announces the live one. The roster is
-// static because the offering changes rarely - blurbs are condensed from
-// each mod's real info.json copy (server/<mod>/info.json), map pools from
-// its mapcycle.txt (vanilla's lives in server/vanilla/mapcycle.txt).
+// static because the offering changes rarely - blurbs and rules are taken
+// from each mod's real info.json copy (server/<mod>/info.json), map pools
+// from its mapcycle.txt (vanilla's lives in server/vanilla/mapcycle.txt).
 type ModeEmblem = FC
 type ModeEntry = {
   key: string
   match: RegExp // matches the live info.json mode string
   name: string
   blurb: string
+  rules: string[]
   emblem: ModeEmblem
   pool?: string[]
   bots?: boolean // the mod fills empty slots with bots
@@ -282,6 +283,7 @@ const MODES: ModeEntry[] = [
     match: /gun\s*game/i,
     name: 'GunGame',
     blurb: 'every kill levels you up - 23 weapons to the top',
+    rules: ['knife kills steal a level', 'instant respawn', '7 bots roaming', '20 minute maps'],
     emblem: GunGameEmblem,
     bots: true,
     pool: [
@@ -306,6 +308,7 @@ const MODES: ModeEntry[] = [
     match: /death\s*match/i,
     name: 'Deathmatch',
     blurb: 'free-for-all frags, instant respawn',
+    rules: ['pick your guns with !guns', 'instant respawn', '7 bots roaming', '15 minute maps'],
     emblem: DeathmatchEmblem,
     bots: true,
     pool: [
@@ -329,6 +332,7 @@ const MODES: ModeEntry[] = [
     match: /classic|vanilla/i,
     name: 'Classic',
     blurb: 'stock 1.6 - buy your kit, win the round',
+    rules: ['classic round rules', '10 map rotation', '30 minute maps'],
     emblem: ClassicEmblem,
     pool: [
       'de_dust2',
@@ -348,6 +352,12 @@ const MODES: ModeEntry[] = [
     match: /kz|climb/i,
     name: 'KZ / Climb',
     blurb: 'checkpoint climbs against the clock',
+    rules: [
+      '/cp saves a checkpoint, /tp returns to it',
+      'press the start button, race to the stop button',
+      'deaths cost nothing - you respawn on your checkpoint',
+      'no bots, no guns, no excuses',
+    ],
     emblem: KzEmblem,
     pool: ['kz_giantbean_b15', 'kz_summercliff2', 'kz_cellblock'],
   },
@@ -498,6 +508,9 @@ const App: FC = () => {
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
   const [musicOver, setMusicOver] = useState(false)
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
+  // which roster row is unfolded in "more game modes"; one at a time so the
+  // card stays a card, not a scroll
+  const [openMode, setOpenMode] = useState<string | null>(null)
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
   // measured round-trip of the last successful status poll; pollTick remounts
   // the masthead livedot so it blips once per real answer from the box
@@ -960,20 +973,70 @@ const App: FC = () => {
                 more game modes
                 <span className="card__subnote">one mod runs at a time - swaps between weeks</span>
               </h3>
-              {/* the live mode already headlines the card, so its row sits out */}
+              {/* the live mode already headlines the card, so its row sits out.
+                  Each row unfolds into that mode's setup sheet - rules and map
+                  pool in the same grammar as tonight's card above. */}
               <ul className="rotation">
                 {MODES.filter((m) => m.key !== liveMode?.key).map((m) => {
                   const Emblem = m.emblem
+                  const open = openMode === m.key
                   return (
-                    <li className="rotation__row" key={m.key}>
-                      <span className="rotation__emblem" aria-hidden="true">
-                        <Emblem />
-                      </span>
-                      <span className="rotation__name">
-                        {m.name}
-                        {m.bots && <span className="botbadge">bots</span>}
-                      </span>
-                      <span className="rotation__blurb">{m.blurb}</span>
+                    <li
+                      className={`rotation__item${open ? ' rotation__item--open' : ''}`}
+                      key={m.key}
+                    >
+                      <button
+                        type="button"
+                        className="rotation__row"
+                        aria-expanded={open}
+                        aria-controls={`mode-preview-${m.key}`}
+                        onClick={() => setOpenMode(open ? null : m.key)}
+                      >
+                        <span className="rotation__emblem" aria-hidden="true">
+                          <Emblem />
+                        </span>
+                        <span className="rotation__name">
+                          {m.name}
+                          {m.bots && <span className="botbadge">bots</span>}
+                        </span>
+                        <span className="rotation__blurb">{m.blurb}</span>
+                        <span className="rotation__caret" aria-hidden="true">
+                          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M15 11l10 9-10 9" />
+                          </svg>
+                        </span>
+                      </button>
+                      <div
+                        className={`rotation__panel${open ? ' rotation__panel--open' : ''}`}
+                        id={`mode-preview-${m.key}`}
+                        aria-hidden={!open}
+                      >
+                        <div className="rotation__clip">
+                          <div className="rotation__preview">
+                            <p className="card__ruleslabel">rules</p>
+                            <ul className="card__rulelist">
+                              {m.rules.map((r) => (
+                                <li key={r}>{r}</li>
+                              ))}
+                            </ul>
+                            {m.pool && (
+                              <>
+                                <p className="card__ruleslabel rotation__poollabel">
+                                  the map pool - {m.pool.length} maps
+                                </p>
+                                <ul className="pool pool--preview">
+                                  {m.pool.map((map) => (
+                                    <li className="pool__tile" key={map}>
+                                      <MapShot map={map} />
+                                      <span className="pool__name">{map}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </li>
                   )
                 })}
