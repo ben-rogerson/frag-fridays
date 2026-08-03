@@ -71,6 +71,12 @@ rsync -tvz "$SERVER_DIR/config/userconfig.cfg" "$HOST:$REMOTE_ROOT/cs/cstrike/us
 log "installing update-clientcfg.sh"
 rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientcfg.sh"
 
+# vanilla's mapcycle (mounted by the root compose; gg/dm/kz ship theirs in
+# their mod dirs)
+if [[ -d "$SERVER_DIR/vanilla" ]]; then
+  rsync -rlptvz --delete "$SERVER_DIR/vanilla/" "$HOST:$REMOTE_ROOT/vanilla/"
+fi
+
 # vanilla's loading-screen mode blurb (gg/dm ship theirs inside their dirs)
 if [[ -f "$SERVER_DIR/info-vanilla.json" ]]; then
   rsync -tvz "$SERVER_DIR/info-vanilla.json" "$HOST:$REMOTE_ROOT/info-vanilla.json"

@@ -17,9 +17,17 @@ services:
       - "./web/assets:/xashds/public/assets:ro"
       # mode blurb shown on the loading screen
       - "./info-vanilla.json:/xashds/public/info.json:ro"
+      # statusjson.amxx writes this (mod images pre-create it at build; vanilla
+      # can't, so it's a writable file mount - truncate-in-place keeps the inode)
+      - "./status-vanilla.json:/xashds/public/status.json"
+      # classic rotation over the stock 2-map cycle (all-stock maps already in
+      # the valve.zip keep-list); keep line 1 equal to the +map boot arg
+      - "./vanilla/mapcycle.txt:/xashds/cstrike/mapcycle.txt:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
+      # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
+      - "./cmdpipe:/xashds/cstrike/cmdpipe:ro"
     ports:
       - "27016:27016"
       - "27018:27018/udp"

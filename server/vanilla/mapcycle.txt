@@ -1,0 +1,10 @@
+de_dust2
+de_dust
+cs_italy
+cs_assault
+cs_militia
+de_inferno
+de_aztec
+de_cbble
+de_nuke
+de_prodigy
