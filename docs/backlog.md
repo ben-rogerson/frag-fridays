@@ -230,17 +230,31 @@ as its last line. Root cause wasn't a missing key: the AMXX lang parser
 can't read the colon-block form of `WELCOME_MESSAGE_LINE8` in
 `gungame.txt`. Fixed in commit 91ac1f5 and deployed.
 
-## 13. Domain + https in front of the box
+## 13. Domain + https in front of the box - done (2026-08-03)
 
-Point a subdomain (e.g. `cs.` something Ben owns) at 149.28.172.74 and run
-Caddy on the box proxying 443 -> 27016 (ws upgrade included - the client
-already speaks wss/`location.host`). (The YouTube loading-screen video no
-longer needs this - solved 2026-08-03 with the apps/web/shim Worker relay.)
-Still unlocks:
+Live at **https://cs.benrogerson.dev** - a Cloudflare Worker
+(`apps/web/proxy/`, worker name `frag-friday`) on a wrangler custom domain,
+reverse-proxying everything to the VPS. No Caddy, no box changes, no
+firewall changes; the old `http://149.28.172.74:27016` URL keeps working.
 
-- **Mic voice chat**: `getUserMedia` needs a secure context; webrtc.ts
-  already requests it optionally and adds the track when available.
-- Nicer player URL (no `:27016`).
+How it hangs together:
 
-Firewall: open 80/443. Keep 27016 open during cutover; players on the old
-URL keep working.
+- The client uses same-origin relative paths for everything (`/websocket`
+  signalling, `/valve.zip`, the page), so a transparent proxy suffices.
+- Game packets never touch the Worker - they flow over WebRTC data channels
+  directly to the VPS IP, so only the page, the 305MB download and the
+  lightweight signalling ws go through Cloudflare.
+- Workers `fetch()` refuses IP-literal origins (error 1003), so the origin
+  is `http://149-28-172-74.sslip.io:27016` (sslip.io just resolves the
+  dashed IP; custom ports are fine once it's a hostname).
+- Verified 2026-08-03: page 200, valve.zip range requests proxy with full
+  319MB length, wss handshake returns the server's WebRTC offer, and the
+  full client loads, downloads and reaches the in-engine briefing screen in
+  Chrome on the new URL. (Join attempts then dropped after ~10s - but
+  identically on the old IP URL, so it's a server-side wedge, not the
+  proxy; see the join-wedge watch item below.)
+
+The https origin unlocks `getUserMedia`, so webrtc.ts now actually gets a
+mic track - exercise voice on Friday. Note: localStorage is per-origin, so
+players switching from the IP URL start with fresh settings and re-enter
+their name once.
