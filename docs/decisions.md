@@ -332,3 +332,38 @@ Baked into gg and dm images (vanilla runs the stock image unbuilt, so it
 misses out). This also quietly answers the "how does the future web portal
 change maps - RCON? scheduled restart?" question in the backlog: it drops
 a file.
+
+## DM dropped-gun cleanup: timed weaponbox removal (2026-08-03)
+
+With 8 players on instant respawn, every death drops a gun and stock CS
+keeps dropped `weaponbox` ents until the round ends - on a 9-minute DM
+round they accumulate into the hundreds and clients lag noticeably
+(reported live on fy_iceworld). No stock cvar controls dropped-weapon
+lifetime in CS 1.6.
+
+Options considered: a max-count cap (needs a FIFO of entity indices and
+still lets N guns litter the floor), round-time tuning (shorter rounds =
+more score resets, fights the DM shape), and per-drop timed removal.
+Went with timed removal in `frag_dm.sma`: every drop routes through
+`SetModel` on a fresh weaponbox, so a `register_forward(FM_SetModel)`
+catches it, checks the classname, and schedules `EngFunc_RemoveEntity`
+after `dm_ground_time` seconds (default 3.0 - tested live at 10 first,
+3 felt right and is plenty to grab a better gun off a corpse). 0 disables.
+Self-limiting: at Friday headcounts the map holds maybe a dozen boxes at
+any instant.
+
+Constraints that shaped it: engine-level fakemeta only - `RegisterHam` on
+non-player classes ("weaponbox") is unverified against this stack's
+reimplemented CS DLL (the CSDM lesson), while `FM_SetModel` is pure
+engine interface. Removal task is keyed `TASK_WBOX + ent`; entity slots
+get reused, so the task re-checks the classname before removing - worst
+case a reused slot loses a newer dropped gun early, which in DM is the
+point anyway. Known accepted leak: removing the box orphans the packed
+`weapon_*` edict until the game's own round/map cleanup sweeps it -
+fine at our 15-minute timelimit, worth revisiting if edict warnings ever
+appear.
+
+Tuning is live via `pnpm run rc "dm_ground_time <s>"` (cvar survives
+changelevel; the baked default applies from the next image rebuild).
+Verified live: plugin `running`, AMXX error log silent through minutes of
+bot fights, guns visibly vanish on schedule.

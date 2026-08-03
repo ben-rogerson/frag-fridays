@@ -26,8 +26,11 @@
 
 #define TASK_RESPAWN 42000
 #define TASK_PROTECT 43000
+// offset must clear TASK_PROTECT + max entity index (weaponbox tasks are
+// keyed by entity, not player)
+#define TASK_WBOX    50000
 
-new g_spawnDelay, g_protectTime, g_refill;
+new g_spawnDelay, g_protectTime, g_refill, g_groundTime;
 
 // preferred primary per player: index into g_guns, -1 = team default
 new g_choice[33];
@@ -54,9 +57,15 @@ public plugin_init()
 	g_spawnDelay  = register_cvar("dm_spawn_delay", "0.75");
 	g_protectTime = register_cvar("dm_protect_time", "1.5");
 	g_refill      = register_cvar("dm_refill", "1");
+	g_groundTime  = register_cvar("dm_ground_time", "3.0");
 
 	register_event("DeathMsg", "event_death", "a");
 	RegisterHam(Ham_Spawn, "player", "ham_player_spawn", 1);
+
+	// dropped-gun cleanup: constant respawns litter the map with weaponbox
+	// ents and the accumulation lags clients. Engine-level forward, no Ham
+	// on non-player classes (unverified on this stack's reimplemented DLL).
+	register_forward(FM_SetModel, "fw_set_model");
 
 	register_clcmd("say", "cmd_say");
 	register_clcmd("say_team", "cmd_say");
@@ -182,6 +191,46 @@ get_primary(id, CsTeams:team, out[], len)
 		return;
 	}
 	copy(out, len, g_guns[c * 2 + 1]);
+}
+
+// --- dropped weapon cleanup -------------------------------------------------
+
+// every drop routes through SetModel on a fresh weaponbox ent
+public fw_set_model(ent, const model[])
+{
+	static classname[12];
+	if (!pev_valid(ent))
+		return FMRES_IGNORED;
+
+	pev(ent, pev_classname, classname, charsmax(classname));
+	if (!equal(classname, "weaponbox"))
+		return FMRES_IGNORED;
+
+	new Float:life = get_pcvar_float(g_groundTime);
+	if (life > 0.0)
+	{
+		// SetModel can fire more than once for the same box
+		remove_task(TASK_WBOX + ent);
+		set_task(life, "task_remove_wbox", TASK_WBOX + ent);
+	}
+	return FMRES_IGNORED;
+}
+
+public task_remove_wbox(taskid)
+{
+	new ent = taskid - TASK_WBOX;
+	// entity slots get reused - only remove if it is still a weaponbox
+	// (picked-up boxes are freed by the game; a reused slot at worst loses
+	// a newer dropped gun a little early)
+	if (!pev_valid(ent))
+		return;
+
+	static classname[12];
+	pev(ent, pev_classname, classname, charsmax(classname));
+	if (!equal(classname, "weaponbox"))
+		return;
+
+	engfunc(EngFunc_RemoveEntity, ent);
 }
 
 // --- chat commands ----------------------------------------------------------
