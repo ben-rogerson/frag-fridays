@@ -40,6 +40,10 @@ RUN touch public/status.json && chown xashds public/status.json
 RUN echo 'linux addons/yapb/bin/yapb.so' >> cstrike/addons/metamod/plugins.ini \
  && mkdir -p cstrike/addons/yapb/data/logs cstrike/addons/yapb/data/pwf cstrike/addons/yapb/data/train \
  && chown -R xashds cstrike/addons/yapb
+# the engine writes <map>.bsp.ztmp into cstrike/maps when a client is missing
+# a file and asks for it in-band; a root-owned dir makes that write a fatal
+# Xash error that crash-loops the server on every such connect
+RUN chown xashds cstrike/maps
 # AMXX creates logs/L<date>.log at map start; without a writable logs dir it
 # fails and disables its own logging for the map
 RUN mkdir -p cstrike/addons/amxmodx/logs && chown xashds cstrike/addons/amxmodx/logs
