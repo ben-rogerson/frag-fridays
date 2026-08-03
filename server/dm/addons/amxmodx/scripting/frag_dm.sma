@@ -74,7 +74,7 @@ public plugin_init()
 	// since respawn means teams are never eliminated). Short timelimit so a
 	// 30-minute session sees at least two maps and the end-of-map vote.
 	server_cmd("mp_freezetime 0");
-	server_cmd("mp_roundtime 9");
+	server_cmd("mp_roundtime 5");
 	server_cmd("mp_buytime 0.25");
 	server_cmd("mp_timelimit 10");
 }
