@@ -21,6 +21,7 @@ One mod runs at a time; the URL never changes.
 |---|---|---|
 | gg | GunGame - new weapon every kill, first to gold knife wins. Deathmatch respawn is on (`gg_dm 1`). | `pnpm run deploy gg` |
 | dm | Deathmatch - instant respawn, pick your gun, aim practice (`frag_dm.sma`, ours) | `pnpm run deploy dm` |
+| kz | KZ / jump maps - checkpoints, run timer, no bots, no guns (`kz.sma`, ours) | `pnpm run deploy kz` |
 | vanilla | Stock CS 1.6 rounds | `pnpm run deploy vanilla` |
 
 ### DM gun selection (chat commands)
@@ -32,6 +33,21 @@ AMXX menus are unverified in the browser build, so gun choice is chat:
 - `/deagle` - pistol only
 - Default without choosing: your team's rifle (AK/M4) + deagle. Everyone
   spawns with full armour; ammo refills on every kill.
+
+### KZ commands (chat, same no-menus reason)
+
+Rotation: `kz_longjumps2` (longjump practice), `kz_cargo` (climb),
+`bkz_goldbhop` (bhop). Timed maps have a start button and a stop button -
+press start, race to the top, press stop; finishes are announced and logged.
+
+- `/cp` - save a checkpoint (must be on the ground or a ladder)
+- `/tp` - teleport back to it (counted against your run)
+- `/stuck` - fall back to the previous checkpoint
+- `/start` - clear checkpoints and respawn at the beginning
+- `/time` - current run time, `/top` - session bests, `/kz` - help
+- Deaths and 9-minute round restarts auto-teleport you back to your
+  checkpoint - nothing is lost. Everyone plays CT (the maps have no T
+  spawns); player-vs-player damage is off, knife only.
 
 ## Bots (YaPB 4.4.957)
 

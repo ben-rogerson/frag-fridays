@@ -17,9 +17,9 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 
 - Repo `server/` mirrors box `/opt/cs16` 1:1. Never hand-edit the box - edit
   the repo and deploy. `pnpm run pull` re-syncs repo from box.
-- Mods: `gg` (GunGame), `dm` (deathmatch, our `frag_dm.sma`), `vanilla`
-  (root compose, profile), `zp` (abandoned). One mod at a time - all bind
-  27016.
+- Mods: `gg` (GunGame), `dm` (deathmatch, our `frag_dm.sma`), `kz` (jump
+  maps, our `kz.sma` - checkpoints/timer, no bots), `vanilla` (root compose,
+  profile), `zp` (abandoned). One mod at a time - all bind 27016.
 - `/opt/cs16/cs/` = game files tree (SteamCMD install, source of truth,
   never in repo). `/opt/cs16/valve.zip` = the ONE canonical client payload,
   mounted by every mod's compose.
@@ -31,9 +31,9 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 | Status | `pnpm run status` |
 | Logs | `pnpm run logs <mod>` |
 | Sync files only | `pnpm run deploy` |
-| Swap/restart mod | `pnpm run deploy <vanilla\|gg\|dm>` |
+| Swap/restart mod | `pnpm run deploy <vanilla\|gg\|dm\|kz>` |
 | Ship client config / rebuild valve.zip | `pnpm run clientcfg` |
-| Live server console (gg/dm only) | `pnpm run rc "<command>"` |
+| Live server console (gg/dm/kz only) | `pnpm run rc "<command>"` |
 | Start a map vote ("votemap") | `pnpm run votemap` - 4 random mapcycle picks (script-side shuffle; never hand-pick maps) |
 
 ## Iron rules
@@ -45,7 +45,8 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
    `update-clientcfg.sh` from `cs/{valve,cstrike}` using a keep-list (union
    of mod `mapcycle.txt` files; HL campaign maps always excluded). Client
    changes (userconfig.cfg, new maps) need `pnpm run clientcfg` + players
-   hard-refresh.
+   hard-refresh. clientcfg RESTARTS the running mod at the end so the new
+   zip is served - it drops connected players; don't run it mid-session.
 3. **Three registration files, not one:** AMXX plugins -> `configs/plugins.ini`;
    AMXX modules -> `configs/modules.ini`; Metamod plugins (YaPB) -> Metamod's
    own `plugins.ini`. A plugin absent from its file is a silent no-op.
@@ -63,7 +64,7 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 **Run commands on the LIVE server:** `pnpm run rc "changelevel de_dust2"`.
 No rcon exists on this stack (build answers no A2S/rcon UDP, stdin closed) -
 rc.sh writes a serial-numbered file to `/opt/cs16/cmdpipe/` which the
-`cmdpipe.amxx` plugin (baked into gg + dm images, NOT vanilla) polls every
+`cmdpipe.amxx` plugin (baked into gg + dm + kz images, NOT vanilla) polls every
 second. rc.sh tails docker logs for output, but slow output (map loads) can
 outrun its 5s window - re-check with `pnpm run logs <mod>`. Map changes via
 `changelevel` don't drop players; a redeploy does.

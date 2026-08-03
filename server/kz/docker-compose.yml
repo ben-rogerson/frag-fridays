@@ -1,0 +1,31 @@
+services:
+  xash3d:
+    build: .
+    restart: unless-stopped
+    platform: linux/386
+    # boot map (image default is de_dust2); keep in sync with mapcycle.txt line 1
+    command: ["+map kz_longjumps2", "+maxplayers 16"]
+    environment:
+      PORT: 27048
+      IP: 149.28.172.74
+    volumes:
+      - "../valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Friday loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "../web/index.html:/xashds/public/index.html:ro"
+      - "../web/assets:/xashds/public/assets:ro"
+      # mode blurb shown on the loading screen
+      - "./info.json:/xashds/public/info.json:ro"
+      - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
+      # kz_cargo's fork.mdl - the server loads studio models for collision,
+      # unlike wads/sounds which are client-only
+      - "../cs/cstrike/models:/xashds/cstrike/custom/models:ro"
+      # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
+      - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"
+      # HL logs (log on + mp_logfile in server.cfg) - kz_finish lines for the recap
+      - "../logs/kz:/xashds/cstrike/logs"
+    ports:
+      - "27016:27016"
+      - "27048:27048"
+      - "27048:27048/udp"

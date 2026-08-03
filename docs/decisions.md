@@ -367,3 +367,35 @@ Tuning is live via `pnpm run rc "dm_ground_time <s>"` (cvar survives
 changelevel; the baked default applies from the next image rebuild).
 Verified live: plugin `running`, AMXX error log silent through minutes of
 bot fights, guns visibly vanish on schedule.
+
+## KZ mod: three classic jump maps, script-only timer (2026-08-03)
+
+New `server/kz/` mod (fourth in the family, internal port 27048): jump/climb
+maps with checkpoints and a run timer. Maps picked for fame + variety:
+`kz_longjumps2` (the longjump trainer), `kz_cargo` (classic climb),
+`bkz_goldbhop` (classic bhop) - all GoldSrc v30 from kz-rush.ru with fully
+embedded textures, so despite long wad keys none needed a wad shipped.
+kz_cargo brought the only real deps: `waterworld09` sky + five wavs
+(client-only, `server/custom/`) and `models/kz_cargo/fork.mdl` - which the
+SERVER also needs (studio models load for collision, unlike wads/sounds;
+boot-test showed `Could not load model ... from disk`). Hence the second
+compose mount `cs/cstrike/models -> cstrike/custom/models`.
+
+Design notes, all downstream of the no-Ham-on-non-players rule:
+
+- Both timed maps use the Xtreme-Jumps counter prefab (buttons targeting
+  `counter_start`/`counter_off`). `Ham_Use` on `func_button` is off-limits,
+  so kz.sma detects presses engine-side: IN_USE edge in `FM_PlayerPreThink`
+  plus an AABB proximity check (<=96u) against counter buttons only.
+- The maps ship ZERO T spawn points (`info_player_deathmatch`), only CT
+  `info_player_start`. Rather than trust the reimplemented DLL's spawn
+  fallback, kz.sma moves anyone on T to CT on spawn.
+- Deaths and the 9-minute round cap both funnel through `Ham_Spawn`, where
+  players with a checkpoint are auto-teleported back 0.3s later - round
+  restarts cost nothing, so `mp_roundtime 9` is invisible instead of a
+  run-killer. Timer is gametime-based and survives restarts.
+- No YaPB at all (bots can't climb); knife only; PvP damage superceded in
+  `Ham_TakeDamage`; fall damage stays - that's kz.
+- Finishes log one `kz_finish` line (time + teleports) into the HL log
+  (`logs/kz`), so the Friday recap has material even with no kills. The
+  recap skill doesn't parse these yet.
