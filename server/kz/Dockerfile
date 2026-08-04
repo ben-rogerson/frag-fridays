@@ -21,6 +21,9 @@ RUN printf '\nhostname "Frag Fridays"\n' >> cstrike/server.cfg
 # HL logging - kz.sma writes one kz_finish line per completed run into
 # cstrike/logs (compose-mounts /opt/cs16/logs/kz); feeds the Friday recap
 RUN printf 'log on\nmp_logfile 1\n' >> cstrike/server.cfg
+# browsers freeze the WASM game loop in background tabs, so alt-tabbed players
+# go network-silent; the engine default (65s) kicked them. 600s = 10 min grace.
+RUN printf 'sv_timeout 600\n' >> cstrike/server.cfg
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \

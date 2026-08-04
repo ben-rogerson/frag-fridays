@@ -3,7 +3,10 @@ services:
     image: yohimik/cs-web-server-metpamx:latest
     platform: linux/386
     profiles: ["vanilla"]
-    command: ["+map de_dust2", "+maxplayers 14", "+mp_friendlyfire 0"]
+    # +sv_timeout: browsers freeze the WASM game loop in background tabs, so
+    # alt-tabbed players go network-silent; the engine default (65s) kicked
+    # them. Mod images bake this into server.cfg instead (their Dockerfiles).
+    command: ["+map de_dust2", "+maxplayers 14", "+mp_friendlyfire 0", "+sv_timeout 600"]
     restart: unless-stopped
     environment:
       PORT: 27018
