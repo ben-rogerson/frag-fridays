@@ -30,6 +30,7 @@ export class Xash3DWebRTC extends Xash3D {
   private wasRemote = false
   private silenceTimer?: number
   private droppedFired = false
+  private sawTraffic = false
 
   // Server traffic is continuous while connected, so this much silence after
   // packets have started flowing means we were dropped at the game level.
@@ -39,6 +40,15 @@ export class Xash3DWebRTC extends Xash3D {
   constructor(opts?: Xash3DOptions) {
     super(opts)
     this.net = new Net(this)
+    // A hidden tab stops rAF, freezing the engine loop - we stop sending and
+    // the server stops answering within a second or two (mutual silence)
+    // while still holding the slot for sv_timeout. That is not a drop, so
+    // the watchdog only runs while the tab is visible; returning re-arms it
+    // with a fresh window, so a genuine kick still surfaces ~10s after
+    // tab return (the resumed client gets no reply).
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.sawTraffic && !this.droppedFired) this.armSilence()
+    })
   }
 
   async init() {
@@ -175,11 +185,19 @@ export class Xash3DWebRTC extends Xash3D {
   // armed by the first incoming packet, re-armed by every one after
   private bumpSilence() {
     if (this.droppedFired) return
+    this.sawTraffic = true
+    this.armSilence()
+  }
+
+  private armSilence() {
     clearTimeout(this.silenceTimer)
-    this.silenceTimer = window.setTimeout(
-      () => this.fireDrop('silence'),
-      Xash3DWebRTC.SILENCE_MS,
-    )
+    // the hidden check happens at fire time, not arm time, so a transient
+    // visibility flap can never cancel detection outright - at worst it
+    // skips one firing and the visibilitychange handler re-arms
+    this.silenceTimer = window.setTimeout(() => {
+      if (document.hidden) return
+      this.fireDrop('silence')
+    }, Xash3DWebRTC.SILENCE_MS)
   }
 
   private fireDrop(kind: DropKind) {
