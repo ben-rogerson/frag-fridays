@@ -1091,7 +1091,8 @@ const App: FC = () => {
                       >
                         <td className="servers__name">
                           <span className="livedot" aria-hidden="true" />
-                          Frag Fridays #1 - Sydney
+                          Frag Fridays #1 - Sydney &middot;{' '}
+                          {clock.id === 'live' ? 'LIVE' : 'PRACTICE'}
                         </td>
                         <td className="servers__map">{serverStatus.map}</td>
                         <td>
@@ -1136,7 +1137,7 @@ const App: FC = () => {
                         {/* ignites once, when the download lands; retry and
                             reconnect above stay flat - recovery isn't a show */}
                         <button className="join join--ignite" onClick={play}>
-                          » connect «
+                          » {clock.id === 'live' ? 'join live' : 'warm up'} «
                         </button>
                         <p className="status">{stageLabel(stage)}</p>
                       </>
