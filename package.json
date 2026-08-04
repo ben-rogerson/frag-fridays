@@ -22,6 +22,7 @@
     "standings": "scripts/standings.sh",
     "swap": "scripts/swap.sh",
     "status": "ssh cs16 'docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"'",
-    "logs": "scripts/logs.sh"
+    "logs": "scripts/logs.sh",
+    "pressbox": "scripts/pressbox.sh"
   }
 }

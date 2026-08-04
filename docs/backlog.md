@@ -305,3 +305,60 @@ Also learned: the address column in engine `status` for emscripten-wasm32
 clients is a synthetic per-peer address from the webrtc bridge, NOT the
 player's real IP (the same player showed 5.110.162.3 before the restart
 and the unroutable 0.53.145.241 after). Don't use it to identify anyone.
+
+## 15. Pressbox spectator - v1 built, unverified on the box (2026-08-04)
+
+Permanent-spectator feature: a headless-Chromium sibling service
+(`server/pressbox/`) that joins the running mod like any player, presses F3
+to spectate (`jointeam 6`, new bind in `userconfig.cfg`) and screenshots the
+game canvas on an interval. Serves the latest PNG + a small viewer + a
+`/health` endpoint on `:27060`. Runs as its own compose project (like
+`mcp/`), so it can't trip the single-container-on-27016 check and is
+untouched by mod swaps.
+
+Native HLTV proxy was ruled out first: the upstream `yohimik/webxash3d-fwgs`
+server is WebRTC-only and does not answer the connectionless GoldSrc UDP
+netchannel that HLTV attaches through (same protocol as A2S, which the
+skill notes already verified as silent). A browser spectator is the only
+route that reuses the actual client stack. See decisions.md for the fuller
+write-up.
+
+Shape:
+
+- `scripts/pressbox.sh up|down|restart|status|logs|shot` (also
+  `pnpm run pressbox <cmd>`). `up` rsyncs `server/pressbox/` then
+  `docker compose up -d --build` in its own compose project. Regular
+  `pnpm run deploy` does NOT touch pressbox - opt-in on purpose.
+- Screenshots persist to `/opt/cs16/pressbox-out/latest.png` (atomic
+  write, single file). The viewer polls it; future `apps/web` can serve
+  from the same file.
+- Splash-stall recovery baked in: mic permission auto-granted at browser
+  launch (the known cause), and if N consecutive frames are byte-identical
+  the page reloads (STALL_RELOAD_AFTER, default 24).
+
+Costs known up front:
+
+- ONE `maxplayers` slot on the running mod (14 -> 13 for humans) while it
+  is up. Bring it down before session start if you want that slot back.
+- Playwright base image is ~2GB - first `pressbox up` on the box will
+  pull it.
+
+Unverified until it runs on the box:
+
+- Does WebRTC negotiate cleanly from a sibling docker container to the
+  game container via `host.docker.internal`? mcp/ uses the same trick for
+  HTTP; WebRTC's ICE step may or may not need extra host-network config.
+- Does F3 actually land as `jointeam 6` on this WASM build? Test manually
+  first (bind is shipped, a human hitting F3 in-browser proves it).
+- Screenshot content when the canvas holds a WebGL/WASM game - Chromium
+  should composite it, but some GL contexts screenshot black without
+  `--enable-gpu` shenanigans.
+
+Next steps once verified:
+
+- Cycle observer targets automatically (spec_mode / +attack sweeps) so the
+  feed isn't stuck on whoever CS defaults to.
+- Record short MP4s per round (Playwright `video: 'on'`) and hand them to
+  the friday-recap skill for highlight clips.
+- Slack: post a hourly screenshot to the game channel during a session.
+- `apps/web`: embed the viewer on the portal so the URL is one click.
