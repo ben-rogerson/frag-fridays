@@ -2,11 +2,33 @@
 
 Counter-Strike 1.6 in a browser tab, for the weekly Friday work social.
 No install, no Steam, no download prompts on the work laptop - open a URL
-and you're in. Real GoldSrc compiled to WebAssembly
-([yohimik/webxash3d-fwgs](https://github.com/yohimik/webxash3d-fwgs))
-networked over WebRTC, running on a $6/mo Vultr VPS in Sydney.
+and you're in.
 
 **Play:** http://149.28.172.74:27016
+
+- **Real GoldSrc in the browser** - the actual engine compiled to
+  WebAssembly ([yohimik/webxash3d-fwgs](https://github.com/yohimik/webxash3d-fwgs)),
+  networked over WebRTC. Not a remake, not a video stream.
+- **Five mods, one command** - GunGame, Deathmatch, KZ jump maps, Zombie
+  Plague, vanilla rounds. `pnpm run deploy gg` swaps the whole server;
+  the URL never changes.
+- **Never an empty server** - YaPB bots fill the slots and leave one by
+  one as humans join. `[BOT]`-prefixed on the scoreboard, tuned to be
+  beatable.
+- **Settings survive reloads** - sensitivity, crosshair and binds persist
+  per browser, while updated shipped defaults still reach returning
+  players.
+- **No dead tabs** - a dropped connection brings the lobby back with a
+  reason and a Reconnect button, not a frozen game.
+- **Live console, no rcon needed** - `pnpm run rc "changelevel de_dust2"`
+  changes map mid-session with no restart and no player drop.
+- **MCP control plane** - status, console, logs, restart and mod swap
+  exposed as MCP tools ([server/mcp](server/mcp)), so the server can be
+  driven from claude.ai as a custom connector.
+- **Tuned by obsession** - bot difficulty, map rotations, gravity maps,
+  join binds and rates set by someone who has played far too much CS 1.6.
+- **Runs on a $6/mo VPS** - one Vultr box in Sydney, one Docker image per
+  mod, the repo as the single source of truth.
 
 ## Repo layout
 
