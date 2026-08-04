@@ -433,3 +433,43 @@ The cmdpipe write side is a straight Node port of `rc.sh` (serial bump +
 same-dir atomic rename), serialised by an in-process mutex; the laptop-vs-MCP
 serial race is unchanged from the existing rc.sh-vs-rc.sh risk. Output
 capture stays best-effort (`docker logs --since`), same as rc.sh.
+
+## Pressbox: headless-Chromium spectator, not native HLTV (2026-08-04)
+
+Backlog item 15: we wanted a permanent spectator that could feed back
+screenshots/video so we could see inside the game. First instinct was a
+native GoldSrc HLTV proxy pointed at the game server - stock CS toolchain,
+zero extra client stack. Ruled out before writing any code:
+
+- Upstream `yohimik/webxash3d-fwgs` transport is WebRTC-only; the README
+  even lists "Support WebRTC/UDP proxy" as an incomplete TODO.
+- HLTV attaches through the same connectionless GoldSrc UDP netchannel
+  that A2S queries use, and the skill notes already recorded "build
+  answers no A2S/rcon UDP" - so HLTV's initial `connect` would land in the
+  same silence.
+- Even if HLTV somehow handshook, it only relays a demo stream. Turning
+  that into pixels needs a rendering client on top - and the only
+  rendering client this stack has is the WASM game in a browser. Which is
+  exactly what a headless-Chromium spectator IS, without the HLTV hop.
+
+Landed on: Playwright/Chromium sibling container (`server/pressbox/`) that
+opens the player URL, F3s into spectate, and screenshots the canvas
+element on an interval to a mounted volume. Own compose project like
+`mcp/` - never touched by mod-swap logic, publishes 27060 only so it can't
+trip the single-container-on-27016 check. Zero npm deps beyond
+playwright-in-the-base-image (built-in `http` for the viewer, no express).
+
+Two things fell out of the choice:
+
+- One `maxplayers` slot goes to the pressbox while it's up (14 -> 13
+  humans). Accepted; sessions with heavy turnout can `pressbox down`.
+- The known splash-stall (upstream Xash `UI_DrawString` "remainder by
+  zero" - backlog item 2) is handled two ways: browser launches with
+  microphone permission pre-granted (the confirmed cause) and, as a
+  belt-and-braces, N consecutive byte-identical frames force a page
+  reload.
+
+Naming: shortlisted `hltv`, `spec`, `overwatch`, `fridaycam`, `pressbox`.
+Went with `pressbox` because `hltv` would be actively misleading in the
+compose file (not an HLTV proxy) and the rest were either too generic
+(`spec` collides with test-file jargon) or too cute for a runbook.
