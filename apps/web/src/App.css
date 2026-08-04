@@ -616,12 +616,12 @@
 .front {
   display: grid;
   grid-template-columns: 1fr 300px;
-  /* row 2 soaks up any height the taller aside forces, so the server
-     browser hugs the main-event card instead of drifting down */
+  /* server browser goes first so the connect button sits above the fold;
+     row 2 soaks up any extra height the taller aside forces */
   grid-template-rows: auto 1fr;
   grid-template-areas:
-    "card aside"
-    "servers aside";
+    "servers aside"
+    "card aside";
   align-items: start;
   gap: 0.9rem;
   margin-top: 0.9rem;
@@ -647,8 +647,8 @@
   .front {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "card"
       "servers"
+      "card"
       "aside";
   }
 
