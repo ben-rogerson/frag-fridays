@@ -164,6 +164,10 @@ const DEBUG_KICKOFF = (() => {
   return v === null ? null : Date.now() + Number(v) * 1000
 })()
 
+// QA override: ?mode=dm previews that mode's signal colours on any week.
+// Theme only - the card still reads real content from info.json.
+const DEBUG_MODE = new URLSearchParams(window.location.search).get('mode')
+
 // A Date whose local fields mimic Sydney wall time. Fine for a countdown:
 // it's recomputed from scratch every tick, so DST edges self-correct.
 const sydneyNow = () =>
@@ -793,11 +797,18 @@ const App: FC = () => {
   const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null
   const HeroEmblem = liveMode?.emblem ?? ClassicEmblem
   const tier = clockTier(clock)
+  // each mode broadcasts in its own signal colour; classic acid until the
+  // live mode is known (or an unmatched future mod runs)
+  const themeMode = DEBUG_MODE ?? liveMode?.key ?? 'classic'
 
   return (
     <>
       <canvas id="canvas" ref={canvasRef} />
-      <div className={`overlay${playing ? ' overlay--hidden' : ''}`} data-tier={tier}>
+      <div
+        className={`overlay${playing ? ' overlay--hidden' : ''}`}
+        data-tier={tier}
+        data-mode={themeMode}
+      >
         <div className={`radar${wentLive ? ' radar--burst' : ''}`} aria-hidden="true" />
         <div className="streaks" aria-hidden="true" />
         <div className="page">
@@ -983,6 +994,7 @@ const App: FC = () => {
                   return (
                     <li
                       className={`rotation__item${open ? ' rotation__item--open' : ''}`}
+                      data-mode={m.key}
                       key={m.key}
                     >
                       <button

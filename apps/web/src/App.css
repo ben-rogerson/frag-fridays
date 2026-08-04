@@ -20,6 +20,13 @@
   --text-faint: #7e8db8;
   --live: #4be381;
   --alert: #ff6b57;
+  /* mode signal colours - every game mode broadcasts in its own hue.
+     classic keeps the wallpaper's acid; used raw by the roster rows and
+     remapped onto --accent by the overlay's data-mode. */
+  --mode-classic: #dce81e;
+  --mode-gungame: #ff9d1e;
+  --mode-dm: #ff4d5e;
+  --mode-kz: #3fe0e8;
 }
 
 .overlay {
@@ -38,6 +45,53 @@
   --radar-speed: 24s;
   --streak-o: 0.75;
   --streak-b: 1;
+  /* the accent role: data-mode (set from the live info.json mode) remaps
+     these, and the whole wallpaper follows - streaks, radar sweep, clock
+     digits, crest, CONNECT chrome. Baseline = classic acid. */
+  --accent: var(--acid);
+  --accent-hot: var(--acid-hot);
+  --accent-deep: #b8c313; /* button gradient base */
+  --accent-edge-light: #f8ffa0; /* raised accent bevel, lit edge */
+  --accent-edge-dark: #7a820c; /* raised accent bevel, shadow edge */
+  --accent-rgb: 220 232 30;
+  --accent-hot-rgb: 244 255 61;
+  --accent-edge-dark-rgb: 122 130 12;
+}
+
+/* GunGame: ember orange - weapon heat, climbing the ladder */
+.overlay[data-mode="gungame"] {
+  --accent: var(--mode-gungame);
+  --accent-hot: #ffbb3d;
+  --accent-deep: #d97f0b;
+  --accent-edge-light: #ffdf9e;
+  --accent-edge-dark: #8a5107;
+  --accent-rgb: 255 157 30;
+  --accent-hot-rgb: 255 187 61;
+  --accent-edge-dark-rgb: 138 81 7;
+}
+
+/* Deathmatch: kill-feed crimson */
+.overlay[data-mode="dm"] {
+  --accent: var(--mode-dm);
+  --accent-hot: #ff7d8a;
+  --accent-deep: #d32f3f;
+  --accent-edge-light: #ffb0b6;
+  --accent-edge-dark: #8a1722;
+  --accent-rgb: 255 77 94;
+  --accent-hot-rgb: 255 125 138;
+  --accent-edge-dark-rgb: 138 23 34;
+}
+
+/* KZ / Climb: ice cyan - cliff air */
+.overlay[data-mode="kz"] {
+  --accent: var(--mode-kz);
+  --accent-hot: #7ff3f9;
+  --accent-deep: #1cb4bd;
+  --accent-edge-light: #c2f9fc;
+  --accent-edge-dark: #0b5f65;
+  --accent-rgb: 63 224 232;
+  --accent-hot-rgb: 127 243 249;
+  --accent-edge-dark-rgb: 11 95 101;
 }
 
 .overlay[data-tier="matchday"] {
@@ -96,7 +150,7 @@
   inset: 0;
   background: conic-gradient(
     from 0deg,
-    rgba(220, 232, 30, 0.14) 0deg,
+    rgb(var(--accent-rgb) / 0.14) 0deg,
     transparent 70deg,
     transparent 360deg
   );
@@ -140,8 +194,8 @@
   }
 }
 
-/* clustered horizontal acid-yellow streaks, drifting like the wallpaper's
-   light trails */
+/* clustered horizontal scanline streaks in the mode's signal colour,
+   drifting like the wallpaper's light trails */
 .streaks {
   position: fixed;
   inset: 0;
@@ -150,13 +204,13 @@
     repeating-linear-gradient(
       180deg,
       transparent 0 5px,
-      rgba(220, 232, 30, 0.16) 5px 6px,
+      rgb(var(--accent-rgb) / 0.16) 5px 6px,
       transparent 6px 14px
     ),
     repeating-linear-gradient(
       180deg,
       transparent 0 3px,
-      rgba(220, 232, 30, 0.1) 3px 4px,
+      rgb(var(--accent-rgb) / 0.1) 3px 4px,
       transparent 4px 9px
     );
   background-size:
@@ -215,7 +269,7 @@
   width: 62px;
   height: 62px;
   flex: none;
-  color: var(--acid);
+  color: var(--accent);
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
 }
 
@@ -234,7 +288,7 @@
 }
 
 .masthead__logo span {
-  color: var(--acid);
+  color: var(--accent);
 }
 
 .masthead__tag {
@@ -328,13 +382,13 @@
     0 3px 8px rgba(0, 0, 0, 0.45);
 }
 
-/* final hour: the strip's chrome charges up in acid (raised bevel kept -
-   light acid top/left, dark acid bottom/right) */
+/* final hour: the strip's chrome charges up in the mode's signal colour
+   (raised bevel kept - lit accent top/left, dark accent bottom/right) */
 .overlay[data-tier="finalhour"] .event,
 .overlay[data-tier="final60"] .event {
-  border-color: rgba(220, 232, 30, 0.5);
-  border-bottom-color: rgba(122, 130, 12, 0.7);
-  border-right-color: rgba(122, 130, 12, 0.7);
+  border-color: rgb(var(--accent-rgb) / 0.5);
+  border-bottom-color: rgb(var(--accent-edge-dark-rgb) / 0.7);
+  border-right-color: rgb(var(--accent-edge-dark-rgb) / 0.7);
 }
 
 /* on air: the strip's chrome reads in signal green */
@@ -363,7 +417,7 @@
   }
 }
 
-/* one-shot acid band sweeping across the strip when it flips to LIVE */
+/* one-shot accent band sweeping across the strip when it flips to LIVE */
 .event--live::after {
   content: "";
   position: absolute;
@@ -372,7 +426,7 @@
   background: linear-gradient(
     100deg,
     transparent 32%,
-    rgba(220, 232, 30, 0.16) 50%,
+    rgb(var(--accent-rgb) / 0.16) 50%,
     transparent 68%
   );
   transform: translateX(-100%);
@@ -402,13 +456,13 @@
   color: var(--text);
 }
 
-/* the news-square in acid, marking the event line */
+/* the news-square in the mode accent, marking the event line */
 .event__title::before {
   content: "";
   flex: none;
   width: 5px;
   height: 5px;
-  background: var(--acid);
+  background: var(--accent);
 }
 
 .event__livetitle {
@@ -481,7 +535,7 @@
   font-size: 1.6rem;
   font-weight: 700;
   line-height: 1;
-  color: var(--acid);
+  color: var(--accent);
   opacity: 0.5;
   animation: sep-blink 1s steps(1) infinite;
 }
@@ -515,7 +569,7 @@
   font-size: 2rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--acid);
+  color: var(--accent);
   background: #060b18;
   border: 1px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);
@@ -537,7 +591,7 @@
   position: absolute;
   inset: 0;
   line-height: 1;
-  color: var(--acid);
+  color: var(--accent);
   opacity: 0.08;
 }
 
@@ -574,20 +628,20 @@
 
 @keyframes phosphor-decay {
   from {
-    color: var(--acid-hot);
-    text-shadow: 0 0 9px rgba(244, 255, 61, 0.85);
+    color: var(--accent-hot);
+    text-shadow: 0 0 9px rgb(var(--accent-hot-rgb) / 0.85);
   }
 }
 
 /* final minute before kickoff: the whole clock runs hot */
 .event--imminent .clock__glyph {
-  color: var(--acid-hot);
+  color: var(--accent-hot);
 }
 
 .event--imminent .clock__digit {
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.55),
-    0 0 10px rgba(244, 255, 61, 0.22);
+    0 0 10px rgb(var(--accent-hot-rgb) / 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -762,7 +816,7 @@
   place-items: center;
   width: 56px;
   height: 56px;
-  color: var(--acid);
+  color: var(--accent);
   background: #060b18;
   border: 1px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);
@@ -795,8 +849,8 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--acid);
-  border: 1px solid rgba(220, 232, 30, 0.45);
+  color: var(--accent);
+  border: 1px solid rgb(var(--accent-rgb) / 0.45);
   text-shadow: none;
 }
 
@@ -833,7 +887,7 @@
   content: "»";
   position: absolute;
   left: 0;
-  color: var(--acid);
+  color: var(--accent);
 }
 
 /* the rotation - sub-bar plus roster rows, flush like a table */
@@ -892,7 +946,7 @@
 }
 
 .rotation__row:focus-visible {
-  outline: 2px solid var(--acid-hot);
+  outline: 2px solid var(--accent-hot);
   outline-offset: -2px;
 }
 
@@ -907,8 +961,27 @@
   height: 18px;
 }
 
+/* each roster row wears its own mode's signal colour when touched or open -
+   the colour system taught in miniature, one row per mode */
+.rotation__item[data-mode="classic"] {
+  --row-accent: var(--mode-classic);
+}
+
+.rotation__item[data-mode="gungame"] {
+  --row-accent: var(--mode-gungame);
+}
+
+.rotation__item[data-mode="dm"] {
+  --row-accent: var(--mode-dm);
+}
+
+.rotation__item[data-mode="kz"] {
+  --row-accent: var(--mode-kz);
+}
+
+.rotation__row:hover .rotation__emblem,
 .rotation__item--open .rotation__emblem {
-  color: var(--acid);
+  color: var(--row-accent, var(--accent));
 }
 
 .rotation__name {
@@ -961,6 +1034,16 @@
   padding: 0.6rem 0.8rem 0.7rem;
   background: rgba(255, 255, 255, 0.02);
   border-top: 1px solid rgba(51, 73, 127, 0.28);
+}
+
+/* inside a roster row's sheet, the furniture keys to that row's mode */
+.rotation__preview .card__rulelist li::before {
+  color: var(--row-accent, var(--accent));
+}
+
+.rotation__item .botbadge {
+  color: var(--row-accent, var(--accent));
+  border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 45%, transparent);
 }
 
 .rotation__poollabel {
@@ -1061,7 +1144,7 @@
 }
 
 .alias:focus-visible {
-  border-color: var(--acid);
+  border-color: var(--accent);
   outline: none;
 }
 
@@ -1127,13 +1210,18 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--ink-deep);
-  background: linear-gradient(180deg, var(--acid-hot) 0%, var(--acid) 55%, #b8c313 100%);
-  border: 1px solid #f8ffa0;
-  border-bottom-color: #7a820c;
-  border-right-color: #7a820c;
+  background: linear-gradient(
+    180deg,
+    var(--accent-hot) 0%,
+    var(--accent) 55%,
+    var(--accent-deep) 100%
+  );
+  border: 1px solid var(--accent-edge-light);
+  border-bottom-color: var(--accent-edge-dark);
+  border-right-color: var(--accent-edge-dark);
   box-shadow:
     0 3px 10px rgba(0, 0, 0, 0.5),
-    0 0 22px rgba(220, 232, 30, 0.28);
+    0 0 22px rgb(var(--accent-rgb) / 0.28);
   padding: 0.8rem 2.4rem;
   cursor: pointer;
   transition:
@@ -1147,12 +1235,12 @@
   filter: brightness(1.12);
   box-shadow:
     0 3px 10px rgba(0, 0, 0, 0.5),
-    0 0 30px rgba(244, 255, 61, 0.45);
+    0 0 30px rgb(var(--accent-hot-rgb) / 0.45);
   outline: none;
 }
 
 .join:focus-visible {
-  outline: 2px solid var(--acid-hot);
+  outline: 2px solid var(--accent-hot);
   outline-offset: 2px;
 }
 
@@ -1180,20 +1268,20 @@
     filter: brightness(1.15);
     box-shadow:
       0 3px 10px rgba(0, 0, 0, 0.5),
-      0 0 30px rgba(244, 255, 61, 0.45);
+      0 0 30px rgb(var(--accent-hot-rgb) / 0.45);
   }
   36% {
     filter: brightness(0.85);
     box-shadow:
       0 3px 10px rgba(0, 0, 0, 0.5),
-      0 0 10px rgba(220, 232, 30, 0.15);
+      0 0 10px rgb(var(--accent-rgb) / 0.15);
   }
   44%,
   100% {
     filter: brightness(1);
     box-shadow:
       0 3px 10px rgba(0, 0, 0, 0.5),
-      0 0 22px rgba(220, 232, 30, 0.28);
+      0 0 22px rgb(var(--accent-rgb) / 0.28);
   }
 }
 
@@ -1219,12 +1307,12 @@
 .seg {
   flex: 1;
   height: 13px;
-  background: rgba(220, 232, 30, 0.08);
+  background: rgb(var(--accent-rgb) / 0.08);
 }
 
 .seg--on {
-  background: linear-gradient(180deg, var(--acid-hot) 0%, var(--acid) 100%);
-  box-shadow: 0 0 6px rgba(220, 232, 30, 0.5);
+  background: linear-gradient(180deg, var(--accent-hot) 0%, var(--accent) 100%);
+  box-shadow: 0 0 6px rgb(var(--accent-rgb) / 0.5);
 }
 
 @keyframes indeterminate {
@@ -1240,7 +1328,7 @@
 }
 
 .bar--indeterminate .seg {
-  background: var(--acid);
+  background: var(--accent);
   animation: indeterminate 1.2s ease-in-out infinite;
 }
 
@@ -1365,7 +1453,7 @@
 }
 
 .sound:focus-visible {
-  outline: 2px solid var(--acid-hot);
+  outline: 2px solid var(--accent-hot);
   outline-offset: 1px;
 }
 
@@ -1448,7 +1536,7 @@
   padding: 0.1rem 0.15rem;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  color: var(--acid);
+  color: var(--accent);
   background: #060b18;
   border: 1px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);

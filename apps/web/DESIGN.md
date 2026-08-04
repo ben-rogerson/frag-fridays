@@ -16,6 +16,10 @@ colors:
   text-faint: "#7e8db8"
   live: "#4be381"
   alert: "#ff6b57"
+  mode-classic: "#dce81e"
+  mode-gungame: "#ff9d1e"
+  mode-dm: "#ff4d5e"
+  mode-kz: "#3fe0e8"
 typography:
   display:
     fontFamily: "'Black Ops One', 'Arial Narrow', sans-serif"
@@ -88,7 +92,8 @@ The voice is dry and factual. There are NO written gags: the humour is the forma
 Density is high and type is small on purpose - Tahoma/Verdana at 11-13px is the period-native grammar of this world, not a lapse. Real data (countdown, live map/players/timers, top frag) beats decoration everywhere it can appear.
 
 **Key Characteristics:**
-- Deep navy wallpaper ground with animated acid scanline streaks and a sweeping radar arc
+- Deep navy wallpaper ground with animated scanline streaks and a sweeping radar arc in the live mode's signal colour
+- Every game mode broadcasts in its own signal colour: classic acid yellow, GunGame ember orange, Deathmatch kill-feed crimson, KZ ice cyan - the whole accent role remaps per week
 - Bevelled 1px-border panels with uppercase title bars - raised chrome vs sunken wells
 - One acid-yellow action per screen; hyperlink blue for everything navigational
 - Tahoma/Verdana body at 11-13px; Black Ops One reserved for the masthead
@@ -101,8 +106,13 @@ Density is high and type is small on purpose - Tahoma/Verdana at 11-13px is the 
 The CS 1.6 splash wallpaper reduced to a working palette: layered navies for ground and chrome, one acid yellow for action and light, hyperlink blue for the web-chrome fiction.
 
 ### Primary
-- **Acid Scanline Yellow** (`--acid`, #dce81e): the wallpaper's streak colour. Owns the single primary action (JOIN SERVER), the mode chip, lit progress segments, the news square bullets, counter digits and the crest. Rare by design.
-- **Hot Acid** (`--acid-hot`, #f4ff3d): the top edge of acid gradients, hover/focus outlines, and link hover colour. Never used as a fill on its own.
+- **The Accent Role** (`--accent` / `--accent-hot` / `--accent-deep` / `--accent-edge-*`, remapped by `data-mode` on the overlay): the page's single signal colour. Owns the primary action (CONNECT), the scanline streaks, radar sweep, clock digits, crest, mode emblem, rules markers, bots chip, lit progress segments, news squares, counter digits, and focus outlines. Every usage runs through the role tokens (`rgb(var(--accent-rgb) / a)` for alphas), never a raw hex.
+- **Mode Signal Colours**: each game mode broadcasts in its own hue, applied by `data-mode` (from the live `/info.json` mode; `?mode=<key>` QA override):
+  - classic - **Acid Scanline Yellow** (`--mode-classic`, #dce81e): the wallpaper's streak colour, the baseline until the live mode is known
+  - gungame - **Ember Orange** (`--mode-gungame`, #ff9d1e): weapon heat, climbing the ladder
+  - dm - **Kill-Feed Crimson** (`--mode-dm`, #ff4d5e)
+  - kz - **Ice Cyan** (`--mode-kz`, #3fe0e8): cliff air
+- **Hot Accent** (`--acid-hot` at baseline, #f4ff3d): the top edge of accent gradients, hover/focus outlines. Never used as a fill on its own.
 
 ### Secondary
 - **Fansite Hyperlink Blue** (`--link`, #8fb6f0): map names - anything that reads as "a link on a 2004 website". Also the radar-ring colour at 7% alpha.
@@ -123,7 +133,9 @@ The CS 1.6 splash wallpaper reduced to a working palette: layered navies for gro
 - **Kill-Feed Red** (`--alert`, #ff6b57): error and dropped-connection status text only.
 
 ### Named Rules
-**The One Acid Action Rule.** Acid yellow is the action colour and there is exactly one acid action per screen. JOIN SERVER (or its retry/reconnect stand-in) owns it; everything else that borrows acid is small - a chip, a bullet, a digit, a lit segment. Never introduce a second acid button.
+**The One Accent Action Rule.** The mode's signal colour is the action colour and there is exactly one accent action per screen. JOIN SERVER (or its retry/reconnect stand-in) owns it; everything else that borrows the accent is small - a chip, a bullet, a digit, a lit segment. Never introduce a second accent button.
+
+**The Mode Signal Rule.** One mode, one hue, the whole page. The live mode's colour remaps the entire accent role - atmosphere, clock, chrome, action - via `data-mode`; nothing keeps last week's colour. Live Signal Green and Kill-Feed Red (errors) never remap: live means live and broken means broken in every mode, including Deathmatch (whose crimson accent is deliberately hotter and fuller than the salmon `--alert`). In the MORE GAME MODES roster, each row wears its own mode's hue when hovered or unfolded - the only place two signal colours may coexist. The fullscreen toggle sits outside the overlay and stays acid in all modes. New modes must pick a hue distinct from all four plus live green and alert red, and pass 4.5:1 for `--ink-deep` text on the accent fill and the accent on `#060b18` wells.
 
 ## Typography
 
@@ -167,8 +179,8 @@ A hybrid: depth is carried first by the bevel border grammar, second by soft bla
 - **Chrome lift** (`box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4)`): raised chrome that floats off the wallpaper (the session strip).
 - **Bar sheen** (`inset 0 1px 0 rgba(255, 255, 255, 0.07)`): the 1px top highlight inside title bars.
 - **Well inset** (`inset 0 2px 4px rgba(0, 0, 0, 0.55)`): sunken wells - the alias input and the progress bar trough.
-- **Acid glow** (`0 0 22px rgba(220, 232, 30, 0.28)`, hover `0 0 30px rgba(244, 255, 61, 0.45)`): JOIN SERVER only.
-- **Live glow** (`0 1px 4px rgba(0, 0, 0, 0.6), 0 0 6px var(--live)`): livedots; lit progress segments take `0 0 6px rgba(220, 232, 30, 0.5)`.
+- **Accent glow** (`0 0 22px rgb(var(--accent-rgb) / 0.28)`, hover `0 0 30px rgb(var(--accent-hot-rgb) / 0.45)`): JOIN SERVER only, in the mode's signal colour.
+- **Live glow** (`0 1px 4px rgba(0, 0, 0, 0.6), 0 0 6px var(--live)`): livedots; lit progress segments take `0 0 6px rgb(var(--accent-rgb) / 0.5)`.
 
 ### Named Rules
 **The Bevel Grammar Rule.** Light comes from the top-left. Raised chrome (panels, buttons) takes `border: 1px solid var(--bevel-light)` with bottom/right overridden to `var(--bevel-dark)`. Sunken wells (inputs, progress troughs, counter digits) invert it: dark top/left, light bottom/right, plus the well inset shadow. Every box on the page declares raised or sunken; there is no flat-bordered third state.
