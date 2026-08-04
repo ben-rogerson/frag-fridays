@@ -1,0 +1,22 @@
+# The MCP control plane - always on, its own compose project, survives mod
+# swaps (swap logic only touches /opt/cs16 root + the mod dirs, never mcp/).
+# Publishes 27017 ONLY: deploy.sh verifies exactly one container on 27016,
+# and this service must never trip that check.
+services:
+  mcp:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    env_file:
+      - /opt/cs16/mcp.env # MCP_SECRET - box-only, never in the repo
+    environment:
+      # the game container's published port, reached via the host gateway
+      GAME_ORIGIN: http://host.docker.internal:27016
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # same path inside as on the host: compose project names and bind-mount
+      # sources resolve identically to an SSH session's docker compose runs
+      - "/opt/cs16:/opt/cs16"
+      - "/var/run/docker.sock:/var/run/docker.sock"

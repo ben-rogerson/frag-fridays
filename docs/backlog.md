@@ -192,8 +192,11 @@ recipe, bot verification and the session-day pointers. Transport: local
 Claude Code SSHing via the `cs16` alias (the original blocker assumed the
 code-execution sandbox; the CLI has no such restriction).
 
-Still open if wanted later: an MCP server on the VPS so the phone/web app
-can drive the box too - shares a backend with item 9's portal.
+MCP server built 2026-08-04: `server/mcp/` on the box (port 27017, routed
+via the front-door Worker at `https://cs.benrogerson.dev/mcp/<secret>`),
+five tools (status, console via cmdpipe, log tail, restart, mod swap) as a
+claude.ai custom connector - the phone can now drive the box. Details in
+decisions.md and runbook.md §5. This is also item 9's backend seed.
 
 ## 9. Web portal / Slack integration (future project)
 

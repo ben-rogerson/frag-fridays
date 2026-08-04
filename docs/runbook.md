@@ -71,3 +71,30 @@ Say so in the announcement.
   [decisions.md](decisions.md) - it is the raw material for the blog and much
   easier to capture now than to reconstruct.
 - Add any new work items to [backlog.md](backlog.md).
+
+## 5. Remote control from the phone (MCP)
+
+The box runs a small MCP server (`server/mcp/`, container `mcp-mcp-1`, port
+27017) wired into claude.ai as a custom connector, so the server can be
+driven without the laptop: status, console commands (changelevel, csay,
+votes, cvars), log tails, container restart (the join-wedge fix) and mod
+swaps. The endpoint is `https://cs.benrogerson.dev/mcp/<secret>`.
+
+**Connector setup (once per Claude account):** claude.ai → Settings →
+Connectors → Add custom connector → URL `https://cs.benrogerson.dev/mcp/<secret>`,
+no auth. The secret is line 1 of `/opt/cs16/mcp.env` (password manager copy).
+
+**Rotate the secret** (it rides the URL, so it lands in Cloudflare logs):
+
+```bash
+ssh cs16 'umask 177 && printf "MCP_SECRET=%s\n" "$(openssl rand -hex 32)" > /opt/cs16/mcp.env'
+ssh cs16 'cd /opt/cs16/mcp && docker compose up -d'   # picks up the new env
+# then update the connector URL in claude.ai
+```
+
+**Container ops:** the mcp container is its own compose project and is NOT
+part of the mod swap - `pnpm run deploy` re-syncs and rebuilds it
+(`docker compose up -d --build` in `/opt/cs16/mcp`), and it must never
+appear on 27016 in the `docker ps` check. Logs:
+`ssh cs16 'docker logs --tail 100 mcp-mcp-1'` - every tool call is logged
+with its arguments, which is the audit trail for remote commands.

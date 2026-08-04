@@ -14,9 +14,18 @@
 // spelled as an sslip.io hostname (resolves to the dashed IP, nothing more)
 const ORIGIN = 'http://149-28-172-74.sslip.io:27016'
 
+// /mcp/<secret> -> the MCP control plane (server/mcp on the box). The secret
+// rides the URL path because claude.ai custom connectors can't set headers,
+// which means it lands in Cloudflare request logs - rotate by editing
+// /opt/cs16/mcp.env, `docker compose up -d` in /opt/cs16/mcp, and updating
+// the connector URL. MCP traffic is POST (uncached) and the box replies
+// Cache-Control: no-store, so the zone cache stays out of the way.
+const MCP_ORIGIN = 'http://149-28-172-74.sslip.io:27017'
+
 export default {
   fetch(request) {
     const url = new URL(request.url)
-    return fetch(ORIGIN + url.pathname + url.search, request)
+    const origin = url.pathname.startsWith('/mcp/') ? MCP_ORIGIN : ORIGIN
+    return fetch(origin + url.pathname + url.search, request)
   },
 }

@@ -21,11 +21,20 @@ How the VPS was built, so it can be rebuilt from nothing. The player URL is
 - **SSH keys only** - no password auth.
 - Firewall rules:
 
-| Port  | Protocol  | Purpose                         |
-| ----- | --------- | ------------------------------- |
-| 22    | tcp       | SSH - restrict to admin IP only |
-| 27016 | tcp       | Player URL / game server        |
-| 27018 | tcp + udp | Game networking                 |
+| Port  | Protocol  | Purpose                              |
+| ----- | --------- | ------------------------------------ |
+| 22    | tcp       | SSH - restrict to admin IP only      |
+| 27016 | tcp       | Player URL / game server             |
+| 27017 | tcp       | MCP control plane (`server/mcp`)     |
+| 27018 | tcp + udp | Game networking                      |
+
+This table is the **Vultr cloud firewall** (dashboard). The box's own ufw
+allows only 22/tcp - the game ports work anyway because Docker-published
+ports bypass ufw entirely (Docker inserts its own iptables chains ahead of
+ufw's). Two consequences: opening a new containerised service means a Vultr
+rule plus a compose `ports:` entry, no ufw change; and anything run with
+`network_mode: host` or outside Docker WOULD be blocked by ufw. Trap noted
+here because it looks exactly like a misconfigured firewall from the outside.
 
 ## 3. Docker and the 32-bit image check
 

@@ -106,6 +106,23 @@ fi
 ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm,kz}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,kz} \
   && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,kz}"
 
+# --- mcp control plane -------------------------------------------------------
+# Always-on, own compose project, publishes 27017 only - never part of the
+# mod swap below and can never trip the single-container-on-27016 check.
+# Skipped until /opt/cs16/mcp.env exists (one-time secret setup, see
+# docs/runbook: MCP section).
+if [[ -d "$SERVER_DIR/mcp" ]]; then
+  log "syncing mcp server"
+  rsync -rlptvz --delete --exclude node_modules --exclude '.DS_Store' \
+    "$SERVER_DIR/mcp/" "$HOST:$REMOTE_ROOT/mcp/"
+  if ssh "$HOST" "test -f $REMOTE_ROOT/mcp.env"; then
+    log "building and (re)starting mcp container..."
+    ssh "$HOST" "cd $REMOTE_ROOT/mcp && docker compose up -d --build"
+  else
+    log "SKIPPING mcp start: $REMOTE_ROOT/mcp.env missing (create it to enable the remote MCP server)"
+  fi
+fi
+
 if [[ -z "$MOD" ]]; then
   log "files synced. No mod named, so nothing was restarted."
   log "to swap/restart a mod: pnpm run deploy <vanilla|gg|dm|zp|kz>"

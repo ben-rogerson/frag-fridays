@@ -399,3 +399,37 @@ Design notes, all downstream of the no-Ham-on-non-players rule:
 - Finishes log one `kz_finish` line (time + teleports) into the HL log
   (`logs/kz`), so the Friday recap has material even with no kills. The
   recap skill doesn't parse these yet.
+
+## Remote MCP control plane: secret-in-URL, stateless HTTP, docker CLI (2026-08-04)
+
+Backlog item 8's leftover, built so the box is drivable from claude.ai on a
+phone (custom connector): `server/mcp/`, a Node container on 27017 exposing
+five tools (server_status, console_command, tail_logs, restart_server,
+swap_mod) over MCP streamable HTTP. Routed through the existing front-door
+Worker: `/mcp/*` → VPS:27017, everything else falls through to the game.
+
+Three deliberate choices:
+
+- **Secret path segment, not OAuth.** claude.ai custom connectors can't set
+  custom headers; the alternatives were a full OAuth server or a secret in
+  the URL. For a mates' game server the 64-hex path secret wins: checked
+  with SHA-256 + `timingSafeEqual`, 404 on mismatch, rotated by editing
+  `/opt/cs16/mcp.env` (never in the repo). Accepted cost: the secret lands
+  in Cloudflare request logs.
+- **Stateless streamable HTTP.** Fresh transport per POST
+  (`sessionIdGenerator: undefined`), no session bookkeeping, no SSE stream
+  to keep alive - the simplest shape the connector client tolerates. SDK is
+  the v2 modular family (`@modelcontextprotocol/{server,node}` 2.0.0); the
+  `@modelcontextprotocol/express` adapter was skipped because its default
+  DNS-rebinding host validation rejects non-localhost hosts.
+- **docker CLI over dockerode.** swap_mod shells out to `docker compose`,
+  which dockerode cannot drive; once the CLI is in the image (alpine
+  `docker-cli` + `docker-cli-compose` against the mounted socket), using it
+  for ps/logs/restart too keeps one execution model. `/opt/cs16` is mounted
+  at the same path inside the container, so compose project names and bind
+  mounts resolve identically to an SSH session's runs.
+
+The cmdpipe write side is a straight Node port of `rc.sh` (serial bump +
+same-dir atomic rename), serialised by an in-process mutex; the laptop-vs-MCP
+serial race is unchanged from the existing rc.sh-vs-rc.sh risk. Output
+capture stays best-effort (`docker logs --since`), same as rc.sh.
