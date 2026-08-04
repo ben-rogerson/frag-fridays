@@ -14,6 +14,20 @@ export const CMDPIPE_MODS = new Set(['gg', 'dm', 'kz'])
 // the plugin's line buffer is 192 bytes - refuse anything close to it
 const MAX_CMD_BYTES = 190
 
+// commands that crash or kill this Xash3D build if fed via the pipe:
+// "restart" segfaults the engine (observed 2026-08-04); quit/exit/killserver
+// stop it on purpose. The container comes back but everyone is dropped.
+// GoldSrc chains commands with ";", so every segment's first token is checked.
+const BLOCKED_COMMANDS = new Set(['restart', '_restart', 'quit', 'exit', 'killserver'])
+
+export function blockedCommand(command) {
+  for (const segment of command.split(';')) {
+    const word = segment.trim().split(/\s+/)[0]?.toLowerCase()
+    if (word && BLOCKED_COMMANDS.has(word)) return word
+  }
+  return null
+}
+
 // promise-chain mutex: console_command and swap_mod share the serial file,
 // and this process must never race itself on read-increment-write
 let chain = Promise.resolve()
@@ -28,6 +42,12 @@ export async function sendCommands(commands) {
     if (c.includes('\n')) throw new Error('newlines are not allowed in a command')
     if (Buffer.byteLength(c, 'utf8') > MAX_CMD_BYTES)
       throw new Error(`command exceeds ${MAX_CMD_BYTES} bytes: ${c.slice(0, 40)}...`)
+    const blocked = blockedCommand(c)
+    if (blocked)
+      throw new Error(
+        `"${blocked}" is blocked: it crashes or kills the engine on this Xash3D build. ` +
+          'For a fresh round use "changelevel <current map>"; for a full restart use the restart_server tool.',
+      )
   }
   return withPipeLock(async () => {
     let prev = 0

@@ -86,7 +86,10 @@ export function registerTools(server) {
         'Send console commands to the LIVE game server via the cmdpipe (works on ' +
         'gg/dm/kz only - vanilla and zp have no pipe). Examples: "changelevel de_dust2", ' +
         '"amx_csay green Hello", "amx_votemap de_dust2 fy_iceworld", cvar sets like ' +
-        '"yb_quota 6". changelevel does NOT drop players. Output capture is ' +
+        '"yb_quota 6". changelevel does NOT drop players. "restart", "quit", ' +
+        '"exit" and "killserver" are blocked - restart segfaults this Xash3D ' +
+        'build; use changelevel for a fresh round or restart_server for a real ' +
+        'restart. Output capture is ' +
         'best-effort: an empty result right after a map change usually means the ' +
         'plugin swallowed the serial - safe to resend.',
       inputSchema: z.object({
@@ -106,7 +109,12 @@ export function registerTools(server) {
         return errText(
           `Running mod is "${mod}", which has no cmdpipe plugin. Only gg/dm/kz can take console commands remotely.`,
         )
-      const serial = await sendCommands(commands)
+      let serial
+      try {
+        serial = await sendCommands(commands)
+      } catch (e) {
+        return errText(e.message)
+      }
       await sleep(3500)
       const out = await tailContainerLogs(container, ['--since', '6s'], 25)
       return text(
