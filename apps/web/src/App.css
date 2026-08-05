@@ -247,6 +247,10 @@
   }
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 /* --- page frame -------------------------------------------------------- */
 
 .page {
@@ -746,12 +750,16 @@
     white-space: normal;
   }
 
-  /* sessions and mvp columns sit out on a phone; the core K/D line stays
-     (season table only - the practice table already fits) */
+  /* sessions, time and mvp columns sit out on a phone; the core K/D line
+     stays */
   .standings--season th:nth-child(3),
   .standings--season td:nth-child(3),
   .standings--season th:nth-child(7),
-  .standings--season td:nth-child(7) {
+  .standings--season td:nth-child(7),
+  .standings--season th:nth-child(8),
+  .standings--season td:nth-child(8),
+  .standings--practice th:nth-child(6),
+  .standings--practice td:nth-child(6) {
     display: none;
   }
 
@@ -776,6 +784,8 @@
   justify-content: space-between;
   gap: 0.6rem;
   padding: 0.42rem 0.8rem;
+  position: relative;
+  isolation: isolate;
   background: linear-gradient(180deg, #24396b 0%, #182a52 100%);
   border-bottom: 1px solid var(--bevel-dark);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -784,6 +794,26 @@
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text);
+}
+
+/* CRT scanline texture over the bar chrome; sits between the gradient and
+   the text (negative z-index inside the bar's own stacking context) */
+.panel__bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgb(5 8 15 / 0.5) 0px,
+      rgb(5 8 15 / 0.5) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, transparent 55%);
+  opacity: 0.55;
 }
 
 .panel__barnote {

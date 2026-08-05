@@ -1,19 +1,19 @@
-import { FC, Fragment, useEffect, useRef, useState } from 'react'
-import { downloadValveZip, launchGame, persistSettings } from './launch'
-import { Xash3DWebRTC } from './webrtc'
-import '@fontsource/black-ops-one'
-import './App.css'
+import { FC, Fragment, useEffect, useRef, useState } from "react";
+import { downloadValveZip, launchGame, persistSettings } from "./launch";
+import { Xash3DWebRTC } from "./webrtc";
+import "@fontsource/black-ops-one";
+import "./App.css";
 
 type Stage =
-  | { id: 'downloading'; received: number; total: number | null; rate: number | null }
-  | { id: 'ready' }
-  | { id: 'engine' }
-  | { id: 'unpacking'; done: number; total: number }
-  | { id: 'playing' }
-  | { id: 'dropped'; kind: 'transport' | 'silence' }
-  | { id: 'error'; message: string }
+  | { id: "downloading"; received: number; total: number | null; rate: number | null }
+  | { id: "ready" }
+  | { id: "engine" }
+  | { id: "unpacking"; done: number; total: number }
+  | { id: "playing" }
+  | { id: "dropped"; kind: "transport" | "silence" }
+  | { id: "error"; message: string };
 
-const SEGMENTS = 24
+const SEGMENTS = 24;
 
 // Background: Counter Strike 1.6 ANNIHILATION 2 HQ (7:36). Random start so
 // the music differs each load; capped at 400s to leave a stretch before the
@@ -24,75 +24,89 @@ const SEGMENTS = 24
 // (widget onError 150), but accepts them from the shim's workers.dev domain.
 // The shim relays widget postMessage traffic both ways, so the sound toggle
 // and error fallback below work exactly as if the player were embedded here.
-const VIDEO_ID = 'Y6gcmbioqiE'
-const VIDEO_MAX_START = 400
-const VIDEO_SHIM = 'https://frag-friday-bg.floral-math-a059.workers.dev'
+const VIDEO_ID = "Y6gcmbioqiE";
+const VIDEO_MAX_START = 400;
+const VIDEO_SHIM = "https://frag-friday-bg.floral-math-a059.workers.dev";
 
-const mb = (bytes: number) => Math.round(bytes / 1048576)
+const mb = (bytes: number) => Math.round(bytes / 1048576);
 
 // each mod's compose mounts its own /info.json next to the client
-type ModeInfo = { mode: string; tagline?: string; bullets?: string[] }
+type ModeInfo = { mode: string; tagline?: string; bullets?: string[] };
 
 // written every 5s by the statusjson.amxx plugin into the served public/ dir
 type ServerStatus = {
-  map: string
-  maxplayers: number
-  humans: number
-  bots: number
-  mapTimeLeft: number // seconds; 0 = no timelimit
-  roundTimeLeft: number // seconds; -1 = no round timer seen yet
-  players: { name: string; frags: number; bot: boolean }[]
-}
+  map: string;
+  maxplayers: number;
+  humans: number;
+  bots: number;
+  mapTimeLeft: number; // seconds; 0 = no timelimit
+  roundTimeLeft: number; // seconds; -1 = no round timer seen yet
+  players: { name: string; frags: number; bot: boolean }[];
+};
 
 // season standings, aggregated from the box's kill logs by
 // scripts/standings.sh after each session. Ships in the build and is
 // refreshed in place on the box, so one fetch is enough.
 type Standings = {
-  generated: string
-  season: { name: string; sessions: number; kills: number; deaths: number; kd: number }[]
-  weeks: { date: string; mvp: string; kills: number }[]
-  // warm-up frags since the last session; kickoff resets the table.
-  // Optional so a stale standings.json from before the field existed parses.
-  practice?: { name: string; kills: number; deaths: number; kd: number }[]
-  practiceSince?: string | null
-}
+  generated: string;
+  // time is seconds on the server, from enter/disconnect log intervals;
+  // optional so a stale standings.json from before the field existed parses
+  season: {
+    name: string;
+    sessions: number;
+    kills: number;
+    deaths: number;
+    kd: number;
+    time?: number;
+  }[];
+  weeks: { date: string; mvp: string; kills: number }[];
+  // warm-up frags since the last session; kickoff resets the table
+  practice?: { name: string; kills: number; deaths: number; kd: number; time?: number }[];
+  practiceSince?: string | null;
+};
+
+// "2h 05m" / "47m" - server time is hours-coarse, minutes are enough
+const playTime = (secs: number) => {
+  const m = Math.round(secs / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${pad2(m % 60)}m` : `${m}m`;
+};
 
 // "2026-08-07" -> "fri 7 aug", the kickoffLabel grammar
 const sessionDateLabel = (iso: string) =>
   new Date(`${iso}T12:00:00`)
-    .toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-    .replace(',', '')
-    .toLowerCase()
+    .toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
+    .replace(",", "")
+    .toLowerCase();
 
-const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-const pad2 = (n: number) => String(n).padStart(2, '0')
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
-const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Rolls a live number up from 0 on first mount - the broadcast scoreboard
 // filling in when the strip flips to LIVE. Later feed updates snap.
 const CountUp: FC<{ value: number }> = ({ value }) => {
-  const [shown, setShown] = useState(REDUCED_MOTION ? value : 0)
-  const animatedRef = useRef(false)
+  const [shown, setShown] = useState(REDUCED_MOTION ? value : 0);
+  const animatedRef = useRef(false);
   useEffect(() => {
     if (REDUCED_MOTION || animatedRef.current) {
-      animatedRef.current = true
-      setShown(value)
-      return
+      animatedRef.current = true;
+      setShown(value);
+      return;
     }
-    animatedRef.current = true
-    const t0 = performance.now()
-    let raf = 0
+    animatedRef.current = true;
+    const t0 = performance.now();
+    let raf = 0;
     const step = (t: number) => {
-      const p = Math.min(1, (t - t0) / 700)
-      setShown(Math.round(value * (1 - (1 - p) ** 3)))
-      if (p < 1) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [value])
-  return <>{shown}</>
-}
+      const p = Math.min(1, (t - t0) / 700);
+      setShown(Math.round(value * (1 - (1 - p) ** 3)));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{shown}</>;
+};
 
 // One scoreboard counter cell. When its digit changes, the reel remounts
 // (key) carrying both glyphs: the old one rolls out of the sunken window and
@@ -100,20 +114,20 @@ const CountUp: FC<{ value: number }> = ({ value }) => {
 // Reduced-motion kills both animations in CSS; the reel then just shows the
 // current glyph.
 function ClockDigit({ d }: { d: string }) {
-  const prevRef = useRef(d)
-  const prev = prevRef.current
+  const prevRef = useRef(d);
+  const prev = prevRef.current;
   useEffect(() => {
-    prevRef.current = d
-  })
-  const changed = prev !== d
+    prevRef.current = d;
+  });
+  const changed = prev !== d;
   return (
     <span className="clock__digit">
       <span className="clock__reel" key={changed ? prev + d : d}>
-        <span className={`clock__glyph${changed ? ' clock__glyph--in' : ''}`}>{d}</span>
+        <span className={`clock__glyph${changed ? " clock__glyph--in" : ""}`}>{d}</span>
         {changed && <span className="clock__glyph clock__glyph--out">{prev}</span>}
       </span>
     </span>
-  )
+  );
 }
 
 // A row of counter-cell groups joined by blinking scoreboard colons.
@@ -130,7 +144,7 @@ const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
         <span className="clock__group">
           <span className="clock__cells" aria-hidden="true">
             {pad2(value)
-              .split('')
+              .split("")
               .map((d, i) => (
                 <ClockDigit d={d} key={i} />
               ))}
@@ -140,61 +154,61 @@ const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
       </Fragment>
     ))}
   </>
-)
+);
 
 // --- session clock ------------------------------------------------------
 // Sessions kick off Friday 2:30pm Sydney; the strip reads LIVE for the two
 // hours after kickoff, then the countdown rolls to next week.
-const SESSION_DAY = 5 // Friday
-const SESSION_HOUR = 14
-const SESSION_MINUTE = 30
-const SESSION_LIVE_MS = 2 * 3_600_000
+const SESSION_DAY = 5; // Friday
+const SESSION_HOUR = 14;
+const SESSION_MINUTE = 30;
+const SESSION_LIVE_MS = 2 * 3_600_000;
 
 type SessionClock =
-  | { id: 'live' }
+  | { id: "live" }
   | {
-      id: 'countdown'
-      msLeft: number
-      days: number
-      hours: number
-      mins: number
-      secs: number
-      isToday: boolean
-      kickoffLabel: string // e.g. "fri 7 aug"
-    }
+      id: "countdown";
+      msLeft: number;
+      days: number;
+      hours: number;
+      mins: number;
+      secs: number;
+      isToday: boolean;
+      kickoffLabel: string; // e.g. "fri 7 aug"
+    };
 
 // The page's energy tracks the countdown: calm midweek, charged on matchday,
 // climbing through the final hour, held breath in the last minute, then the
 // on-air flip. Applied as data-tier on the overlay; CSS does the rest.
-type Tier = 'idle' | 'matchday' | 'finalhour' | 'final60' | 'live'
+type Tier = "idle" | "matchday" | "finalhour" | "final60" | "live";
 
 const clockTier = (c: SessionClock): Tier => {
-  if (c.id === 'live') return 'live'
-  if (c.msLeft < 60_000) return 'final60'
-  if (c.msLeft < 3_600_000) return 'finalhour'
-  if (c.isToday) return 'matchday'
-  return 'idle'
-}
+  if (c.id === "live") return "live";
+  if (c.msLeft < 60_000) return "final60";
+  if (c.msLeft < 3_600_000) return "finalhour";
+  if (c.isToday) return "matchday";
+  return "idle";
+};
 
 // QA override: ?t-minus=90 opens the page 90 seconds before kickoff (0 or
 // negative lands on the live state) so every escalation tier can be checked
 // on any day of the week. Absent in normal use.
 const DEBUG_KICKOFF = (() => {
-  const v = new URLSearchParams(window.location.search).get('t-minus')
-  return v === null ? null : Date.now() + Number(v) * 1000
-})()
+  const v = new URLSearchParams(window.location.search).get("t-minus");
+  return v === null ? null : Date.now() + Number(v) * 1000;
+})();
 
 // QA override: ?mode=dm previews that mode's signal colours on any week.
 // Theme only - the card still reads real content from info.json.
-const DEBUG_MODE = new URLSearchParams(window.location.search).get('mode')
+const DEBUG_MODE = new URLSearchParams(window.location.search).get("mode");
 
 // A Date whose local fields mimic Sydney wall time. Fine for a countdown:
 // it's recomputed from scratch every tick, so DST edges self-correct.
 const sydneyNow = () =>
-  new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Sydney' }))
+  new Date(new Date().toLocaleString("en-US", { timeZone: "Australia/Sydney" }));
 
 const countdownFrom = (ms: number, isToday: boolean, kickoffLabel: string): SessionClock => ({
-  id: 'countdown',
+  id: "countdown",
   msLeft: ms,
   days: Math.floor(ms / 86_400_000),
   hours: Math.floor(ms / 3_600_000) % 24,
@@ -202,47 +216,47 @@ const countdownFrom = (ms: number, isToday: boolean, kickoffLabel: string): Sess
   secs: Math.floor(ms / 1_000) % 60,
   isToday,
   kickoffLabel,
-})
+});
 
 function sessionClock(): SessionClock {
   if (DEBUG_KICKOFF !== null) {
-    const ms = DEBUG_KICKOFF - Date.now()
-    return ms <= 0 ? { id: 'live' } : countdownFrom(ms, true, 'today')
+    const ms = DEBUG_KICKOFF - Date.now();
+    return ms <= 0 ? { id: "live" } : countdownFrom(ms, true, "today");
   }
-  const now = sydneyNow()
-  const kickoff = new Date(now)
-  kickoff.setDate(kickoff.getDate() + ((SESSION_DAY - now.getDay() + 7) % 7))
-  kickoff.setHours(SESSION_HOUR, SESSION_MINUTE, 0, 0)
+  const now = sydneyNow();
+  const kickoff = new Date(now);
+  kickoff.setDate(kickoff.getDate() + ((SESSION_DAY - now.getDay() + 7) % 7));
+  kickoff.setHours(SESSION_HOUR, SESSION_MINUTE, 0, 0);
   if (kickoff.getTime() <= now.getTime()) {
-    if (now.getTime() - kickoff.getTime() < SESSION_LIVE_MS) return { id: 'live' }
-    kickoff.setDate(kickoff.getDate() + 7)
+    if (now.getTime() - kickoff.getTime() < SESSION_LIVE_MS) return { id: "live" };
+    kickoff.setDate(kickoff.getDate() + 7);
   }
-  const ms = kickoff.getTime() - now.getTime()
+  const ms = kickoff.getTime() - now.getTime();
   return countdownFrom(
     ms,
     ms < 86_400_000 && kickoff.getDay() === now.getDay(),
     kickoff
-      .toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
-      .replace(',', '')
+      .toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
+      .replace(",", "")
       .toLowerCase(),
-  )
+  );
 }
 
 // --- map imagery --------------------------------------------------------
 // Sourced 1.6-era screenshots (160x120, the classic server-browser thumb
 // size), bundled at build time and keyed by lowercase map name. Maps with
 // no shot on hand (kz_summercliff2) get the flat "no map image" tile.
-const MAP_SHOTS = import.meta.glob('./assets/maps/*.jpg', {
+const MAP_SHOTS = import.meta.glob("./assets/maps/*.jpg", {
   eager: true,
-  import: 'default',
-}) as Record<string, string>
+  import: "default",
+}) as Record<string, string>;
 
 const mapShot = (map: string): string | null =>
-  MAP_SHOTS[`./assets/maps/${map.toLowerCase()}.jpg`] ?? null
+  MAP_SHOTS[`./assets/maps/${map.toLowerCase()}.jpg`] ?? null;
 
 // thumb in a sunken well; the well inset has to be painted over the img
 const MapShot: FC<{ map: string }> = ({ map }) => {
-  const shot = mapShot(map)
+  const shot = mapShot(map);
   return (
     <span className="mapshot">
       {shot ? (
@@ -251,25 +265,25 @@ const MapShot: FC<{ map: string }> = ({ map }) => {
         <span className="mapshot__none">no map image</span>
       )}
     </span>
-  )
-}
+  );
+};
 
 // --- mode roster --------------------------------------------------------
 // One mod runs at a time; /info.json announces the live one. The roster is
 // static because the offering changes rarely - blurbs and rules are taken
 // from each mod's real info.json copy (server/<mod>/info.json), map pools
 // from its mapcycle.txt (vanilla's lives in server/vanilla/mapcycle.txt).
-type ModeEmblem = FC
+type ModeEmblem = FC;
 type ModeEntry = {
-  key: string
-  match: RegExp // matches the live info.json mode string
-  name: string
-  blurb: string
-  rules: string[]
-  emblem: ModeEmblem
-  pool?: string[]
-  bots?: boolean // the mod fills empty slots with bots
-}
+  key: string;
+  match: RegExp; // matches the live info.json mode string
+  name: string;
+  blurb: string;
+  rules: string[];
+  emblem: ModeEmblem;
+  pool?: string[];
+  bots?: boolean; // the mod fills empty slots with bots
+};
 
 // emblems: one 2.5px-stroke linework family, coloured via currentColor
 const GunGameEmblem: ModeEmblem = () => (
@@ -277,7 +291,7 @@ const GunGameEmblem: ModeEmblem = () => (
     <path d="M3 35h8v-8h8v-8h8v-8h8" />
     <path d="M29 5h7v7" />
   </svg>
-)
+);
 
 const DeathmatchEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -285,124 +299,120 @@ const DeathmatchEmblem: ModeEmblem = () => (
     <path d="M20 3v7M20 30v7M3 20h7M30 20h7" />
     <circle cx="20" cy="20" r="1.6" fill="currentColor" stroke="none" />
   </svg>
-)
+);
 
 const ClassicEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M20 3l14 5v10c0 9-6 15-14 19-8-4-14-10-14-19V8z" />
     <path d="M9 24l22-10" />
   </svg>
-)
+);
 
 const KzEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M2 35l12-17 7 10 8-12 9 19" />
     <path d="M29 14V4M29 4h7v5h-7" />
   </svg>
-)
+);
 
 const MODES: ModeEntry[] = [
   {
-    key: 'gungame',
+    key: "gungame",
     match: /gun\s*game/i,
-    name: 'GunGame',
-    blurb: 'every kill levels you up - 23 weapons to the top',
-    rules: ['knife kills steal a level', 'instant respawn', '7 bots roaming', '20 minute maps'],
+    name: "GunGame",
+    blurb: "every kill levels you up - 23 weapons to the top",
+    rules: ["knife kills steal a level", "instant respawn", "7 bots roaming", "20 minute maps"],
     emblem: GunGameEmblem,
     bots: true,
     pool: [
-      'aim_map',
-      'de_dust2',
-      'cs_assault',
-      'de_dust',
-      'cs_italy',
-      'de_inferno',
-      'cs_office',
-      'de_aztec',
-      'de_cbble',
-      'fy_iceworld',
-      'fy_pool_day',
-      'scoutzknivez',
-      '35hp_2',
-      'de_rats',
-      'de_train',
-      'awp_india',
-      'cs_deagle5',
+      "aim_map",
+      "de_dust2",
+      "cs_assault",
+      "de_dust",
+      "cs_italy",
+      "de_inferno",
+      "cs_office",
+      "de_aztec",
+      "de_cbble",
+      "fy_iceworld",
+      "fy_pool_day",
+      "scoutzknivez",
+      "de_rats",
+      "de_train",
+      "awp_india",
+      "cs_deagle5",
     ],
   },
   {
-    key: 'dm',
+    key: "dm",
     match: /death\s*match/i,
-    name: 'Deathmatch',
-    blurb: 'free-for-all frags, instant respawn',
-    rules: ['pick your guns with !guns', 'instant respawn', '7 bots roaming', '15 minute maps'],
+    name: "Deathmatch",
+    blurb: "free-for-all frags, instant respawn",
+    rules: ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps"],
     emblem: DeathmatchEmblem,
     bots: true,
     pool: [
-      'fy_pool_day',
-      'de_dust2',
-      'de_dust',
-      'cs_assault',
-      'de_prodigy',
-      'de_nuke',
-      'de_cbble',
-      'cs_office',
-      'fy_iceworld',
-      'aim_map',
-      'scoutzknivez',
-      '35hp_2',
-      'de_rats',
-      'de_train',
-      'awp_india',
-      'cs_deagle5',
+      "fy_pool_day",
+      "de_dust2",
+      "de_dust",
+      "cs_assault",
+      "de_nuke",
+      "de_cbble",
+      "cs_office",
+      "fy_iceworld",
+      "aim_map",
+      "scoutzknivez",
+      "de_rats",
+      "de_train",
+      "awp_india",
+      "cs_deagle5",
     ],
   },
   {
-    key: 'classic',
+    key: "classic",
     match: /classic|vanilla/i,
-    name: 'Classic',
-    blurb: 'stock 1.6 - buy your kit, win the round',
-    rules: ['classic round rules', '13 map rotation', '30 minute maps'],
+    name: "Classic",
+    blurb: "stock 1.6 - buy your kit, win the round",
+    rules: ["classic round rules", "12 map rotation", "30 minute maps"],
     emblem: ClassicEmblem,
     pool: [
-      'de_dust2',
-      'de_dust',
-      'cs_italy',
-      'cs_assault',
-      'cs_office',
-      'de_inferno',
-      'de_aztec',
-      'de_cbble',
-      'de_nuke',
-      'de_prodigy',
-      'de_train',
-      'awp_india',
-      'cs_deagle5',
+      "de_dust2",
+      "de_dust",
+      "cs_italy",
+      "cs_assault",
+      "cs_office",
+      "de_inferno",
+      "de_aztec",
+      "de_cbble",
+      "de_nuke",
+      "de_train",
+      "awp_india",
+      "cs_deagle5",
     ],
   },
   {
-    key: 'kz',
+    key: "kz",
     match: /kz|climb/i,
-    name: 'KZ / Climb',
-    blurb: 'checkpoint climbs against the clock',
+    name: "KZ / Climb",
+    blurb: "checkpoint climbs against the clock",
     rules: [
-      '/cp saves a checkpoint, /tp returns to it',
-      'press the start button, race to the stop button',
-      'deaths cost nothing - you respawn on your checkpoint',
-      'no bots, no guns, no excuses',
+      "/cp saves a checkpoint, /tp returns to it",
+      "press the start button, race to the stop button",
+      "deaths cost nothing - you respawn on your checkpoint",
+      "no bots, no guns, no excuses",
     ],
     emblem: KzEmblem,
-    pool: ['kz_giantbean_b15', 'kz_summercliff2', 'kz_cellblock'],
+    pool: ["kz_giantbean_b15", "kz_summercliff2", "kz_cellblock"],
   },
-]
+];
 
 // the Vultr box (update if the VPS is ever resized)
 const SERVER_SPECS: [string, string][] = [
-  ['vCPUs', '1 vCPU'],
-  ['RAM', '2048.00 MB'],
-  ['Storage', '25 GB NVMe'],
-  ['Location', 'Sydney, AU'],
-]
+  ["vCPUs", "1 vCPU"],
+  ["RAM", "2048.00 MB"],
+  ["Storage", "25 GB NVMe"],
+  ["Location", "Sydney, AU"],
+];
 
 // crest above the heading (supplied artwork, recoloured via currentColor)
 const CrestLogo: FC = () => (
@@ -416,7 +426,7 @@ const CrestLogo: FC = () => (
       d="M43 23h-7v-2h9c-.131-.793-.66-1.501-1.395-1.808-.493-.226-1.044-.19-1.57-.19L36 19c-1 0-2 1-2 2v2c.055.998 1 2 2 2h7v2h-9c.134.637.47 1.237 1.018 1.593.48.346 1.083.424 1.657.407H43c1 0 2-1 2-2v-2C45 24 44.12 23.019 43 23zM5 21h8c0-1.105-.895-2-2-2H5c-1.105 0-2 .895-2 2v6c0 1.105.895 2 2 2h6c1.105 0 2-.895 2-2H5V21z"
     />
   </svg>
-)
+);
 
 // icons drawn inline, one 2px stroke family
 const SpeakerIcon: FC<{ muted: boolean }> = ({ muted }) => (
@@ -439,7 +449,7 @@ const SpeakerIcon: FC<{ muted: boolean }> = ({ muted }) => (
       />
     )}
   </svg>
-)
+);
 
 const FullscreenIcon: FC<{ active: boolean }> = ({ active }) => (
   <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
@@ -461,21 +471,21 @@ const FullscreenIcon: FC<{ active: boolean }> = ({ active }) => (
       />
     )}
   </svg>
-)
+);
 
 function stageProgress(stage: Stage): number | null {
   switch (stage.id) {
-    case 'downloading':
-      return stage.total ? stage.received / stage.total : null
-    case 'unpacking':
-      return stage.total ? stage.done / stage.total : null
-    case 'ready':
-    case 'engine':
-    case 'playing':
-      return 1
-    case 'dropped':
-    case 'error':
-      return 0
+    case "downloading":
+      return stage.total ? stage.received / stage.total : null;
+    case "unpacking":
+      return stage.total ? stage.done / stage.total : null;
+    case "ready":
+    case "engine":
+    case "playing":
+      return 1;
+    case "dropped":
+    case "error":
+      return 0;
   }
 }
 
@@ -483,176 +493,176 @@ function stageLabel(stage: Stage): string {
   switch (stage.id) {
     // the period download-dialog readout: real transfer rate and a flat
     // time estimate, straight off the byte stream
-    case 'downloading': {
-      const rate = stage.rate === null ? '' : ` - ${(stage.rate / 1048576).toFixed(1)} MB/s`
-      if (!stage.total) return `valve.zip - ${mb(stage.received)} MB${rate}`
+    case "downloading": {
+      const rate = stage.rate === null ? "" : ` - ${(stage.rate / 1048576).toFixed(1)} MB/s`;
+      if (!stage.total) return `valve.zip - ${mb(stage.received)} MB${rate}`;
       const secsLeft =
         stage.rate !== null && stage.rate > 0
           ? Math.max(1, Math.round((stage.total - stage.received) / stage.rate))
-          : null
+          : null;
       const est =
         secsLeft === null
-          ? ''
+          ? ""
           : secsLeft > 90
             ? ` - est. ${Math.round(secsLeft / 60)} min left`
             : // 5s steps past 10s so the estimate reads steady, not twitchy
-              ` - est. ${secsLeft > 10 ? Math.round(secsLeft / 5) * 5 : secsLeft} sec left`
-      return `valve.zip - ${mb(stage.received)} / ${mb(stage.total)} MB${rate}${est}`
+              ` - est. ${secsLeft > 10 ? Math.round(secsLeft / 5) * 5 : secsLeft} sec left`;
+      return `valve.zip - ${mb(stage.received)} / ${mb(stage.total)} MB${rate}${est}`;
     }
-    case 'ready':
-      return 'download complete - no install, no Steam.'
-    case 'engine':
-      return 'starting engine, connecting to server…'
-    case 'unpacking':
-      return `unpacking files - ${stage.done} / ${stage.total}`
-    case 'playing':
-      return ''
-    case 'dropped':
-      return stage.kind === 'transport'
-        ? 'connection to the server was lost'
-        : 'you were dropped from the server'
-    case 'error':
-      return stage.message
+    case "ready":
+      return "download complete - no install, no Steam.";
+    case "engine":
+      return "starting engine, connecting to server…";
+    case "unpacking":
+      return `unpacking files - ${stage.done} / ${stage.total}`;
+    case "playing":
+      return "";
+    case "dropped":
+      return stage.kind === "transport"
+        ? "connection to the server was lost"
+        : "you were dropped from the server";
+    case "error":
+      return stage.message;
   }
 }
 
 const App: FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const zipRef = useRef<Uint8Array | null>(null)
-  const xashRef = useRef<Xash3DWebRTC | null>(null)
-  const startedRef = useRef(false)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const zipRef = useRef<Uint8Array | null>(null);
+  const xashRef = useRef<Xash3DWebRTC | null>(null);
+  const startedRef = useRef(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [stage, setStage] = useState<Stage>({
-    id: 'downloading',
+    id: "downloading",
     received: 0,
     total: null,
     rate: null,
-  })
-  const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START))
-  const [videoDead, setVideoDead] = useState(false)
+  });
+  const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START));
+  const [videoDead, setVideoDead] = useState(false);
   // Sound starts muted and only unmutes via the sound toggle (which is a
   // user gesture, so the browser allows it). The icon reflects the PLAYER's
   // actual muted state (reported via infoDelivery), not our wish - otherwise
   // it shows sound-on while the browser still has it muted, and the first
   // toggle press mutes instead of unmuting.
-  const [playerMuted, setPlayerMuted] = useState(true)
-  const playerMutedRef = useRef(true)
-  const fadeRef = useRef<number | null>(null)
-  const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
-  const [nameNeeded, setNameNeeded] = useState(false)
-  const aliasRef = useRef<HTMLInputElement>(null)
-  const [musicOver, setMusicOver] = useState(false)
-  const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
+  const [playerMuted, setPlayerMuted] = useState(true);
+  const playerMutedRef = useRef(true);
+  const fadeRef = useRef<number | null>(null);
+  const [name, setName] = useState(() => localStorage.getItem("ff-name") ?? "");
+  const [nameNeeded, setNameNeeded] = useState(false);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const [musicOver, setMusicOver] = useState(false);
+  const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
   // which roster row is unfolded in "more game modes"; one at a time so the
   // card stays a card, not a scroll
-  const [openMode, setOpenMode] = useState<string | null>(null)
-  const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
-  const [standings, setStandings] = useState<Standings | null>(null)
+  const [openMode, setOpenMode] = useState<string | null>(null);
+  const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
+  const [standings, setStandings] = useState<Standings | null>(null);
   // measured round-trip of the last successful status poll; pollTick remounts
   // the masthead livedot so it blips once per real answer from the box
-  const [ping, setPing] = useState<number | null>(null)
-  const [pollTick, setPollTick] = useState(0)
-  const [clock, setClock] = useState<SessionClock>(sessionClock)
+  const [ping, setPing] = useState<number | null>(null);
+  const [pollTick, setPollTick] = useState(0);
+  const [clock, setClock] = useState<SessionClock>(sessionClock);
   // true only when the countdown hit zero on-screen - gates the one-shot
   // on-air sting (radar burst, LIVE NOW flicker); a page merely loaded
   // mid-session gets the calm live state
-  const [wentLive, setWentLive] = useState(false)
-  const prevClockIdRef = useRef(clock.id)
-  const [fullscreen, setFullscreen] = useState(false)
+  const [wentLive, setWentLive] = useState(false);
+  const prevClockIdRef = useRef(clock.id);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    const t = window.setInterval(() => setClock(sessionClock()), 1000)
-    return () => window.clearInterval(t)
-  }, [])
+    const t = window.setInterval(() => setClock(sessionClock()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
 
   useEffect(() => {
-    if (prevClockIdRef.current === 'countdown' && clock.id === 'live') setWentLive(true)
-    prevClockIdRef.current = clock.id
-  }, [clock.id])
+    if (prevClockIdRef.current === "countdown" && clock.id === "live") setWentLive(true);
+    prevClockIdRef.current = clock.id;
+  }, [clock.id]);
 
   // While LIVE the scoreboard cells count the map's remaining time instead:
   // resynced to the feed on every poll, ticked down locally between polls.
   // null = the mod runs no map timelimit, and the cells sit out.
-  const [mapClock, setMapClock] = useState<number | null>(null)
+  const [mapClock, setMapClock] = useState<number | null>(null);
   useEffect(() => {
-    setMapClock(serverStatus && serverStatus.mapTimeLeft > 0 ? serverStatus.mapTimeLeft : null)
-  }, [serverStatus])
+    setMapClock(serverStatus && serverStatus.mapTimeLeft > 0 ? serverStatus.mapTimeLeft : null);
+  }, [serverStatus]);
   useEffect(() => {
-    if (clock.id !== 'live') return
+    if (clock.id !== "live") return;
     const t = window.setInterval(
       () => setMapClock((m) => (m === null ? null : Math.max(0, m - 1))),
       1000,
-    )
-    return () => window.clearInterval(t)
-  }, [clock.id])
+    );
+    return () => window.clearInterval(t);
+  }, [clock.id]);
 
   useEffect(() => {
-    const onFsChange = () => setFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
-  }, [])
+    const onFsChange = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   const enterFullscreen = () => {
-    document.documentElement.requestFullscreen?.().catch(() => {})
-  }
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  };
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
-    else enterFullscreen()
-  }
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else enterFullscreen();
+  };
 
   // live server snapshot while waiting - stops once in-game. info.json rides
   // the same poll so a mod swap updates the match panel on an already-open
   // page. Parse failures (mid-write reads, plugin absent) just skip the tick.
-  const playing = stage.id === 'playing'
+  const playing = stage.id === "playing";
   useEffect(() => {
-    if (playing) return
-    let cancelled = false
+    if (playing) return;
+    let cancelled = false;
     const poll = () => {
-      const t0 = performance.now()
-      fetch('/status.json', { cache: 'no-store' })
+      const t0 = performance.now();
+      fetch("/status.json", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((s: ServerStatus | null) => {
           if (!cancelled && s?.map) {
-            setServerStatus(s)
-            setPing(Math.round(performance.now() - t0))
-            setPollTick((n) => n + 1)
+            setServerStatus(s);
+            setPing(Math.round(performance.now() - t0));
+            setPollTick((n) => n + 1);
           }
         })
-        .catch(() => {})
-      fetch('/info.json', { cache: 'no-store' })
+        .catch(() => {});
+      fetch("/info.json", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((info: ModeInfo | null) => {
-          if (!cancelled && info?.mode) setModeInfo(info)
+          if (!cancelled && info?.mode) setModeInfo(info);
         })
-        .catch(() => {})
-    }
-    poll()
-    const t = window.setInterval(poll, 5000)
+        .catch(() => {});
+    };
+    poll();
+    const t = window.setInterval(poll, 5000);
     return () => {
-      cancelled = true
-      window.clearInterval(t)
-    }
-  }, [playing])
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [playing]);
 
   // the standings file is weekly data - one fetch, no poll. Absent file
   // (fresh box, script never run) just leaves the panel unrendered.
   useEffect(() => {
-    fetch('/assets/standings.json', { cache: 'no-store' })
+    fetch("/assets/standings.json", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((s: Standings | null) => {
-        if (s?.season) setStandings(s)
+        if (s?.season) setStandings(s);
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {});
+  }, []);
 
   // tab title carries tonight's mode, e.g. "Classic Mode | Frag Fridays";
   // plain "Frag Fridays" (from index.html) until info.json answers
   useEffect(() => {
-    if (!modeInfo) return
-    const name = MODES.find((m) => m.match.test(modeInfo.mode))?.name ?? modeInfo.mode
-    document.title = `${name} Mode | Frag Fridays`
-  }, [modeInfo])
+    if (!modeInfo) return;
+    const name = MODES.find((m) => m.match.test(modeInfo.mode))?.name ?? modeInfo.mode;
+    document.title = `${name} Mode | Frag Fridays`;
+  }, [modeInfo]);
 
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
@@ -660,206 +670,212 @@ const App: FC = () => {
   // The widget only reports errors after a 'listening' handshake.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
-      if (typeof e.data !== 'string') return
-      if (e.source !== iframeRef.current?.contentWindow) return
+      if (typeof e.data !== "string") return;
+      if (e.source !== iframeRef.current?.contentWindow) return;
       try {
-        const d = JSON.parse(e.data)
-        if (d.event === 'onError' || d.info?.playerErrorCode) setVideoDead(true)
-        if (d.info && typeof d.info.muted === 'boolean') {
-          playerMutedRef.current = d.info.muted
-          setPlayerMuted(d.info.muted)
+        const d = JSON.parse(e.data);
+        if (d.event === "onError" || d.info?.playerErrorCode) setVideoDead(true);
+        if (d.info && typeof d.info.muted === "boolean") {
+          playerMutedRef.current = d.info.muted;
+          setPlayerMuted(d.info.muted);
         }
       } catch {
         /* not a widget message */
       }
-    }
-    window.addEventListener('message', onMsg)
+    };
+    window.addEventListener("message", onMsg);
     const handshake = setInterval(() => {
       iframeRef.current?.contentWindow?.postMessage(
-        JSON.stringify({ event: 'listening', id: 'ff', channel: 'widget' }),
-        '*',
-      )
-    }, 1000)
+        JSON.stringify({ event: "listening", id: "ff", channel: "widget" }),
+        "*",
+      );
+    }, 1000);
     return () => {
-      window.removeEventListener('message', onMsg)
-      clearInterval(handshake)
-      stopFade()
-    }
-  }, [])
+      window.removeEventListener("message", onMsg);
+      clearInterval(handshake);
+      stopFade();
+    };
+  }, []);
 
   const ytCommand = (func: string, args: unknown[] = []) => {
     iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: 'command', func, args }),
-      '*',
-    )
-  }
+      JSON.stringify({ event: "command", func, args }),
+      "*",
+    );
+  };
 
   const stopFade = () => {
     if (fadeRef.current !== null) {
-      clearInterval(fadeRef.current)
-      fadeRef.current = null
+      clearInterval(fadeRef.current);
+      fadeRef.current = null;
     }
-  }
+  };
 
   // unmute at volume 0 and ramp to 65 over ~0.6s; no-op while already
   // fading or already audible
   const startSound = () => {
-    if (fadeRef.current !== null || !playerMutedRef.current) return
+    if (fadeRef.current !== null || !playerMutedRef.current) return;
     // mark unmuted straight away so clicks arriving before the widget's
     // muted:false report can't restart the fade; a muted:true report will
     // correct this if the browser actually refused the unmute
-    playerMutedRef.current = false
-    ytCommand('setVolume', [0])
-    ytCommand('unMute')
-    ytCommand('playVideo')
-    let volume = 0
+    playerMutedRef.current = false;
+    ytCommand("setVolume", [0]);
+    ytCommand("unMute");
+    ytCommand("playVideo");
+    let volume = 0;
     fadeRef.current = window.setInterval(() => {
-      volume = Math.min(65, volume + 8)
-      ytCommand('setVolume', [volume])
-      if (volume >= 65) stopFade()
-    }, 65)
-  }
+      volume = Math.min(65, volume + 8);
+      ytCommand("setVolume", [volume]);
+      if (volume >= 65) stopFade();
+    }, 65);
+  };
 
   // let the track ride for 15s once in-game, then ramp down and drop the iframe
   const endMusicSoon = () => {
     window.setTimeout(() => {
-      stopFade()
+      stopFade();
       if (playerMutedRef.current) {
-        setMusicOver(true)
-        return
+        setMusicOver(true);
+        return;
       }
-      let volume = 65
+      let volume = 65;
       fadeRef.current = window.setInterval(() => {
-        volume = Math.max(0, volume - 8)
-        ytCommand('setVolume', [volume])
+        volume = Math.max(0, volume - 8);
+        ytCommand("setVolume", [volume]);
         if (volume <= 0) {
-          stopFade()
-          ytCommand('mute')
-          setMusicOver(true)
+          stopFade();
+          ytCommand("mute");
+          setMusicOver(true);
         }
-      }, 65)
-    }, 15000)
-  }
+      }, 65);
+    }, 15000);
+  };
 
   const toggleSound = () => {
     if (playerMuted) {
       // unmuting needs a user gesture, which this click is
-      startSound()
+      startSound();
     } else {
-      stopFade()
-      ytCommand('mute')
+      stopFade();
+      ytCommand("mute");
     }
-  }
+  };
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     // transfer rate over a sliding ~3s window of progress samples; needs
     // ~0.8s of history before it reads as a rate rather than a spike
-    const samples: { t: number; received: number }[] = []
+    const samples: { t: number; received: number }[] = [];
     downloadValveZip((p) => {
-      if (cancelled) return
-      const now = performance.now()
-      samples.push({ t: now, received: p.received })
-      while (samples.length > 1 && now - samples[0].t > 3000) samples.shift()
-      const span = now - samples[0].t
-      const rate = span > 800 ? ((p.received - samples[0].received) / span) * 1000 : null
-      setStage({ id: 'downloading', ...p, rate })
+      if (cancelled) return;
+      const now = performance.now();
+      samples.push({ t: now, received: p.received });
+      while (samples.length > 1 && now - samples[0].t > 3000) samples.shift();
+      const span = now - samples[0].t;
+      const rate = span > 800 ? ((p.received - samples[0].received) / span) * 1000 : null;
+      setStage({ id: "downloading", ...p, rate });
     })
       .then((bytes) => {
-        if (cancelled) return
-        zipRef.current = bytes
-        setStage({ id: 'ready' })
+        if (cancelled) return;
+        zipRef.current = bytes;
+        setStage({ id: "ready" });
       })
       .catch((err: Error) => {
-        if (!cancelled) setStage({ id: 'error', message: err.message })
-      })
+        if (!cancelled) setStage({ id: "error", message: err.message });
+      });
     return () => {
-      cancelled = true
-    }
-  }, [])
+      cancelled = true;
+    };
+  }, []);
 
   const play = async () => {
-    if (startedRef.current || !zipRef.current || !canvasRef.current) return
+    if (startedRef.current || !zipRef.current || !canvasRef.current) return;
     // quotes/semicolons would escape the `name "..."` console command
-    const playerName = name.replace(/["';\\]/g, '').trim().slice(0, 31)
+    const playerName = name
+      .replace(/["';\\]/g, "")
+      .trim()
+      .slice(0, 31);
     // no alias, no connect - every entry point (button, Enter, double-click)
     // lands here, so the nudge covers them all
     if (!playerName) {
-      setNameNeeded(true)
-      aliasRef.current?.focus()
-      return
+      setNameNeeded(true);
+      aliasRef.current?.focus();
+      return;
     }
-    startedRef.current = true
+    startedRef.current = true;
     // the Play gesture also covers the fullscreen request
-    enterFullscreen()
-    localStorage.setItem('ff-name', playerName)
+    enterFullscreen();
+    localStorage.setItem("ff-name", playerName);
     try {
       xashRef.current = await launchGame(
         canvasRef.current,
         zipRef.current,
         playerName,
         (s) =>
-          setStage(s.phase === 'engine' ? { id: 'engine' } : { id: 'unpacking', done: s.done, total: s.total }),
+          setStage(
+            s.phase === "engine"
+              ? { id: "engine" }
+              : { id: "unpacking", done: s.done, total: s.total },
+          ),
         (kind) => {
           // the engine may still hold the pointer when the server vanishes
-          document.exitPointerLock?.()
-          setStage({ id: 'dropped', kind })
+          document.exitPointerLock?.();
+          setStage({ id: "dropped", kind });
         },
-      )
-      zipRef.current = null
+      );
+      zipRef.current = null;
       // a drop during launch must not be clobbered by the launch resolving
-      setStage((s) => (s.id === 'dropped' ? s : { id: 'playing' }))
+      setStage((s) => (s.id === "dropped" ? s : { id: "playing" }));
       // music rides into the game briefly, then fades out
-      endMusicSoon()
+      endMusicSoon();
       // snapshot in-game settings every 30s, plus when the tab hides or the
       // page unloads, so they survive reloads. play() runs once, so these
       // never stack.
       const persist = () => {
-        if (xashRef.current) persistSettings(xashRef.current)
-      }
-      window.setInterval(persist, 30_000)
-      window.addEventListener('pagehide', persist)
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') persist()
-      })
+        if (xashRef.current) persistSettings(xashRef.current);
+      };
+      window.setInterval(persist, 30_000);
+      window.addEventListener("pagehide", persist);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") persist();
+      });
     } catch (err) {
-      setStage({ id: 'error', message: err instanceof Error ? err.message : String(err) })
+      setStage({ id: "error", message: err instanceof Error ? err.message : String(err) });
     }
-  }
+  };
 
   // in-engine `retry` when only the game link dropped; full reload when the
   // WebRTC transport itself is gone (the engine can't rebuild it mid-flight)
   const reconnect = () => {
-    if (xashRef.current?.retryConnect()) setStage({ id: 'playing' })
-    else location.reload()
-  }
+    if (xashRef.current?.retryConnect()) setStage({ id: "playing" });
+    else location.reload();
+  };
 
-  const progress = stageProgress(stage)
-  const filled = progress === null ? 0 : Math.round(progress * SEGMENTS)
+  const progress = stageProgress(stage);
+  const filled = progress === null ? 0 : Math.round(progress * SEGMENTS);
   // humans only - a bot topping the board isn't news, and bots never rank;
   // fragless leaders stay hidden (no "top frag: X (0)")
-  const humans = serverStatus?.players.filter((p) => !p.bot) ?? []
-  const best =
-    humans.length > 0 ? humans.reduce((a, b) => (b.frags > a.frags ? b : a)) : null
-  const topFrag = best && best.frags > 0 ? best : null
+  const humans = serverStatus?.players.filter((p) => !p.bot) ?? [];
+  const best = humans.length > 0 ? humans.reduce((a, b) => (b.frags > a.frags ? b : a)) : null;
+  const topFrag = best && best.frags > 0 ? best : null;
   // which roster entry is live; unmatched modes (a future mod) still render
   // from info.json with the fallback emblem
-  const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null
-  const HeroEmblem = liveMode?.emblem ?? ClassicEmblem
-  const tier = clockTier(clock)
+  const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null;
+  const HeroEmblem = liveMode?.emblem ?? ClassicEmblem;
+  const tier = clockTier(clock);
   // each mode broadcasts in its own signal colour; classic acid until the
   // live mode is known (or an unmatched future mod runs)
-  const themeMode = DEBUG_MODE ?? liveMode?.key ?? 'classic'
+  const themeMode = DEBUG_MODE ?? liveMode?.key ?? "classic";
 
   return (
     <>
       <canvas id="canvas" ref={canvasRef} />
       <div
-        className={`overlay${playing ? ' overlay--hidden' : ''}`}
+        className={`overlay${playing ? " overlay--hidden" : ""}`}
         data-tier={tier}
         data-mode={themeMode}
       >
-        <div className={`radar${wentLive ? ' radar--burst' : ''}`} aria-hidden="true" />
+        <div className={`radar${wentLive ? " radar--burst" : ""}`} aria-hidden="true" />
         <div className="streaks" aria-hidden="true" />
         <div className="page">
           <header className="masthead">
@@ -884,12 +900,12 @@ const App: FC = () => {
 
           <section
             id="session"
-            className={`event${clock.id === 'live' ? ' event--live' : ''}${
-              tier === 'final60' ? ' event--imminent' : ''
-            }${wentLive ? ' event--onair' : ''}`}
+            className={`event${clock.id === "live" ? " event--live" : ""}${
+              tier === "final60" ? " event--imminent" : ""
+            }${wentLive ? " event--onair" : ""}`}
             aria-label="next session"
           >
-            {clock.id === 'live' ? (
+            {clock.id === "live" ? (
               <>
                 <p className="event__label">
                   <span className="event__livetitle">
@@ -898,9 +914,9 @@ const App: FC = () => {
                   </span>
                   {serverStatus ? (
                     <span className="event__meta">
-                      <span className="event__map">{serverStatus.map}</span> &middot;{' '}
-                      <CountUp value={serverStatus.humans} />{' '}
-                      {serverStatus.humans === 1 ? 'player' : 'players'} in &middot;{' '}
+                      <span className="event__map">{serverStatus.map}</span> &middot;{" "}
+                      <CountUp value={serverStatus.humans} />{" "}
+                      {serverStatus.humans === 1 ? "player" : "players"} in &middot;{" "}
                       <CountUp value={serverStatus.bots} /> bots
                     </span>
                   ) : (
@@ -920,8 +936,8 @@ const App: FC = () => {
                     </span>
                     <ClockRow
                       groups={[
-                        [Math.min(99, Math.floor(mapClock / 60)), 'min'],
-                        [mapClock % 60, 'sec'],
+                        [Math.min(99, Math.floor(mapClock / 60)), "min"],
+                        [mapClock % 60, "sec"],
                       ]}
                     />
                   </p>
@@ -931,10 +947,10 @@ const App: FC = () => {
               <>
                 <p className="event__label">
                   <span className="event__title">
-                    {clock.isToday ? 'matchday' : 'next session'}
+                    {clock.isToday ? "matchday" : "next session"}
                   </span>
                   <span className="event__when">
-                    {clock.isToday ? 'today' : clock.kickoffLabel} &middot; 2:30 pm sydney
+                    {clock.isToday ? "today" : clock.kickoffLabel} &middot; 2:30 pm sydney
                   </span>
                   {/* the box runs all week - joining before kickoff is warm-up,
                       not the event. only claimed once a poll has answered. */}
@@ -953,13 +969,14 @@ const App: FC = () => {
                   <ClockRow
                     groups={(
                       [
-                        [clock.days, 'days'],
-                        [clock.hours, 'hrs'],
-                        [clock.mins, 'min'],
-                        [clock.secs, 'sec'],
+                        [clock.days, "days"],
+                        [clock.hours, "hrs"],
+                        [clock.mins, "min"],
+                        [clock.secs, "sec"],
                       ] as [number, string][]
+                    )
                       // the days group drops off on matchday for a tighter clock
-                    ).filter(([value, unit]) => !(unit === 'days' && value === 0))}
+                      .filter(([value, unit]) => !(unit === "days" && value === 0))}
                   />
                 </p>
               </>
@@ -970,7 +987,7 @@ const App: FC = () => {
             <section id="card" className="panel front__card" aria-label="Current Mode">
               <h2 className="panel__bar">
                 Current Mode
-                {clock.id === 'countdown' && (
+                {clock.id === "countdown" && (
                   <span className="panel__barnote">{clock.kickoffLabel}</span>
                 )}
               </h2>
@@ -986,9 +1003,7 @@ const App: FC = () => {
                           {liveMode?.name ?? modeInfo.mode}
                           {liveMode?.bots && <span className="botbadge">bots</span>}
                         </p>
-                        {modeInfo.tagline && (
-                          <p className="card__tagline">{modeInfo.tagline}</p>
-                        )}
+                        {modeInfo.tagline && <p className="card__tagline">{modeInfo.tagline}</p>}
                       </div>
                     </div>
                     {modeInfo.bullets && modeInfo.bullets.length > 0 && (
@@ -1016,16 +1031,16 @@ const App: FC = () => {
                   </h3>
                   <ul className="pool">
                     {liveMode.pool.map((m) => {
-                      const isOn = serverStatus?.map.toLowerCase() === m
+                      const isOn = serverStatus?.map.toLowerCase() === m;
                       return (
-                        <li className={`pool__tile${isOn ? ' pool__tile--live' : ''}`} key={m}>
+                        <li className={`pool__tile${isOn ? " pool__tile--live" : ""}`} key={m}>
                           <MapShot map={m} />
                           <span className="pool__name">
                             {isOn && <span className="livedot" aria-hidden="true" />}
                             {m}
                           </span>
                         </li>
-                      )
+                      );
                     })}
                   </ul>
                 </>
@@ -1039,11 +1054,11 @@ const App: FC = () => {
                   pool in the same grammar as tonight's card above. */}
               <ul className="rotation">
                 {MODES.filter((m) => m.key !== liveMode?.key).map((m) => {
-                  const Emblem = m.emblem
-                  const open = openMode === m.key
+                  const Emblem = m.emblem;
+                  const open = openMode === m.key;
                   return (
                     <li
-                      className={`rotation__item${open ? ' rotation__item--open' : ''}`}
+                      className={`rotation__item${open ? " rotation__item--open" : ""}`}
                       data-mode={m.key}
                       key={m.key}
                     >
@@ -1063,13 +1078,18 @@ const App: FC = () => {
                         </span>
                         <span className="rotation__blurb">{m.blurb}</span>
                         <span className="rotation__caret" aria-hidden="true">
-                          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <svg
+                            viewBox="0 0 40 40"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                          >
                             <path d="M15 11l10 9-10 9" />
                           </svg>
                         </span>
                       </button>
                       <div
-                        className={`rotation__panel${open ? ' rotation__panel--open' : ''}`}
+                        className={`rotation__panel${open ? " rotation__panel--open" : ""}`}
                         id={`mode-preview-${m.key}`}
                         aria-hidden={!open}
                       >
@@ -1100,7 +1120,7 @@ const App: FC = () => {
                         </div>
                       </div>
                     </li>
-                  )
+                  );
                 })}
               </ul>
             </section>
@@ -1108,12 +1128,12 @@ const App: FC = () => {
             <section id="servers" className="panel front__servers" aria-label="server browser">
               <h2 className="panel__bar">
                 server browser
-                {clock.id === 'countdown' && serverStatus && (
+                {clock.id === "countdown" && serverStatus && (
                   <span className="panel__barnote">open for practice</span>
                 )}
               </h2>
               <div className="panel__body panel__body--flush">
-                {(stage.id === 'downloading' || stage.id === 'ready') && (
+                {(stage.id === "downloading" || stage.id === "ready") && (
                   <div className="browser__toolbar">
                     <label className="browser__aliaslabel" htmlFor="alias">
                       your alias:
@@ -1121,14 +1141,14 @@ const App: FC = () => {
                     <input
                       id="alias"
                       ref={aliasRef}
-                      className={`alias${nameNeeded ? ' alias--needed' : ''}`}
+                      className={`alias${nameNeeded ? " alias--needed" : ""}`}
                       value={name}
                       onChange={(e) => {
-                        setNameNeeded(false)
-                        setName(e.target.value)
+                        setNameNeeded(false);
+                        setName(e.target.value);
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && stage.id === 'ready') play()
+                        if (e.key === "Enter" && stage.id === "ready") play();
                       }}
                       placeholder="Player"
                       maxLength={31}
@@ -1148,8 +1168,7 @@ const App: FC = () => {
                       <th>server</th>
                       <th>map</th>
                       <th>players</th>
-                      <th>round</th>
-                      <th>map time</th>
+                      <th>timeleft</th>
                       <th>ping</th>
                     </tr>
                   </thead>
@@ -1158,25 +1177,26 @@ const App: FC = () => {
                       <tr
                         className="servers__row"
                         onDoubleClick={() => {
-                          if (stage.id === 'ready') play()
+                          if (stage.id === "ready") play();
                         }}
                       >
                         <td className="servers__name">
                           <span className="livedot" aria-hidden="true" />
-                          Frag Fridays #1 - Sydney &middot;{' '}
-                          {clock.id === 'live' ? 'LIVE' : 'PRACTICE'}
+                          Frag Fridays #1 - Sydney &middot;{" "}
+                          {clock.id === "live" ? "LIVE" : "PRACTICE"}
                         </td>
                         <td className="servers__map">{serverStatus.map}</td>
-                        <td>
-                          {serverStatus.humans}+{serverStatus.bots} bots / {serverStatus.maxplayers}
+                        <td className="nowrap">
+                          {serverStatus.humans}
+                          {serverStatus.bots > 0 ? `+${serverStatus.bots} bots` : ""} /{" "}
+                          {serverStatus.maxplayers}
                         </td>
                         <td>
-                          {serverStatus.roundTimeLeft >= 0 ? mmss(serverStatus.roundTimeLeft) : '-'}
+                          {serverStatus.roundTimeLeft >= 0 ? mmss(serverStatus.roundTimeLeft) : "-"}{" "}
+                          ({serverStatus.mapTimeLeft > 0 ? mmss(serverStatus.mapTimeLeft) : "-"}{" "}
+                          total)
                         </td>
-                        <td>
-                          {serverStatus.mapTimeLeft > 0 ? mmss(serverStatus.mapTimeLeft) : '-'}
-                        </td>
-                        <td>{ping !== null ? `${ping} ms` : '-'}</td>
+                        <td className="nowrap">{ping !== null ? `${ping} ms` : "-"}</td>
                       </tr>
                     ) : (
                       <tr>
@@ -1190,53 +1210,50 @@ const App: FC = () => {
 
                 <div className="browser__lower">
                   <div className="browser__action">
-                    {stage.id === 'error' ? (
+                    {stage.id === "error" ? (
                       <>
                         <p className="status status--error">{stageLabel(stage)}</p>
                         <button className="join" onClick={() => location.reload()}>
                           retry download
                         </button>
                       </>
-                    ) : stage.id === 'dropped' ? (
+                    ) : stage.id === "dropped" ? (
                       <>
                         <p className="status status--error">{stageLabel(stage)}</p>
                         <button className="join" onClick={reconnect}>
                           reconnect
                         </button>
                       </>
-                    ) : stage.id === 'ready' ? (
+                    ) : stage.id === "ready" ? (
                       <>
                         {/* ignites once, when the download lands; retry and
                             reconnect above stay flat - recovery isn't a show */}
                         <button className="join join--ignite" onClick={play}>
-                          » {clock.id === 'live' ? 'join live' : 'warm up'} «
+                          » {clock.id === "live" ? "join live" : "warm up"} «
                         </button>
                         <p className="status">{stageLabel(stage)}</p>
                       </>
                     ) : (
                       <>
                         <div
-                          className={`bar${progress === null ? ' bar--indeterminate' : ''}`}
+                          className={`bar${progress === null ? " bar--indeterminate" : ""}`}
                           role="progressbar"
                           aria-label="downloading valve.zip"
-                          aria-valuenow={
-                            progress === null ? undefined : Math.round(progress * 100)
-                          }
+                          aria-valuenow={progress === null ? undefined : Math.round(progress * 100)}
                         >
                           {Array.from({ length: SEGMENTS }, (_, i) => (
-                            <span key={i} className={i < filled ? 'seg seg--on' : 'seg'} />
+                            <span key={i} className={i < filled ? "seg seg--on" : "seg"} />
                           ))}
                         </div>
                         <p className="status">{stageLabel(stage)}</p>
                       </>
                     )}
                   </div>
-
                 </div>
 
                 {topFrag && (
                   <p className="servers__foot">
-                    {clock.id === 'live' ? 'top frag right now' : 'top frag in warm-up'}:{' '}
+                    {clock.id === "live" ? "top frag right now" : "top frag in warm-up"}:{" "}
                     <strong>{topFrag.name}</strong> ({topFrag.frags})
                   </p>
                 )}
@@ -1267,12 +1284,13 @@ const App: FC = () => {
                             <th className="standings__num">kills</th>
                             <th className="standings__num">deaths</th>
                             <th className="standings__num">k/d</th>
+                            <th className="standings__num">time</th>
                             <th className="standings__num">mvps</th>
                           </tr>
                         </thead>
                         <tbody>
                           {standings.season.map((p, i) => {
-                            const mvps = standings.weeks.filter((w) => w.mvp === p.name).length
+                            const mvps = standings.weeks.filter((w) => w.mvp === p.name).length;
                             return (
                               <tr key={p.name}>
                                 <td className="standings__num standings__rank">{i + 1}</td>
@@ -1281,19 +1299,22 @@ const App: FC = () => {
                                 <td className="standings__num">{p.kills}</td>
                                 <td className="standings__num">{p.deaths}</td>
                                 <td className="standings__num">{p.kd.toFixed(2)}</td>
-                                <td className="standings__num">{mvps > 0 ? mvps : '-'}</td>
+                                <td className="standings__num">
+                                  {p.time !== undefined ? playTime(p.time) : "-"}
+                                </td>
+                                <td className="standings__num">{mvps > 0 ? mvps : "-"}</td>
                               </tr>
-                            )
+                            );
                           })}
                         </tbody>
                       </table>
                       {standings.weeks.length > 0 && (
                         <p className="standings__foot">
-                          {standings.weeks.length}{' '}
-                          {standings.weeks.length === 1 ? 'session' : 'sessions'} played &middot;
-                          last mvp:{' '}
+                          {standings.weeks.length}{" "}
+                          {standings.weeks.length === 1 ? "session" : "sessions"} played &middot;
+                          last mvp:{" "}
                           <strong>{standings.weeks[standings.weeks.length - 1].mvp}</strong> (
-                          {standings.weeks[standings.weeks.length - 1].kills} kills,{' '}
+                          {standings.weeks[standings.weeks.length - 1].kills} kills,{" "}
                           {sessionDateLabel(standings.weeks[standings.weeks.length - 1].date)})
                         </p>
                       )}
@@ -1306,44 +1327,46 @@ const App: FC = () => {
                   {/* warm-up frags since the last session. Practice period
                       only - the section sits out while the strip reads LIVE,
                       and kickoff resets the table */}
-                  {clock.id !== 'live' &&
-                    standings.practice &&
-                    standings.practice.length > 0 && (
-                      <>
-                        <h3 className="card__subbar">
-                          practice standings
-                          <span className="card__subnote">
-                            warm-up frags
-                            {standings.practiceSince
-                              ? ` since ${sessionDateLabel(standings.practiceSince)}`
-                              : ''}{' '}
-                            - reset at kickoff
-                          </span>
-                        </h3>
-                        <table className="standings">
-                          <thead>
-                            <tr>
-                              <th className="standings__num">#</th>
-                              <th>player</th>
-                              <th className="standings__num">kills</th>
-                              <th className="standings__num">deaths</th>
-                              <th className="standings__num">k/d</th>
+                  {clock.id !== "live" && standings.practice && standings.practice.length > 0 && (
+                    <>
+                      <h3 className="card__subbar">
+                        practice standings
+                        <span className="card__subnote">
+                          warm-up frags
+                          {standings.practiceSince
+                            ? ` since ${sessionDateLabel(standings.practiceSince)}`
+                            : ""}{" "}
+                          - reset at kickoff
+                        </span>
+                      </h3>
+                      <table className="standings standings--practice">
+                        <thead>
+                          <tr>
+                            <th className="standings__num">#</th>
+                            <th>player</th>
+                            <th className="standings__num">kills</th>
+                            <th className="standings__num">deaths</th>
+                            <th className="standings__num">k/d</th>
+                            <th className="standings__num">time</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {standings.practice.map((p, i) => (
+                            <tr key={p.name}>
+                              <td className="standings__num standings__rank">{i + 1}</td>
+                              <td className="standings__player">{p.name}</td>
+                              <td className="standings__num">{p.kills}</td>
+                              <td className="standings__num">{p.deaths}</td>
+                              <td className="standings__num">{p.kd.toFixed(2)}</td>
+                              <td className="standings__num">
+                                {p.time !== undefined ? playTime(p.time) : "-"}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {standings.practice.map((p, i) => (
-                              <tr key={p.name}>
-                                <td className="standings__num standings__rank">{i + 1}</td>
-                                <td className="standings__player">{p.name}</td>
-                                <td className="standings__num">{p.kills}</td>
-                                <td className="standings__num">{p.deaths}</td>
-                                <td className="standings__num">{p.kd.toFixed(2)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </>
-                    )}
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
                 </div>
               </section>
             )}
@@ -1356,14 +1379,14 @@ const App: FC = () => {
                     <button
                       className="sound"
                       onClick={toggleSound}
-                      aria-label={playerMuted ? 'Play music' : 'Mute music'}
+                      aria-label={playerMuted ? "Play music" : "Mute music"}
                     >
                       <SpeakerIcon muted={playerMuted} />
-                      {playerMuted ? 'sound off' : 'sound on'}
+                      {playerMuted ? "sound off" : "sound on"}
                     </button>
                   )}
                 </h2>
-                {!videoDead && (stage.id !== 'playing' || !musicOver) ? (
+                {!videoDead && (stage.id !== "playing" || !musicOver) ? (
                   <div className="player">
                     <iframe
                       ref={iframeRef}
@@ -1401,15 +1424,14 @@ const App: FC = () => {
                   </dl>
                 </div>
               </section>
-
             </aside>
           </main>
 
           <footer className="footer">
             <p>© 2026 frag fridays &middot; best viewed at 1024×768</p>
             <p className="footer__counter" aria-hidden="true">
-              you are visitor{' '}
-              {['0', '0', '1', '3', '3', '7'].map((d, i) => (
+              you are visitor{" "}
+              {["0", "0", "1", "3", "3", "7"].map((d, i) => (
                 <span className="footer__digit" key={i}>
                   {d}
                 </span>
@@ -1422,13 +1444,13 @@ const App: FC = () => {
       <button
         className="fs"
         onClick={toggleFullscreen}
-        aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
       >
         <FullscreenIcon active={fullscreen} />
       </button>
     </>
-  )
-}
+  );
+};
 
-export default App
+export default App;
