@@ -40,7 +40,7 @@ type ServerStatus = {
   humans: number;
   bots: number;
   mapTimeLeft: number; // seconds; 0 = no timelimit
-  roundTimeLeft: number; // seconds; -1 = no round timer seen yet
+  roundTimeLeft: number; // seconds; -1 = no live round timer (none yet, or expired with no new round)
   players: { name: string; frags: number; bot: boolean }[];
 };
 

@@ -7,7 +7,8 @@
 // file is pre-created writable in the Dockerfile (the dir stays root-owned).
 //
 // Round time left is tracked from the Round_Start logevent because no cvar
-// exposes it; -1 means "no round timer seen yet this map" and the frontend
+// exposes it; -1 means "no live round timer" (none seen yet this map, or the
+// last one expired with no new round - see task_write) and the frontend
 // hides it.
 
 #include <amxmodx>
@@ -57,7 +58,20 @@ public task_write()
 
 	new roundLeft = -1;
 	if (g_roundEnd > 0.0)
+	{
 		roundLeft = max(0, floatround(g_roundEnd - get_gametime()));
+
+		// No-objective maps (fy_*, scoutzknivez) never end the round when
+		// the timer expires, so under DM respawn the clock would sit at
+		// 0:00 for the rest of the map. The longest legitimate overrun is
+		// a planted C4 plus the round-end delay (~1 min), so a clock 90s
+		// past expiry is dead - hide it until Round_Start re-arms it.
+		if (roundLeft == 0 && get_gametime() - g_roundEnd > 90.0)
+		{
+			g_roundEnd = 0.0;
+			roundLeft = -1;
+		}
+	}
 
 	fprintf(fp, "{^"map^":^"%s^",^"maxplayers^":%d,^"humans^":%d,^"bots^":%d,^"mapTimeLeft^":%d,^"roundTimeLeft^":%d,^"players^":[",
 		mapname, get_maxplayers(), humans, bots, get_timeleft(), roundLeft);

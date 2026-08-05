@@ -82,9 +82,11 @@ public plugin_init()
 	register_clcmd("say", "cmd_say");
 	register_clcmd("say_team", "cmd_say");
 
-	// DM round shape: no freeze, long rounds (they end on the round timer,
-	// since respawn means teams are never eliminated). Short timelimit so a
-	// 30-minute session sees at least two maps and the end-of-map vote.
+	// DM round shape: no freeze, long rounds. With respawn, teams are never
+	// eliminated; only objective maps (hostages/bomb sites) end the round on
+	// the timer - no-objective maps run one round for the whole map. Short
+	// timelimit so a 30-minute session sees at least two maps and the
+	// end-of-map vote.
 	server_cmd("mp_freezetime 0");
 	server_cmd("mp_roundtime 5");
 	server_cmd("mp_buytime 0.25");
