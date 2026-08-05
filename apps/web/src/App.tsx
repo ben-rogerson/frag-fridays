@@ -1366,6 +1366,12 @@ const App: FC = () => {
               <section className="panel" aria-label="server hardware">
                 <h2 className="panel__bar">server hardware</h2>
                 <div className="panel__body">
+                  <img
+                    className="specs__photo"
+                    src="/assets/server-hardware.jpg"
+                    alt="The actual server: a dusty Compaq ProLiant tower labelled CS 1.6 SERVER"
+                    loading="lazy"
+                  />
                   <dl className="specs">
                     {SERVER_SPECS.map(([k, v]) => (
                       <div className="specs__row" key={k}>
