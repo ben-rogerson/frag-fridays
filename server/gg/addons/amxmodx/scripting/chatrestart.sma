@@ -5,11 +5,13 @@
 // Deliberately not admin-gated - sessions run without admins. A pending
 // latch stops chat spam queueing several restarts.
 //
-// Stuck players don't know the command exists, so a 10s ticker nags anyone
-// who has sat dead or spectating through two consecutive ticks. The two-tick
-// grace keeps normal between-round deaths (instant respawn makes any real
-// death shorter than one tick) from triggering it. Unassigned players are
-// skipped - they haven't joined a team, so a round restart won't spawn them.
+// Stuck players don't know the way out, so a 10s ticker nags anyone who has
+// sat dead or spectating through two consecutive ticks. The two-tick grace
+// keeps normal between-round deaths (instant respawn makes any real death
+// shorter than one tick) from triggering it. Spectators and unassigned
+// players are nagged too, not skipped: the engine's one-team-change-per-round
+// limit rejects F1/F2 ("Only 1 team change is allowed"), so a round restart
+// is their only way back in.
 //
 // Not installed on kz: /restart there means "reset my own run", and a round
 // restart would wipe every player's timer.
@@ -21,7 +23,7 @@ new g_deadTicks[33];
 
 public plugin_init()
 {
-	register_plugin("Chat Restart", "0.2.0", "frag-friday");
+	register_plugin("Chat Restart", "0.3.0", "frag-friday");
 	register_clcmd("say", "cmd_say");
 	register_clcmd("say_team", "cmd_say");
 	set_task(10.0, "task_nag_spectators", _, _, _, "b");
@@ -59,13 +61,13 @@ public task_nag_spectators()
 	for (new id = 1; id <= get_maxplayers(); id++)
 	{
 		if (!is_user_connected(id) || is_user_bot(id) || is_user_hltv(id)
-			|| is_user_alive(id) || get_user_team(id) == 0)
+			|| is_user_alive(id))
 		{
 			g_deadTicks[id] = 0;
 			continue;
 		}
 
 		if (++g_deadTicks[id] >= 2)
-			client_print(id, print_chat, "[SERVER] stuck spectating? type !restart to restart the round");
+			client_print(id, print_chat, "[SERVER] stuck spectating? type !restart to restart the round, then F1/F2 to join");
 	}
 }
