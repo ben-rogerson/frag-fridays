@@ -44,6 +44,22 @@ type ServerStatus = {
   players: { name: string; frags: number; bot: boolean }[]
 }
 
+// season standings, aggregated from the box's kill logs by
+// scripts/standings.sh after each session. Ships in the build and is
+// refreshed in place on the box, so one fetch is enough.
+type Standings = {
+  generated: string
+  season: { name: string; sessions: number; kills: number; deaths: number; kd: number }[]
+  weeks: { date: string; mvp: string; kills: number }[]
+}
+
+// "2026-08-07" -> "fri 7 aug", the kickoffLabel grammar
+const sessionDateLabel = (iso: string) =>
+  new Date(`${iso}T12:00:00`)
+    .toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+    .replace(',', '')
+    .toLowerCase()
+
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
@@ -516,6 +532,7 @@ const App: FC = () => {
   // card stays a card, not a scroll
   const [openMode, setOpenMode] = useState<string | null>(null)
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null)
+  const [standings, setStandings] = useState<Standings | null>(null)
   // measured round-trip of the last successful status poll; pollTick remounts
   // the masthead livedot so it blips once per real answer from the box
   const [ping, setPing] = useState<number | null>(null)
@@ -602,6 +619,17 @@ const App: FC = () => {
       window.clearInterval(t)
     }
   }, [playing])
+
+  // the standings file is weekly data - one fetch, no poll. Absent file
+  // (fresh box, script never run) just leaves the panel unrendered.
+  useEffect(() => {
+    fetch('/assets/standings.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s: Standings | null) => {
+        if (s?.season) setStandings(s)
+      })
+      .catch(() => {})
+  }, [])
 
   // tab title carries tonight's mode, e.g. "Classic Mode | Frag Fridays";
   // plain "Frag Fridays" (from index.html) until info.json answers
@@ -1182,6 +1210,70 @@ const App: FC = () => {
                 )}
               </div>
             </section>
+
+            {/* the league table only exists once standings.json has answered -
+                the page never invents results */}
+            {standings && (
+              <section
+                id="standings"
+                className="panel front__standings"
+                aria-label="season standings"
+              >
+                <h2 className="panel__bar">
+                  season standings
+                  <span className="panel__barnote">humans only - bots never rank</span>
+                </h2>
+                <div className="panel__body panel__body--flush">
+                  {standings.season.length > 0 ? (
+                    <>
+                      <table className="standings">
+                        <thead>
+                          <tr>
+                            <th className="standings__num">#</th>
+                            <th>player</th>
+                            <th className="standings__num">sessions</th>
+                            <th className="standings__num">kills</th>
+                            <th className="standings__num">deaths</th>
+                            <th className="standings__num">k/d</th>
+                            <th className="standings__num">mvps</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {standings.season.map((p, i) => {
+                            const mvps = standings.weeks.filter((w) => w.mvp === p.name).length
+                            return (
+                              <tr key={p.name}>
+                                <td className="standings__num standings__rank">{i + 1}</td>
+                                <td className="standings__player">{p.name}</td>
+                                <td className="standings__num">{p.sessions}</td>
+                                <td className="standings__num">{p.kills}</td>
+                                <td className="standings__num">{p.deaths}</td>
+                                <td className="standings__num">{p.kd.toFixed(2)}</td>
+                                <td className="standings__num">{mvps > 0 ? mvps : '-'}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                      {standings.weeks.length > 0 && (
+                        <p className="standings__foot">
+                          {standings.weeks.length}{' '}
+                          {standings.weeks.length === 1 ? 'session' : 'sessions'} played &middot;
+                          last mvp:{' '}
+                          <strong>{standings.weeks[standings.weeks.length - 1].mvp}</strong> (
+                          {standings.weeks[standings.weeks.length - 1].kills} kills,{' '}
+                          {sessionDateLabel(standings.weeks[standings.weeks.length - 1].date)})
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="standings__none">
+                      no ranked results yet - the table publishes after the first friday session
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
 
             <aside className="front__aside">
               <section id="demos" className="panel" aria-label="now streaming">
