@@ -1035,7 +1035,7 @@ const App: FC = () => {
               )}
               <h3 className="card__subbar">
                 more game modes
-                <span className="card__subnote">one mod runs at a time - swaps between weeks</span>
+                <span className="card__subnote">changing mode requires reboot (~1min)</span>
               </h3>
               {/* the live mode already headlines the card, so its row sits out.
                   Each row unfolds into that mode's setup sheet - rules and map
