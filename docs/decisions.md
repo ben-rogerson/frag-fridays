@@ -473,3 +473,10 @@ Naming: shortlisted `hltv`, `spec`, `overwatch`, `fridaycam`, `pressbox`.
 Went with `pressbox` because `hltv` would be actively misleading in the
 compose file (not an HLTV proxy) and the rest were either too generic
 (`spec` collides with test-file jargon) or too cute for a runbook.
+
+**Update 2026-08-05: removed.** Too buggy to keep: the choose-team menu
+stayed burned onto the feed, stall recovery leaked ghost slots, and an
+idle pressbox as the sole connected client wedged the whole sim (webxash
+pauses when every client goes silent), forcing watchdog restarts that
+cycle the map. The WebRTC-only / no-HLTV finding above still stands and
+is the starting constraint for any future spectator attempt.
