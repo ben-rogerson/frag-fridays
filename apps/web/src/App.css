@@ -692,6 +692,10 @@
   flex-direction: column;
   gap: 0.9rem;
   min-width: 0;
+  /* pins while the main column scrolls; inert on mobile where the aside's
+     grid area is only as tall as its content */
+  position: sticky;
+  top: 0.9rem;
 }
 
 @media (max-width: 760px) {
