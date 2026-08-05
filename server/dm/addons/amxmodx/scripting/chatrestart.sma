@@ -68,6 +68,6 @@ public task_nag_spectators()
 		}
 
 		if (++g_deadTicks[id] >= 2)
-			client_print(id, print_chat, "[SERVER] stuck spectating? type !restart to restart the round, then F1/F2 to join");
+			client_print(id, print_chat, "[SERVER] stuck as a spectator? press Y and type !restart to restart the round");
 	}
 }
