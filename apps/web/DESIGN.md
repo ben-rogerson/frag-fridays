@@ -85,7 +85,7 @@ components:
 
 **Creative North Star: "The Matchday"**
 
-The loading screen is a CPL/HLTV-era esports matchday page for the weekly FRAG FRIDAYS event, and its connect flow IS the game download. The whole page is themed from the classic CS 1.6 splash wallpaper: a deep navy ground with acid-yellow scanline streaks drifting across it and radar arcs sweeping in the top-right. Every surface is period web furniture - steel-navy boxes with 1px bevelled borders and shouty title bars, hyperlink-blue map names, data tables, a visitor counter reading 001337 - but the page's energy comes from something about to happen: a sunken counter-cell clock counts down to Friday 2:30pm Sydney, the MAIN EVENT card announces the mode, and on the day the strip flips to LIVE NOW with real server numbers. The visitor's mode is Operate: read the countdown, type an alias into the server browser, hit CONNECT inside a minute.
+The loading screen is a CPL/HLTV-era esports matchday page for the weekly FRAG FRIDAYS event, and its connect flow IS the game download. The whole page is themed from the classic CS 1.6 splash wallpaper: a deep navy ground with acid-yellow scanline streaks drifting across it and radar arcs sweeping in the top-right. Every surface is period web furniture - steel-navy boxes with 1px bevelled borders and shouty title bars, hyperlink-blue map names, data tables, a visitor counter reading 001337 - but the page's energy comes from something about to happen: a sunken counter-cell clock counts down to Friday 2:30pm Sydney, the CURRENT MODE card announces the mode, and on the day the strip flips to LIVE NOW with real server numbers. The visitor's mode is Operate: read the countdown, type an alias into the server browser, hit CONNECT inside a minute.
 
 The voice is dry and factual. There are NO written gags: the humour is the format played completely straight - a broadcast-grade matchday page for a six-person office server, real server data delivered like tournament coverage. Nothing winks, nothing announces the joke, and the workplace (Simply Wall St) never appears. The page refuses the launcher default of blurred keyart + centred logo + glowing button; the single acid-yellow CONNECT button is the largest, brightest thing on a page that otherwise looks like it was hand-built in Dreamweaver.
 
@@ -98,6 +98,7 @@ Density is high and type is small on purpose - Tahoma/Verdana at 11-13px is the 
 - One acid-yellow action per screen; hyperlink blue for everything navigational
 - Tahoma/Verdana body at 11-13px; Black Ops One reserved for the masthead
 - Event tension carried by real data: countdown clock, LIVE state, server feed
+- Season and practice standings parsed from the box's kill logs - real results only, humans only, bots never rank
 - No written gags - period chrome and flat factual copy carry the humour
 - Hard edges everywhere; the only circles are live-status dots
 
@@ -146,7 +147,7 @@ The CS 1.6 splash wallpaper reduced to a working palette: layered navies for gro
 
 ### Hierarchy
 - **Display** (400, clamp(1.7rem, 4.5vw, 2.6rem), line-height 1, letter-spacing 0.02em): the FRAGFRIDAYS masthead. Nowhere else.
-- **Title** (700, 0.72rem, uppercase, letter-spacing 0.14em): panel title bars ("MAIN EVENT", "SERVER BROWSER", "SERVER HARDWARE").
+- **Title** (700, 0.72rem, uppercase, letter-spacing 0.14em): panel title bars ("CURRENT MODE", "SERVER BROWSER", "SEASON STANDINGS").
 - **Body** (400, 0.74-0.85rem, i.e. roughly 11-13px): all copy, headlines, table cells, status lines. Live numbers always take `font-variant-numeric: tabular-nums`.
 - **Label** (700, 0.58-0.62rem, uppercase, letter-spacing 0.1-0.18em): wide-tracked micro-labels - table headers, alias label, spec keys, "server online".
 
@@ -160,13 +161,14 @@ A centred 1000px page (`max-width: 1000px`, padding 1.4rem 1.25rem 2rem) floatin
 Vertical order: masthead (crest + logo + "server online"), session strip (countdown clock or LIVE state), front-page grid, footer. The grid is two columns (`1fr 300px`, 0.9rem gaps) with named areas:
 
 ```
-'card    aside'
-'servers aside'
+'servers   aside'
+'card      aside'
+'standings aside'
 ```
 
-The MAIN EVENT card stacks above the SERVER BROWSER (which owns the alias toolbar, live server row, and the download-progress → CONNECT action zone) in the main column; the 300px aside holds the media-player panel and the server-hardware boxout.
+The SERVER BROWSER leads the main column so CONNECT sits above the fold; the CURRENT MODE card follows, and the SEASON STANDINGS league table closes the column. The 300px aside holds the media-player panel and the server-hardware boxout.
 
-One breakpoint at 760px: the grid collapses to a single column reordered card → servers → aside, the session strip stacks and its clock digits shrink, the masthead online badge disappears, and the server table drops its round/map-time columns (columns 4+) so the essentials fit a phone.
+One breakpoint at 760px: the grid collapses to a single column reordered servers → card → standings → aside, the session strip stacks and its clock digits shrink, the masthead online badge disappears, the server table drops its round/map-time columns (columns 4+), and the standings drop their sessions/time/mvp columns so the essentials fit a phone.
 
 Spacing rhythm is tight and boxy: 0.9rem between grid modules, 0.42-0.45rem bar padding, 0.45-0.55rem × 0.8rem table cells, 1rem panel body padding.
 
@@ -197,7 +199,7 @@ Hard edges everywhere. `border-radius` appears exactly once in the system - the 
 The page's atom: a fansite content box.
 - **Corner Style:** square (0)
 - **Background:** Panel Steel-Navy (#121f3d), raised bevel borders
-- **Title bar:** vertical gradient #24396b → #182a52, uppercase 0.72rem/700 tracked 0.14em, bar sheen inset, bottom border bevel-dark; optional right-aligned lowercase bar note in Muted Slate (0.62rem)
+- **Title bar:** vertical gradient #24396b → #182a52, uppercase 0.72rem/700 tracked 0.14em, bar sheen inset, bottom border bevel-dark; optional right-aligned lowercase bar note in Muted Slate (0.62rem). A CRT scanline texture overlays the gradient beneath the text (1px near-black lines on a 3px pitch plus a faint top-half sheen, the whole layer at 0.55 opacity) - texture, not glow: it deepens the chrome without lighting it
 - **Shadow Strategy:** panel lift
 - **Internal Padding:** 1rem 0.9rem 0.9rem, or flush (0) for tables and video
 
@@ -207,7 +209,7 @@ The page's atom: a fansite content box.
 - **Hover / Focus:** `filter: brightness(1.12)` + hotter glow; focus-visible adds a 2px Hot Acid outline offset 2px; active nudges down 1px.
 - **Secondary (sound toggle / `.sound`, fullscreen / `.fs`):** small bevel chrome buttons - navy gradient (#2c4278 → #1d2f5c) or translucent navy, Phosphor White text/icon at 0.62rem uppercase, inline 2px-stroke SVG icons, hover brightens via filter, same Hot Acid focus outline.
 
-### Main Event Card (signature)
+### Current Mode Card (signature)
 The fight card for the live mode. Hero row: a 56px sunken emblem tile (inverted bevel + well inset on #060b18) holding the mode's 2.5px-stroke linework emblem in acid, beside the mode name at 1.2rem/700 uppercase tracked 0.14em over its tagline in Muted Slate. Rules render as a RULES spec sheet - an auto-fit two-column list with acid "»" markers. Below, MORE GAME MODES: a flush sub-bar (micro-label on a faint wash) over one row per non-live roster mode - the live mode already headlines the card, so its row sits out - small emblem in Faint Slate, bold name, blurb in Faint Slate. Mode emblems are one stroke family (staircase, crosshair, shield, peaks-with-flag), coloured via currentColor, never filled illustrations.
 
 ### Inputs / Fields
@@ -226,8 +228,13 @@ A raised chrome band between masthead and grid holding the event state - a verti
 ### Tables (server browser)
 Data tables: uppercase micro-label headers on a faint white wash, bevel-dark underline; cells 0.8rem with tabular numerals; row hover washes Hyperlink Blue at 5% alpha; map names in Hyperlink Blue; livedot before the server name; row dividers in Bevel Highlight at 35% alpha. The server browser owns the connect flow: an alias toolbar above the table (sunken input on a washed row), the live server row (double-click connects), then the action zone - download progress bar → CONNECT button - with an optional top-frag footer line in Faint Slate ("top frag right now" while live, "top frag in warm-up" before kickoff).
 
+### League Tables (standings)
+The SEASON STANDINGS panel closes the main column: tournament coverage for a six-person server, played completely straight. The tables share the server browser's grammar (micro-label headers on a faint wash, 0.8rem cells, blue hover wash, Bevel Highlight row dividers) with two additions: numeric columns are right-aligned, and every figure is tabular. Season columns run rank / player / sessions / kills / deaths / k-d / time / mvps; time renders coarse ("47m", "2h 05m"), empty mvp cells read "-". Rank digits sit in Faint Slate. Below the table a footer line in Faint Slate states the session count and last MVP; with no sessions yet the panel holds a single flat line ("no ranked results yet - the table publishes after the first friday session"). During the practice period a flush PRACTICE STANDINGS sub-bar (bar note "warm-up frags - reset at kickoff", dated once a session exists) adds a second, shorter table - rank / player / kills / deaths / k-d / time; it sits out entirely while the strip reads LIVE. The panel renders only once `/assets/standings.json` has answered - the page never invents results - and both tables rank humans only.
+
+**The Earned Crown Rule.** Only the season leader wears the mode's signal colour, and only on the rank digit (plus a bold name) - a micro-accent, never a second accent action. The practice leader takes no accent at all: warm-up frags earn no crown.
+
 ### Map Imagery
-Real 1.6-era map screenshots (160x120, the classic server-browser thumb size) bundled per map name in `src/assets/maps/`, always framed by the `mapshot` well: a sunken tile (inverted bevel on #060b18) whose well-inset shadow is painted over the image by an overlay pane. One placement: THE MAP POOL - a flush thumbnail-gallery strip in the MAIN EVENT card showing tonight's mode's real mapcycle, names below in Hyperlink Blue at 0.68rem. The map running on the server takes a livedot and its name in Live Signal Green. A map with no shot on hand renders the flat "no map image" tile in Faint Slate - never a stretched or invented image. Screenshots are the only bitmaps in the system; everything else stays inline SVG.
+Real 1.6-era map screenshots (160x120, the classic server-browser thumb size) bundled per map name in `src/assets/maps/`, always framed by the `mapshot` well: a sunken tile (inverted bevel on #060b18) whose well-inset shadow is painted over the image by an overlay pane. One placement: THE MAP POOL - a flush thumbnail-gallery strip in the CURRENT MODE card showing tonight's mode's real mapcycle, names below in Hyperlink Blue at 0.68rem. The map running on the server takes a livedot and its name in Live Signal Green. A map with no shot on hand renders the flat "no map image" tile in Faint Slate - never a stretched or invented image. Screenshots are the only bitmaps in the system; everything else stays inline SVG.
 
 ### Footer Counter (signature)
 "you are visitor" followed by six sunken single-digit cells: acid digits on #060b18 in inverted-bevel boxes, tabular numerals. Reads 001337.
@@ -243,7 +250,7 @@ Real 1.6-era map screenshots (160x120, the classic server-browser thumb size) bu
 - **Do** set all live numbers (players, timers, frags, MB counts) in `font-variant-numeric: tabular-nums`.
 - **Do** write site furniture in lowercase (bar notes, status lines) and reserve UPPERCASE for wide-tracked titles and micro-labels.
 - **Do** use a plain hyphen "-" in all copy; the em dash is banned everywhere.
-- **Do** ship real data into the chrome - countdown, live map, player counts, timers and top frag beat invented content wherever they can appear.
+- **Do** ship real data into the chrome - countdown, live map, player counts, timers, top frag and season standings beat invented content wherever they can appear.
 - **Do** honour `prefers-reduced-motion` for every ambient animation (radar sweep, streak drift, livedot pulse).
 
 ### Don't:
