@@ -301,18 +301,6 @@
   color: var(--text-mute);
 }
 
-.masthead__online {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--live);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
 .livedot {
   display: inline-block;
   width: 7px;
@@ -716,10 +704,6 @@
       "aside";
   }
 
-  .masthead__online {
-    display: none;
-  }
-
   .event {
     flex-direction: column;
     align-items: flex-start;
@@ -814,6 +798,18 @@
     ),
     linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, transparent 55%);
   opacity: 0.55;
+}
+
+.panel__online {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: center;
+  font-weight: 400;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--live);
+  white-space: nowrap;
 }
 
 .panel__barnote {

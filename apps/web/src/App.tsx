@@ -888,14 +888,6 @@ const App: FC = () => {
                 counter-strike 1.6 &middot; every friday 2:30 pm &middot; sydney server
               </p>
             </div>
-            {/* only claimed once a status poll has actually answered - the
-                page never says "online" about a box it hasn't heard from */}
-            {serverStatus && (
-              <p className="masthead__online">
-                <span className="livedot livedot--blip" key={pollTick} aria-hidden="true" />
-                server online
-              </p>
-            )}
           </header>
 
           <section
@@ -1406,7 +1398,21 @@ const App: FC = () => {
               </section>
 
               <section className="panel" aria-label="server hardware">
-                <h2 className="panel__bar">server hardware</h2>
+                <h2 className="panel__bar">
+                  server hardware
+                  {/* only claimed once a status poll has actually answered - the
+                      page never says "online" about a box it hasn't heard from */}
+                  {serverStatus && (
+                    <span className="panel__online">
+                      <span
+                        className="livedot livedot--blip"
+                        key={pollTick}
+                        aria-hidden="true"
+                      />
+                      server online
+                    </span>
+                  )}
+                </h2>
                 <div className="panel__body">
                   <img
                     className="specs__photo"
