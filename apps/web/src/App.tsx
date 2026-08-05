@@ -347,7 +347,7 @@ const MODES: ModeEntry[] = [
     key: "dm",
     match: /death\s*match/i,
     name: "Deathmatch",
-    blurb: "free-for-all frags, instant respawn",
+    blurb: "team deathmatch, instant respawn",
     rules: ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps", "stuck spectating? type !restart"],
     emblem: DeathmatchEmblem,
     bots: true,
