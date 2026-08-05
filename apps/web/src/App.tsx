@@ -539,6 +539,8 @@ const App: FC = () => {
   const playerMutedRef = useRef(true)
   const fadeRef = useRef<number | null>(null)
   const [name, setName] = useState(() => localStorage.getItem('ff-name') ?? '')
+  const [nameNeeded, setNameNeeded] = useState(false)
+  const aliasRef = useRef<HTMLInputElement>(null)
   const [musicOver, setMusicOver] = useState(false)
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null)
   // which roster row is unfolded in "more game modes"; one at a time so the
@@ -778,11 +780,18 @@ const App: FC = () => {
 
   const play = async () => {
     if (startedRef.current || !zipRef.current || !canvasRef.current) return
+    // quotes/semicolons would escape the `name "..."` console command
+    const playerName = name.replace(/["';\\]/g, '').trim().slice(0, 31)
+    // no alias, no connect - every entry point (button, Enter, double-click)
+    // lands here, so the nudge covers them all
+    if (!playerName) {
+      setNameNeeded(true)
+      aliasRef.current?.focus()
+      return
+    }
     startedRef.current = true
     // the Play gesture also covers the fullscreen request
     enterFullscreen()
-    // quotes/semicolons would escape the `name "..."` console command
-    const playerName = name.replace(/["';\\]/g, '').trim().slice(0, 31)
     localStorage.setItem('ff-name', playerName)
     try {
       xashRef.current = await launchGame(
@@ -1111,16 +1120,26 @@ const App: FC = () => {
                     </label>
                     <input
                       id="alias"
-                      className="alias"
+                      ref={aliasRef}
+                      className={`alias${nameNeeded ? ' alias--needed' : ''}`}
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => {
+                        setNameNeeded(false)
+                        setName(e.target.value)
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && stage.id === 'ready') play()
                       }}
                       placeholder="Player"
                       maxLength={31}
                       spellCheck={false}
+                      aria-invalid={nameNeeded || undefined}
                     />
+                    {nameNeeded && (
+                      <span className="alias__needed" role="alert">
+                        pick an alias first
+                      </span>
+                    )}
                   </div>
                 )}
                 <table className="servers">

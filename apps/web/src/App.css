@@ -1163,6 +1163,41 @@
   outline: none;
 }
 
+/* join attempted with no alias - the input flags itself and shakes once */
+.alias--needed,
+.alias--needed:focus-visible {
+  border-color: var(--alert);
+  animation: alias-shake 0.3s;
+}
+
+.alias__needed {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--alert);
+  white-space: nowrap;
+}
+
+@keyframes alias-shake {
+  25% {
+    translate: -4px 0;
+  }
+  50% {
+    translate: 4px 0;
+  }
+  75% {
+    translate: -2px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alias--needed,
+  .alias--needed:focus-visible {
+    animation: none;
+  }
+}
+
 /* the connect zone under the server list - progress, then the button */
 .browser__lower {
   padding: 0.9rem 0.8rem;
