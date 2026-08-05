@@ -7,7 +7,6 @@ de_inferno
 de_aztec
 de_cbble
 de_nuke
-de_prodigy
 de_train
 awp_india
 cs_deagle5

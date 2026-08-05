@@ -2,14 +2,12 @@ fy_pool_day
 de_dust2
 de_dust
 cs_assault
-de_prodigy
 de_nuke
 de_cbble
 cs_office
 fy_iceworld
 aim_map
 scoutzknivez
-35hp_2
 de_rats
 de_train
 awp_india
