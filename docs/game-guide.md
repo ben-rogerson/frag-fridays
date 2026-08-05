@@ -33,6 +33,9 @@ AMXX menus are unverified in the browser build, so gun choice is chat:
 - `/deagle` - pistol only
 - Default without choosing: your team's rifle (AK/M4) + deagle. Everyone
   spawns with full armour; ammo refills on every kill.
+- Exception: aim_map uses its own floor guns (`dm_map_guns`, per-map
+  config) - you spawn deagle-only and grab an AK/M4/AWP off the floor;
+  dropped rifles stay on the ground so the map's guns keep circulating.
 
 ### KZ commands (chat, same no-menus reason)
 

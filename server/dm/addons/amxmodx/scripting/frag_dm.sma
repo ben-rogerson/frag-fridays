@@ -7,7 +7,9 @@
 //
 // What it does: instant respawn after death, armour + rifle + deagle on
 // spawn, brief spawn protection, backpack ammo refill on kill, strips the C4
-// so bomb rounds cannot end the round under respawn.
+// so bomb rounds cannot end the round under respawn. Maps with their own
+// floor guns (dm_map_guns) or a single signature gun (dm_only) override the
+// spawn kit - see the cvar comments below.
 //
 // Gun choice is CHAT COMMANDS, not a menu - AMXX menus are unverified in the
 // browser client (backlog item 5). Say /guns for the list; choice applies
@@ -30,7 +32,7 @@
 // keyed by entity, not player)
 #define TASK_WBOX    50000
 
-new g_spawnDelay, g_protectTime, g_refill, g_groundTime, g_only;
+new g_spawnDelay, g_protectTime, g_refill, g_groundTime, g_only, g_mapGuns;
 
 // preferred primary per player: index into g_guns, -1 = team default
 new g_choice[33];
@@ -66,6 +68,14 @@ public plugin_init()
 	// everything else is stripped the moment it is deployed. The amxx.cfg
 	// baseline resets it to "" every map start so it can't leak.
 	g_only        = register_cvar("dm_only", "");
+	// floor-gun maps (aim_map): the BSP ships its own armoury_entity rifles,
+	// so skip the primary handout - players spawn with the deagle and grab
+	// rifles off the floor. Armoury entities only restock on round restart
+	// and DM never restarts rounds on no-objective maps, so dropped primaries
+	// are kept (exempt from weaponbox cleanup) - the map's guns circulate
+	// through kill/drop/pickup instead. Set per map via configs/maps/<map>.cfg;
+	// the amxx.cfg baseline resets it to 0 every map start so it can't leak.
+	g_mapGuns     = register_cvar("dm_map_guns", "0");
 
 	register_event("DeathMsg", "event_death", "a");
 	RegisterHam(Ham_Spawn, "player", "ham_player_spawn", 1);
@@ -202,13 +212,16 @@ public ham_player_spawn(id)
 		ham_give_weapon(id, "weapon_deagle");
 		cs_set_user_bpammo(id, CSW_DEAGLE, 70);
 
-		new primary[24];
-		get_primary(id, team, primary, charsmax(primary));
-		if (primary[0])
+		if (!get_pcvar_num(g_mapGuns))
 		{
-			ham_give_weapon(id, primary);
-			new wId = get_weaponid(primary);
-			if (wId) cs_set_user_bpammo(id, wId, 200);
+			new primary[24];
+			get_primary(id, team, primary, charsmax(primary));
+			if (primary[0])
+			{
+				ham_give_weapon(id, primary);
+				new wId = get_weaponid(primary);
+				if (wId) cs_set_user_bpammo(id, wId, 200);
+			}
 		}
 	}
 
@@ -218,7 +231,10 @@ public ham_player_spawn(id)
 	if (!g_hinted[id] && !is_user_bot(id) && !onlyId)
 	{
 		g_hinted[id] = true;
-		client_print(id, print_chat, "[DM] Say /guns to pick your gun - it applies from your next spawn.");
+		if (get_pcvar_num(g_mapGuns))
+			client_print(id, print_chat, "[DM] Rifles are lying around the map - grab one off the floor.");
+		else
+			client_print(id, print_chat, "[DM] Say /guns to pick your gun - it applies from your next spawn.");
 	}
 
 	new Float:protect = get_pcvar_float(g_protectTime);
@@ -253,6 +269,13 @@ get_primary(id, CsTeams:team, out[], len)
 
 // --- dropped weapon cleanup -------------------------------------------------
 
+// on floor-gun maps only these get cleaned up - dropped primaries must stay
+// in circulation (see dm_map_guns above)
+new const g_junkModels[][] = {
+	"w_deagle", "w_usp", "w_glock18", "w_p228", "w_elite", "w_fiveseven",
+	"w_hegrenade", "w_flashbang", "w_smokegrenade"
+};
+
 // every drop routes through SetModel on a fresh weaponbox ent
 public fw_set_model(ent, const model[])
 {
@@ -263,6 +286,21 @@ public fw_set_model(ent, const model[])
 	pev(ent, pev_classname, classname, charsmax(classname));
 	if (!equal(classname, "weaponbox"))
 		return FMRES_IGNORED;
+
+	if (get_pcvar_num(g_mapGuns))
+	{
+		new bool:junk = false;
+		for (new i = 0; i < sizeof(g_junkModels); i++)
+		{
+			if (containi(model, g_junkModels[i]) != -1)
+			{
+				junk = true;
+				break;
+			}
+		}
+		if (!junk)
+			return FMRES_IGNORED;
+	}
 
 	new Float:life = get_pcvar_float(g_groundTime);
 	if (life > 0.0)
@@ -314,8 +352,11 @@ public cmd_say(id)
 		if (equali(said, g_guns[i * 2]))
 		{
 			g_choice[id] = i;
-			client_print(id, print_chat, "[DM] %s from your next spawn.",
-				g_guns[i * 2 + 1][0] ? g_guns[i * 2 + 1] : "deagle only");
+			if (get_pcvar_num(g_mapGuns))
+				client_print(id, print_chat, "[DM] This map runs its own floor guns - your pick applies on other maps.");
+			else
+				client_print(id, print_chat, "[DM] %s from your next spawn.",
+					g_guns[i * 2 + 1][0] ? g_guns[i * 2 + 1] : "deagle only");
 			return PLUGIN_CONTINUE;
 		}
 	}
