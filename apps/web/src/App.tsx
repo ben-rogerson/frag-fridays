@@ -1121,35 +1121,6 @@ const App: FC = () => {
                 )}
               </h2>
               <div className="panel__body panel__body--flush">
-                {(stage.id === "downloading" || stage.id === "ready") && (
-                  <div className="browser__toolbar">
-                    <label className="browser__aliaslabel" htmlFor="alias">
-                      your alias:
-                    </label>
-                    <input
-                      id="alias"
-                      ref={aliasRef}
-                      className={`alias${nameNeeded ? " alias--needed" : ""}`}
-                      value={name}
-                      onChange={(e) => {
-                        setNameNeeded(false);
-                        setName(e.target.value);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && stage.id === "ready") play();
-                      }}
-                      placeholder="Player"
-                      maxLength={31}
-                      spellCheck={false}
-                      aria-invalid={nameNeeded || undefined}
-                    />
-                    {nameNeeded && (
-                      <span className="alias__needed" role="alert">
-                        pick an alias first
-                      </span>
-                    )}
-                  </div>
-                )}
                 <table className="servers">
                   <thead>
                     <tr>
@@ -1197,6 +1168,35 @@ const App: FC = () => {
                 </table>
 
                 <div className="browser__lower">
+                  {(stage.id === "downloading" || stage.id === "ready") && (
+                    <div className="browser__aliasgroup">
+                      <label className="browser__aliaslabel" htmlFor="alias">
+                        your alias:
+                      </label>
+                      <input
+                        id="alias"
+                        ref={aliasRef}
+                        className={`alias${nameNeeded ? " alias--needed" : ""}`}
+                        value={name}
+                        onChange={(e) => {
+                          setNameNeeded(false);
+                          setName(e.target.value);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && stage.id === "ready") play();
+                        }}
+                        placeholder="Player"
+                        maxLength={31}
+                        spellCheck={false}
+                        aria-invalid={nameNeeded || undefined}
+                      />
+                      {nameNeeded && (
+                        <span className="alias__needed" role="alert">
+                          pick an alias first
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="browser__action">
                     {stage.id === "error" ? (
                       <>

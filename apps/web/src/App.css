@@ -1185,15 +1185,13 @@
   padding: 0;
 }
 
-/* --- server browser: toolbar + connect action -------------------------- */
+/* --- server browser: connect zone (alias + action) --------------------- */
 
-.browser__toolbar {
+.browser__aliasgroup {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 0.8rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid var(--bevel-dark);
+  flex-wrap: wrap;
 }
 
 .browser__aliaslabel {
@@ -1264,8 +1262,13 @@
   }
 }
 
-/* the connect zone under the server list - progress, then the button */
+/* the connect zone under the server list - alias sits beside the button
+   so naming yourself and launching read as one act */
 .browser__lower {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
   padding: 0.9rem 0.8rem;
 }
 
