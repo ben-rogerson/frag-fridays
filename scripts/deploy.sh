@@ -59,7 +59,13 @@ done
 
 if [[ -d "$SERVER_DIR/web" ]]; then
   log "syncing web client"
-  rsync -rlptvz --delete "$SERVER_DIR/web/" "$HOST:$REMOTE_ROOT/web/"
+  # index.html is a single-FILE bind mount in the composes, so the running
+  # container keeps the inode it opened at start. A normal rsync (temp file
+  # + rename) creates a new inode and the live page goes stale/broken until
+  # the next restart; --inplace rewrites the existing inode so the mount
+  # stays fresh. The assets/ DIRECTORY mount has no such problem.
+  rsync -rlptvz --delete --exclude 'index.html' "$SERVER_DIR/web/" "$HOST:$REMOTE_ROOT/web/"
+  rsync -tvz --inplace "$SERVER_DIR/web/index.html" "$HOST:$REMOTE_ROOT/web/index.html"
 fi
 
 # userconfig.cfg lives inside the game files tree (it ships to players via
