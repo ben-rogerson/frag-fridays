@@ -4,7 +4,7 @@ cs_assault
 de_dust
 cs_italy
 de_inferno
-cs_militia
+cs_office
 de_aztec
 de_cbble
 fy_iceworld
@@ -12,3 +12,6 @@ fy_pool_day
 scoutzknivez
 35hp_2
 de_rats
+de_train
+awp_india
+cs_deagle5
