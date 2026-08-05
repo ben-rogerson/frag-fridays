@@ -106,7 +106,7 @@ done
 rm -f "$STAGE"
 
 # --- Cloudflare purge --------------------------------------------------------
-# cs.benrogerson.dev fronts the box via Cloudflare, which caches valve.zip at
+# ff.benrogerson.dev fronts the box via Cloudflare, which caches valve.zip at
 # the edge (default 4h TTL for .zip) - without a purge players on the domain
 # get the PREVIOUS build until the TTL expires. Credentials live in
 # $ROOT/cf.env (CF_ZONE_ID + CF_API_TOKEN, token scoped to Zone.Cache Purge).
@@ -169,4 +169,4 @@ COUNT="$(printf '%s\n' "$PS" | grep -c '27016' || true)"
 
 purge_cloudflare
 
-log "done. $MOD is serving the new valve.zip on https://cs.benrogerson.dev"
+log "done. $MOD is serving the new valve.zip on https://ff.benrogerson.dev"

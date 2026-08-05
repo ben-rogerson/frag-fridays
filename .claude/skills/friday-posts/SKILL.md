@@ -15,8 +15,8 @@ lunch-break squeeze. Pitch it that way (finish the week fragging), never as
 ## Step 1: check what's actually running (no SSH needed)
 
 ```bash
-curl -s https://cs.benrogerson.dev/info.json
-curl -s https://cs.benrogerson.dev/status.json
+curl -s https://ff.benrogerson.dev/info.json
+curl -s https://ff.benrogerson.dev/status.json
 ```
 
 `info.json` is served by the live container, so its `mode` IS the running
@@ -51,7 +51,7 @@ No preload post - loading is fast now, don't ask people to prep.
 **Post 2 - final call (~15 min before).** Full join steps so nobody scrolls
 back. Must include, in join order:
 
-1. Open https://cs.benrogerson.dev and hit PLAY
+1. Open https://ff.benrogerson.dev and hit PLAY
 2. Stuck at the splash screen? Just refresh - fixes every known stall
 3. First time on this URL: enter your name again (fresh settings per domain)
 4. F1 = Terrorists, F2 = Counter-Terrorists (the numbered team menu also
@@ -68,7 +68,7 @@ posts fun, and the refresh step covers stalls anyway).
 
 ## Fact guardrails (repo data that is wrong or stale - do not propagate)
 
-- URL is **https://cs.benrogerson.dev**. Player-facing docs still say the
+- URL is **https://ff.benrogerson.dev**. Player-facing docs still say the
   old IP URL - never put the IP URL in a post.
 - Gun chat commands are **`/guns`**, `/ak`, `/awp` etc - dm's info.json
   says `!guns`, which is wrong.

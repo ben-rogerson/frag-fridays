@@ -3,5 +3,10 @@
   "main": "worker.js",
   "compatibility_date": "2026-07-01",
   "workers_dev": false,
-  "routes": [{ "pattern": "cs.benrogerson.dev", "custom_domain": true }]
+  "routes": [
+    { "pattern": "ff.benrogerson.dev", "custom_domain": true },
+    // legacy domain: worker 301s it to ff, except /mcp/ (claude.ai connectors
+    // can't follow redirects - update the connector URL, then drop this)
+    { "pattern": "cs.benrogerson.dev", "custom_domain": true }
+  ]
 }

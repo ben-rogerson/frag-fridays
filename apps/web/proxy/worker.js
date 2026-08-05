@@ -1,4 +1,4 @@
-// https front door for the game server: cs.benrogerson.dev -> VPS:27016.
+// https front door for the game server: ff.benrogerson.dev -> VPS:27016.
 //
 // The client uses same-origin relative paths for everything (/websocket for
 // WebRTC signalling, /valve.zip, the page itself), so a transparent reverse
@@ -25,6 +25,12 @@ const MCP_ORIGIN = 'http://149-28-172-74.sslip.io:27017'
 export default {
   fetch(request) {
     const url = new URL(request.url)
+    // legacy domain redirects to ff, except /mcp/ - the claude.ai connector
+    // is configured with the cs URL and won't follow redirects
+    if (url.hostname === 'cs.benrogerson.dev' && !url.pathname.startsWith('/mcp/')) {
+      url.hostname = 'ff.benrogerson.dev'
+      return Response.redirect(url.toString(), 301)
+    }
     const origin = url.pathname.startsWith('/mcp/') ? MCP_ORIGIN : ORIGIN
     return fetch(origin + url.pathname + url.search, request)
   },

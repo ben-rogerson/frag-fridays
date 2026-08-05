@@ -193,7 +193,7 @@ Claude Code SSHing via the `cs16` alias (the original blocker assumed the
 code-execution sandbox; the CLI has no such restriction).
 
 MCP server built 2026-08-04: `server/mcp/` on the box (port 27017, routed
-via the front-door Worker at `https://cs.benrogerson.dev/mcp/<secret>`),
+via the front-door Worker at `https://ff.benrogerson.dev/mcp/<secret>`),
 five tools (status, console via cmdpipe, log tail, restart, mod swap) as a
 claude.ai custom connector - the phone can now drive the box. Details in
 decisions.md and runbook.md §5. This is also item 9's backend seed.
@@ -235,7 +235,7 @@ can't read the colon-block form of `WELCOME_MESSAGE_LINE8` in
 
 ## 13. Domain + https in front of the box - done (2026-08-03)
 
-Live at **https://cs.benrogerson.dev** - a Cloudflare Worker
+Live at **https://ff.benrogerson.dev** - a Cloudflare Worker
 (`apps/web/proxy/`, worker name `frag-friday`) on a wrangler custom domain,
 reverse-proxying everything to the VPS. No Caddy, no box changes, no
 firewall changes; the old `http://149.28.172.74:27016` URL keeps working.

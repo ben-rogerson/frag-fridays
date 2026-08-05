@@ -78,10 +78,10 @@ The box runs a small MCP server (`server/mcp/`, container `mcp-mcp-1`, port
 27017) wired into claude.ai as a custom connector, so the server can be
 driven without the laptop: status, console commands (changelevel, csay,
 votes, cvars), log tails, container restart (the join-wedge fix) and mod
-swaps. The endpoint is `https://cs.benrogerson.dev/mcp/<secret>`.
+swaps. The endpoint is `https://ff.benrogerson.dev/mcp/<secret>`.
 
 **Connector setup (once per Claude account):** claude.ai → Settings →
-Connectors → Add custom connector → URL `https://cs.benrogerson.dev/mcp/<secret>`,
+Connectors → Add custom connector → URL `https://ff.benrogerson.dev/mcp/<secret>`,
 no auth. The secret is line 1 of `/opt/cs16/mcp.env` (password manager copy).
 
 **Rotate the secret** (it rides the URL, so it lands in Cloudflare logs):
