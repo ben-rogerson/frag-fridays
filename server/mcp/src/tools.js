@@ -1,4 +1,4 @@
-// The five tools. Destructive ones (restart_server, swap_mod) shout it in
+// The six tools. Destructive ones (restart_server, swap_mod) shout it in
 // their descriptions AND require confirm: true, so a connected Claude checks
 // with the owner before dropping players.
 import { existsSync } from 'node:fs'
@@ -120,6 +120,48 @@ export function registerTools(server) {
       return text(
         `sent #${serial} to ${container}\n` +
           (out ? `console output:\n${out}` : 'no console output captured (may still have executed - check tail_logs or resend)'),
+      )
+    },
+  )
+
+  server.registerTool(
+    'rebalance_teams',
+    {
+      title: 'Rebalance teams',
+      description:
+        'Force an immediate team rebalance on the live server: evens the T/CT ' +
+        'headcount, moving bots first, then the lowest-frag humans. Moved ' +
+        'players respawn instantly on their new side - nobody is dropped, safe ' +
+        'mid-session. Needs the teambalance plugin, baked into gg and dm only.',
+      inputSchema: z.object({}),
+    },
+    async () => {
+      log('rebalance_teams')
+      const container = await gameContainer()
+      if (!container) return errText('No game container on 27016 - nothing is reading the pipe.')
+      const mod = modOf(container)
+      if (mod !== 'gg' && mod !== 'dm')
+        return errText(
+          `Running mod is "${mod}" - the teambalance plugin is baked into gg and dm only.`,
+        )
+      let serial
+      try {
+        serial = await sendCommands(['ff_rebalance'])
+      } catch (e) {
+        return errText(e.message)
+      }
+      await sleep(3500)
+      const out = await tailContainerLogs(container, ['--since', '6s'], 25)
+      const result = out
+        .split('\n')
+        .filter((l) => l.includes('[rebalance]'))
+        .pop()
+      return text(
+        `sent #${serial} to ${container}\n` +
+          (result ??
+            (out
+              ? `no [rebalance] line captured - console output:\n${out}`
+              : 'no console output captured (may still have executed - check tail_logs or resend)')),
       )
     },
   )

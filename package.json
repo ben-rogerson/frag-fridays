@@ -18,6 +18,7 @@
     "votemap": "scripts/votemap.sh",
     "nextmap": "scripts/nextmap.sh",
     "restartmap": "scripts/restartmap.sh",
+    "rebalance": "scripts/rebalance.sh",
     "announce": "scripts/announce.sh",
     "standings": "scripts/standings.sh",
     "swap": "scripts/swap.sh",

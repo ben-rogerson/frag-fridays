@@ -38,6 +38,7 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 | Next map ("next map")                            | `pnpm run nextmap` - one shot: detects mod + current map, announces a 5s amx_csay warning, changelevels to the next mapcycle entry (wraps). Run directly - no status/log checks first                                                                                                             |
 | Announce ("announce <msg>" / "tell the players") | `pnpm run announce "message"` - green centre-screen HUD message to all players (amx_csay). Run directly - no status/log checks first                                                                                                                                                              |
 | Restart map ("restart map" / "restart the map")  | `pnpm run restartmap` - announces a 5s amx_csay warning, then changelevels to the current map (full reload: entities, timer, scores; players stay connected). Run directly - no status/log checks first                                                                                           |
+| Rebalance teams ("rebalance" / "even the teams") | `pnpm run rebalance` - evens the T/CT headcount now (teambalance.amxx, gg/dm only): bots move first, then lowest-frag humans; moved players respawn instantly on the new side, nobody dropped. Run directly - no status/log checks first                                                          |
 
 ## Iron rules
 

@@ -480,3 +480,23 @@ idle pressbox as the sole connected client wedged the whole sim (webxash
 pauses when every client goes silent), forcing watchdog restarts that
 cycle the map. The WebRTC-only / no-HLTV finding above still stands and
 is the starting constraint for any future spectator attempt.
+
+## Forced team rebalance: raw pdata write, cs_set_user_team segfaults (2026-08-05)
+
+`ff_rebalance` (teambalance.amxx, gg + dm) evens the T/CT headcount on
+demand - bots moved first, then the lowest-frag humans, each slain with
+frags kept so instant respawn drops them on the new side. Driven through
+the cmdpipe: `pnpm run rebalance` locally, `rebalance_teams` on the MCP.
+
+The obvious implementation crashes the server: **`cs_set_user_team`
+segfaults this stack** (signal 11 in the cstrike module's
+`CPlayer::ResetModel -> PostponeModelUpdate` against the reimplemented CS
+DLL - same failure class that killed CSDM, caught in a throwaway boot
+test). Module *reads* are proven (frag_dm uses `cs_get_user_team` live),
+so the plugin instead writes `m_iTeam`/`m_iModelName` directly with
+fakemeta at the same offsets, sends the `TeamInfo` scoreboard message
+itself, and verifies every write back through `cs_get_user_team` -
+aborting loudly on any mismatch rather than corrupting pdata. Server-side
+writes also bypass the client's one-team-change-per-round limit that
+blocks F1/F2 mid-round. Soak-tested in a throwaway with all nine bots
+forced onto T: moved bots respawn, fight and score as their new team.

@@ -43,6 +43,9 @@ RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
 # !restart chat command - see scripting/chatrestart.sma
 RUN grep -qx 'chatrestart.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'chatrestart.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
+# ff_rebalance server command (cmdpipe-driven) - see scripting/teambalance.sma
+RUN grep -qx 'teambalance.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'teambalance.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 
 # live status for the web loading screen - see scripting/statusjson.sma.
 # The plugin writes into the statically-served public/ dir; pre-create the
