@@ -17,6 +17,9 @@ RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 # mid-map ("only 1 team change is allowed"), which locks humans out of a
 # bot-filled deathmatch. Uneven teams don't matter in DM.
 RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_limitteams 0\nmp_autoteambalance 0\nmp_friendlyfire 0\nmp_roundtime 5\ndm_only ""\ndm_map_guns 0\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
+# stock amxx.cfg ships AMX Mod X adverts (scrolling HUD line + centre-screen
+# "This server is using AMX Mod X" every 3 min) - strip them
+RUN sed -i '/^amx_scrollmsg /d; /^amx_imessage "This server is using/d' cstrike/addons/amxmodx/configs/amxx.cfg
 # scoreboard/server-browser name (base image default: "My WebXash3D CS Server").
 # Leading \n matters: the base image's server.cfg has no trailing newline.
 RUN printf '\nhostname "Frag Fridays"\n' >> cstrike/server.cfg
