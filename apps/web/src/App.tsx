@@ -51,6 +51,10 @@ type Standings = {
   generated: string
   season: { name: string; sessions: number; kills: number; deaths: number; kd: number }[]
   weeks: { date: string; mvp: string; kills: number }[]
+  // warm-up frags since the last session; kickoff resets the table.
+  // Optional so a stale standings.json from before the field existed parses.
+  practice?: { name: string; kills: number; deaths: number; kd: number }[]
+  practiceSince?: string | null
 }
 
 // "2026-08-07" -> "fri 7 aug", the kickoffLabel grammar
@@ -1235,7 +1239,7 @@ const App: FC = () => {
                 <div className="panel__body panel__body--flush">
                   {standings.season.length > 0 ? (
                     <>
-                      <table className="standings">
+                      <table className="standings standings--season">
                         <thead>
                           <tr>
                             <th className="standings__num">#</th>
@@ -1280,6 +1284,47 @@ const App: FC = () => {
                       no ranked results yet - the table publishes after the first friday session
                     </p>
                   )}
+                  {/* warm-up frags since the last session. Practice period
+                      only - the section sits out while the strip reads LIVE,
+                      and kickoff resets the table */}
+                  {clock.id !== 'live' &&
+                    standings.practice &&
+                    standings.practice.length > 0 && (
+                      <>
+                        <h3 className="card__subbar">
+                          practice standings
+                          <span className="card__subnote">
+                            warm-up frags
+                            {standings.practiceSince
+                              ? ` since ${sessionDateLabel(standings.practiceSince)}`
+                              : ''}{' '}
+                            - reset at kickoff
+                          </span>
+                        </h3>
+                        <table className="standings">
+                          <thead>
+                            <tr>
+                              <th className="standings__num">#</th>
+                              <th>player</th>
+                              <th className="standings__num">kills</th>
+                              <th className="standings__num">deaths</th>
+                              <th className="standings__num">k/d</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {standings.practice.map((p, i) => (
+                              <tr key={p.name}>
+                                <td className="standings__num standings__rank">{i + 1}</td>
+                                <td className="standings__player">{p.name}</td>
+                                <td className="standings__num">{p.kills}</td>
+                                <td className="standings__num">{p.deaths}</td>
+                                <td className="standings__num">{p.kd.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
                 </div>
               </section>
             )}

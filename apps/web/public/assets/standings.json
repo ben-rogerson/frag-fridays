@@ -1,5 +1,38 @@
 {
- "generated": "2026-08-05T01:34:14+00:00",
+ "generated": "2026-08-05T02:19:57+00:00",
  "season": [],
- "weeks": []
+ "weeks": [],
+ "practice": [
+  {
+   "name": "Reversons!",
+   "kills": 83,
+   "deaths": 51,
+   "kd": 1.63
+  },
+  {
+   "name": "Player",
+   "kills": 58,
+   "deaths": 19,
+   "kd": 3.05
+  },
+  {
+   "name": "Thunderson",
+   "kills": 48,
+   "deaths": 101,
+   "kd": 0.48
+  },
+  {
+   "name": "Rov",
+   "kills": 34,
+   "deaths": 22,
+   "kd": 1.55
+  },
+  {
+   "name": "Thunderson (1)",
+   "kills": 2,
+   "deaths": 2,
+   "kd": 1.0
+  }
+ ],
+ "practiceSince": null
 }

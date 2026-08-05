@@ -10,7 +10,11 @@ only Fridays inside the session window (14:00-16:30 Sydney) count, so
 midweek testing doesn't pollute the table. --all-days lifts the Friday
 filter, --from/--to widen the window.
 
-Season table is humans only - bots never rank (auth field <BOT>).
+Kills outside the session window feed a separate practice table: warm-up
+frags since the most recent session (the table resets at each kickoff).
+The web page shows it during the practice period.
+
+Both tables are humans only - bots never rank (auth field <BOT>).
 """
 import argparse
 import json
@@ -44,12 +48,18 @@ def main():
     lo = datetime.strptime(args.start, "%H:%M").time()
     hi = datetime.strptime(args.end, "%H:%M").time()
 
-    # per Sydney date -> per player -> {kills, deaths, bot}
-    days = defaultdict(lambda: defaultdict(lambda: {"kills": 0, "deaths": 0, "bot": False}))
+    # per Sydney date -> per player -> {kills, deaths, bot}; session kills in
+    # days, everything else (midweek testing, pre-kickoff warm-up) in practice
+    fresh = lambda: defaultdict(lambda: defaultdict(lambda: {"kills": 0, "deaths": 0, "bot": False}))
+    days, practice_days = fresh(), fresh()
     lines = kills = 0
 
-    def bump(day, name, auth, field):
-        p = days[day][name]
+    def bucket(syd):
+        in_window = (args.all_days or syd.weekday() == FRIDAY) and lo <= syd.time() <= hi
+        return days if in_window else practice_days
+
+    def bump(table, day, name, auth, field):
+        p = table[day][name]
         p[field] += 1
         p["bot"] = p["bot"] or auth == "BOT"
 
@@ -59,27 +69,20 @@ def main():
         if m:
             ts_s, killer, kauth, _, victim, vauth, _, _weapon = m.groups()
             syd = parse_ts(ts_s).astimezone(SYD)
-            if not args.all_days and syd.weekday() != FRIDAY:
-                continue
-            if not (lo <= syd.time() <= hi):
-                continue
+            table = bucket(syd)
             day = syd.date().isoformat()
             if (killer, kauth) == (victim, vauth):  # self-kill logged as kill line
-                bump(day, victim, vauth, "deaths")
+                bump(table, day, victim, vauth, "deaths")
             else:
-                bump(day, killer, kauth, "kills")
-                bump(day, victim, vauth, "deaths")
+                bump(table, day, killer, kauth, "kills")
+                bump(table, day, victim, vauth, "deaths")
             kills += 1
             continue
         m = SUICIDE_RE.search(line)
         if m:
             ts_s, name, auth, _ = m.groups()
             syd = parse_ts(ts_s).astimezone(SYD)
-            if not args.all_days and syd.weekday() != FRIDAY:
-                continue
-            if not (lo <= syd.time() <= hi):
-                continue
-            bump(syd.date().isoformat(), name, auth, "deaths")
+            bump(bucket(syd), syd.date().isoformat(), name, auth, "deaths")
 
     season = defaultdict(lambda: {"sessions": 0, "kills": 0, "deaths": 0})
     weeks = []
@@ -107,11 +110,36 @@ def main():
     ]
     table.sort(key=lambda r: (-r["kills"], -r["kd"]))
 
+    # practice: warm-up frags since the last session; kickoff resets the table
+    last_session = weeks[-1]["date"] if weeks else None
+    warmup = defaultdict(lambda: {"kills": 0, "deaths": 0})
+    for day, players in practice_days.items():
+        if last_session is not None and day <= last_session:
+            continue
+        for name, p in players.items():
+            if p["bot"]:
+                continue
+            warmup[name]["kills"] += p["kills"]
+            warmup[name]["deaths"] += p["deaths"]
+    practice = [
+        {
+            "name": name,
+            "kills": s["kills"],
+            "deaths": s["deaths"],
+            "kd": round(s["kills"] / s["deaths"], 2) if s["deaths"] else float(s["kills"]),
+        }
+        for name, s in warmup.items()
+        if s["kills"] or s["deaths"]
+    ]
+    practice.sort(key=lambda r: (-r["kills"], -r["kd"]))
+
     json.dump(
         {
             "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "season": table,
             "weeks": weeks,
+            "practice": practice,
+            "practiceSince": last_session,
         },
         sys.stdout,
         indent=1,
@@ -119,7 +147,8 @@ def main():
     print()
     print(
         f"standings: {lines} log lines, {kills} counted kills, "
-        f"{len(weeks)} sessions, {len(table)} ranked players",
+        f"{len(weeks)} sessions, {len(table)} ranked players, "
+        f"{len(practice)} in practice",
         file=sys.stderr,
     )
 

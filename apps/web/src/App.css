@@ -746,11 +746,12 @@
     white-space: normal;
   }
 
-  /* sessions and mvp columns sit out on a phone; the core K/D line stays */
-  .standings th:nth-child(3),
-  .standings td:nth-child(3),
-  .standings th:nth-child(7),
-  .standings td:nth-child(7) {
+  /* sessions and mvp columns sit out on a phone; the core K/D line stays
+     (season table only - the practice table already fits) */
+  .standings--season th:nth-child(3),
+  .standings--season td:nth-child(3),
+  .standings--season th:nth-child(7),
+  .standings--season td:nth-child(7) {
     display: none;
   }
 
@@ -1466,13 +1467,14 @@ th.standings__num {
 }
 
 /* the season leader wears the mode's signal colour on the rank digit only -
-   a micro-accent, never a second accent action */
-.standings tbody tr:first-child .standings__rank {
+   a micro-accent, never a second accent action. The practice leader doesn't:
+   warm-up frags earn no crown */
+.standings--season tbody tr:first-child .standings__rank {
   color: var(--accent);
   font-weight: 700;
 }
 
-.standings tbody tr:first-child .standings__player {
+.standings--season tbody tr:first-child .standings__player {
   font-weight: 700;
 }
 
