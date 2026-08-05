@@ -30,7 +30,7 @@
 // keyed by entity, not player)
 #define TASK_WBOX    50000
 
-new g_spawnDelay, g_protectTime, g_refill, g_groundTime;
+new g_spawnDelay, g_protectTime, g_refill, g_groundTime, g_only;
 
 // preferred primary per player: index into g_guns, -1 = team default
 new g_choice[33];
@@ -58,9 +58,21 @@ public plugin_init()
 	g_protectTime = register_cvar("dm_protect_time", "1.5");
 	g_refill      = register_cvar("dm_refill", "1");
 	g_groundTime  = register_cvar("dm_ground_time", "3.0");
+	// one-weapon maps (cs_deagle5, awp_india): a game_player_equip hands out
+	// the map's gun and info_map_parameters says "buying 3" - but this
+	// stack's DLL ignores that, so bots (yb_botbuy 1) and humans can still
+	// buy. Set dm_only to the weapon shortname ("deagle", "awp") per map via
+	// configs/maps/<map>.cfg: the DM kit is replaced by that gun and
+	// everything else is stripped the moment it is deployed. The amxx.cfg
+	// baseline resets it to "" every map start so it can't leak.
+	g_only        = register_cvar("dm_only", "");
 
 	register_event("DeathMsg", "event_death", "a");
 	RegisterHam(Ham_Spawn, "player", "ham_player_spawn", 1);
+
+	// dm_only enforcement - CurWeapon fires on every deploy (bought, picked
+	// up, bot or human), so nothing outside the allowed set survives.
+	register_event("CurWeapon", "event_curweapon", "be", "1=1");
 
 	// dropped-gun cleanup: constant respawns litter the map with weaponbox
 	// ents and the accumulation lags clients. Engine-level forward, no Ham
@@ -126,6 +138,35 @@ public task_respawn(taskid)
 	ExecuteHamB(Ham_CS_RoundRespawn, id);
 }
 
+// --- one-weapon maps: strip everything else on deploy ------------------------
+
+// CSW id of the dm_only weapon, or 0 when the map is a normal DM map
+get_only_wid()
+{
+	new only[16], wname[24];
+	get_pcvar_string(g_only, only, charsmax(only));
+	if (!only[0])
+		return 0;
+	formatex(wname, charsmax(wname), "weapon_%s", only);
+	return get_weaponid(wname);
+}
+
+public event_curweapon(id)
+{
+	new onlyId = get_only_wid();
+	if (!onlyId)
+		return;
+
+	new wId = read_data(2);
+	if (wId == onlyId || ((1 << wId) & ((1 << CSW_KNIFE)
+		| (1 << CSW_HEGRENADE) | (1 << CSW_FLASHBANG) | (1 << CSW_SMOKEGRENADE))))
+		return;
+
+	new wname[24];
+	get_weaponname(wId, wname, charsmax(wname));
+	ham_strip_weapon(id, wname);
+}
+
 // --- spawn -> equip + protect ----------------------------------------------
 
 public ham_player_spawn(id)
@@ -143,21 +184,36 @@ public ham_player_spawn(id)
 	// replace the spawn pistol with a deagle
 	ham_strip_weapon(id, "weapon_glock18");
 	ham_strip_weapon(id, "weapon_usp");
-	ham_give_weapon(id, "weapon_deagle");
-	cs_set_user_bpammo(id, CSW_DEAGLE, 70);
 
-	new primary[24];
-	get_primary(id, team, primary, charsmax(primary));
-	if (primary[0])
+	new onlyId = get_only_wid();
+	if (onlyId)
 	{
-		ham_give_weapon(id, primary);
-		new wId = get_weaponid(primary);
-		if (wId) cs_set_user_bpammo(id, wId, 200);
+		// one-weapon map: give the map's gun straight away - its own
+		// game_player_equip only fires ~1s after spawn
+		new wname[24];
+		get_weaponname(onlyId, wname, charsmax(wname));
+		ham_give_weapon(id, wname);
+		cs_set_user_bpammo(id, onlyId, 200);
+	}
+	else
+	{
+		ham_give_weapon(id, "weapon_deagle");
+		cs_set_user_bpammo(id, CSW_DEAGLE, 70);
+
+		new primary[24];
+		get_primary(id, team, primary, charsmax(primary));
+		if (primary[0])
+		{
+			ham_give_weapon(id, primary);
+			new wId = get_weaponid(primary);
+			if (wId) cs_set_user_bpammo(id, wId, 200);
+		}
 	}
 
 	cs_set_user_armor(id, 100, CS_ARMOR_VESTHELM);
 
-	if (!g_hinted[id] && !is_user_bot(id))
+	// no /guns hint on one-weapon maps - the choice would not apply
+	if (!g_hinted[id] && !is_user_bot(id) && !onlyId)
 	{
 		g_hinted[id] = true;
 		client_print(id, print_chat, "[DM] Say /guns to pick your gun - it applies from your next spawn.");

@@ -124,14 +124,29 @@ rotation maps have bot graphs. Each mod has a curated `mapcycle.txt` in
 `pnpm run clientcfg` (the map list shapes both the image and the client
 zip):
 
-- gg (boots on aim_map): aim_map, dust2, assault, dust, italy, inferno,
-  militia, aztec, fy_iceworld, fy_pool_day, scoutzknivez, 35hp_2
-- dm (boots on fy_pool_day): fy_pool_day, awp_map, dust2, dust, assault,
-  prodigy, nuke, militia, fy_iceworld, aim_map, scoutzknivez, 35hp_2
+- gg: aim_map, dust2, assault, dust, italy, inferno, cs_office, aztec,
+  cbble, fy_iceworld, fy_pool_day, scoutzknivez, de_rats, de_train,
+  awp_india, cs_deagle5
+- dm: fy_pool_day, dust2, dust, assault, nuke, cbble, cs_office,
+  fy_iceworld, aim_map, scoutzknivez, de_rats, de_train, awp_india,
+  cs_deagle5
+- vanilla: dust2, dust, italy, assault, cs_office, inferno, aztec, cbble,
+  nuke, de_train, awp_india, cs_deagle5
 
 scoutzknivez runs at `sv_gravity 250` / `sv_airaccelerate 100` via an AMXX
 per-map config; every other map resets to stock 800/10 (mechanism in
-[decisions.md](decisions.md)). The map itself hands out scout+knife.
+[decisions.md](decisions.md)).
+
+One-weapon maps (cs_deagle5 = deagle, awp_india = AWP, scoutzknivez =
+scout): each strips players on spawn, equips its weapon via
+game_player_equip and sets info_map_parameters `buying 3` - which this
+stack's DLL ignores, so buying stays possible unless blocked server-side.
+On dm the `dm_only` cvar (per-map configs, frag_dm.sma) replaces the DM
+kit with the map's weapon and strips anything else the moment it is
+deployed. On vanilla, restmenu.amxx (enabled box-side in
+`mods/zp/configs/plugins.ini`) blocks the buy commands via
+`amx_restrict on` in per-map configs, reset by `amx_restrict off` in
+amxx.cfg every map start.
 
 The boot map is the compose `command:` (`+map ...`) - keep it matching line 1
 of that mod's mapcycle.txt so the rotation flows on from it.
