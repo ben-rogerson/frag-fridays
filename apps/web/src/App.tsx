@@ -879,15 +879,16 @@ const App: FC = () => {
         <div className="streaks" aria-hidden="true" />
         <div className="page">
           <header className="masthead">
-            <CrestLogo />
-            <div className="masthead__id">
+            <div className="masthead__brand">
+              <CrestLogo />
               <h1 className="masthead__logo">
                 FRAG<span>FRIDAYS</span>
               </h1>
-              <p className="masthead__tag">
-                counter-strike 1.6 &middot; every friday 2:30 pm &middot; sydney server
-              </p>
             </div>
+            <p className="masthead__facts">
+              <span className="masthead__game">counter-strike 1.6</span>
+              <span className="masthead__when">every friday 2:30 pm &middot; sydney server</span>
+            </p>
           </header>
 
           <section
@@ -977,12 +978,7 @@ const App: FC = () => {
 
           <main className="front">
             <section id="card" className="panel front__card" aria-label="Current Mode">
-              <h2 className="panel__bar">
-                Current Mode
-                {clock.id === "countdown" && (
-                  <span className="panel__barnote">{clock.kickoffLabel}</span>
-                )}
-              </h2>
+              <h2 className="panel__bar">Current Mode</h2>
               <div className="panel__body">
                 {modeInfo ? (
                   <div className="card__mode">
@@ -1018,7 +1014,7 @@ const App: FC = () => {
                   <h3 className="card__subbar">
                     the map pool
                     <span className="card__subnote">
-                      tonight&apos;s cycle - {liveMode.pool.length} maps
+                      {liveMode.pool.length} map cycle (voting enabled)
                     </span>
                   </h3>
                   <ul className="pool">
@@ -1404,11 +1400,7 @@ const App: FC = () => {
                       page never says "online" about a box it hasn't heard from */}
                   {serverStatus && (
                     <span className="panel__online">
-                      <span
-                        className="livedot livedot--blip"
-                        key={pollTick}
-                        aria-hidden="true"
-                      />
+                      <span className="livedot livedot--blip" key={pollTick} aria-hidden="true" />
                       server online
                     </span>
                   )}

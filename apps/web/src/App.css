@@ -262,24 +262,32 @@
 
 /* --- masthead ---------------------------------------------------------- */
 
+/* full-width banner: identity left, right-aligned event facts as the
+   counterweight, tied together by an engraved groove rule (dark hairline
+   over light, the period hr) spanning the page */
 .masthead {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem 1.4rem;
+  padding: 0.7rem 0 1rem;
+  border-bottom: 1px solid rgba(5, 8, 15, 0.8);
+  box-shadow: 0 1px 0 rgba(51, 73, 127, 0.3);
+}
+
+.masthead__brand {
+  display: flex;
+  align-items: center;
   gap: 1rem;
-  padding: 0.6rem 0 1rem;
+  min-width: 0;
 }
 
 .crest {
-  width: 62px;
-  height: 62px;
+  width: 54px;
+  height: 54px;
   flex: none;
   color: var(--accent);
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
-}
-
-.masthead__id {
-  flex: 1;
-  min-width: 0;
 }
 
 .masthead__logo {
@@ -295,10 +303,25 @@
   color: var(--accent);
 }
 
-.masthead__tag {
-  margin-top: 0.35rem;
-  font-size: 0.72rem;
+.masthead__facts {
+  flex: none;
+  text-align: right;
+}
+
+.masthead__game {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--text-mute);
+}
+
+.masthead__when {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-faint);
 }
 
 .livedot {
@@ -706,6 +729,19 @@
       "card"
       "standings"
       "aside";
+  }
+
+  .masthead {
+    flex-wrap: wrap;
+  }
+
+  .masthead__facts {
+    width: 100%;
+    text-align: left;
+  }
+
+  .masthead__when {
+    margin-top: 0.15rem;
   }
 
   .event {
