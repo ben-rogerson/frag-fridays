@@ -938,6 +938,7 @@ const App: FC = () => {
               </>
             ) : (
               <>
+
                 <p className="event__label">
                   <span className="event__title">
                     {clock.isToday ? "matchday" : "next session"}
@@ -954,6 +955,7 @@ const App: FC = () => {
                     </span>
                   )}
                 </p>
+
                 <p
                   className="event__clock"
                   role="timer"
@@ -1183,14 +1185,14 @@ const App: FC = () => {
 
                 <div className="browser__lower">
                   {(stage.id === "downloading" || stage.id === "ready") && (
-                    <div className="browser__aliasgroup">
-                      <label className="browser__aliaslabel" htmlFor="alias">
+                    <div className={`browser__strip${nameNeeded ? " browser__strip--needed" : ""}`}>
+                      <label className="browser__striplabel" htmlFor="alias">
                         your alias:
                       </label>
                       <input
                         id="alias"
                         ref={aliasRef}
-                        className={`alias${nameNeeded ? " alias--needed" : ""}`}
+                        className="browser__stripinput"
                         value={name}
                         onChange={(e) => {
                           setNameNeeded(false);
@@ -1204,12 +1206,19 @@ const App: FC = () => {
                         spellCheck={false}
                         aria-invalid={nameNeeded || undefined}
                       />
-                      {nameNeeded && (
-                        <span className="alias__needed" role="alert">
-                          pick an alias first
-                        </span>
+                      {/* ignites once, when the download lands; retry and
+                          reconnect below stay flat - recovery isn't a show */}
+                      {stage.id === "ready" && (
+                        <button className="join join--ignite join--strip" onClick={play}>
+                          » {clock.id === "live" ? "join live" : "warm up"} «
+                        </button>
                       )}
                     </div>
+                  )}
+                  {nameNeeded && (
+                    <span className="alias__needed" role="alert">
+                      pick an alias first
+                    </span>
                   )}
                   <div className="browser__action">
                     {stage.id === "error" ? (
@@ -1227,14 +1236,7 @@ const App: FC = () => {
                         </button>
                       </>
                     ) : stage.id === "ready" ? (
-                      <>
-                        {/* ignites once, when the download lands; retry and
-                            reconnect above stay flat - recovery isn't a show */}
-                        <button className="join join--ignite" onClick={play}>
-                          » {clock.id === "live" ? "join live" : "warm up"} «
-                        </button>
-                        <p className="status">{stageLabel(stage)}</p>
-                      </>
+                      <p className="status">{stageLabel(stage)}</p>
                     ) : (
                       <>
                         <div

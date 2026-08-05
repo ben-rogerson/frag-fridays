@@ -1187,49 +1187,62 @@
 
 /* --- server browser: connect zone (alias + action) --------------------- */
 
-.browser__aliasgroup {
+/* label, alias and the connect button fused into one sunken command strip -
+   naming yourself and launching is literally one control */
+.browser__strip {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.browser__aliaslabel {
-  flex: none;
-  white-space: nowrap;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-mute);
-}
-
-.alias {
-  font: inherit;
-  font-size: 0.85rem;
-  color: var(--text);
+  align-items: stretch;
   background: #0a1226;
   border: 1px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);
   border-right-color: var(--bevel-light);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
-  padding: 0.5rem 0.7rem;
-  width: min(240px, 60vw);
   transition: border-color 0.15s;
 }
 
-.alias::placeholder {
+.browser__strip:focus-within {
+  border-color: var(--accent);
+}
+
+.browser__striplabel {
+  display: flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+  white-space: nowrap;
+  border-right: 1px solid rgb(51 73 127 / 0.3);
+}
+
+.browser__stripinput {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0.66rem 0.7rem;
+  flex: 1 1 60px;
+  min-width: 0;
+}
+
+.browser__stripinput::placeholder {
   color: var(--text-faint);
 }
 
-.alias:focus-visible {
-  border-color: var(--accent);
-  outline: none;
+/* the connect button overlaps the strip's bevel so they share one chrome edge */
+.join--strip {
+  margin: -1px;
+  margin-left: 0;
+  padding: 0.55rem 1.6rem;
+  font-size: 0.9rem;
 }
 
-/* join attempted with no alias - the input flags itself and shakes once */
-.alias--needed,
-.alias--needed:focus-visible {
+/* join attempted with no alias - the strip flags itself and shakes once */
+.browser__strip--needed {
   border-color: var(--alert);
   animation: alias-shake 0.3s;
 }
@@ -1256,28 +1269,30 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .alias--needed,
-  .alias--needed:focus-visible {
+  .browser__strip--needed {
     animation: none;
   }
 }
 
-/* the connect zone under the server list - alias sits beside the button
-   so naming yourself and launching read as one act */
+/* the connect zone under the server list - command strip on top, action
+   readout below */
 .browser__lower {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem 1rem;
-  padding: 0.9rem 0.8rem;
+  flex-direction: column;
+  gap: 0.72rem;
+  padding: 1.08rem 0.8rem;
 }
 
 .browser__action {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.6rem;
+  gap: 0.72rem;
   min-width: 0;
+}
+
+.browser__action .bar {
+  width: 100%;
 }
 
 /* --- map imagery: sourced 1.6-era screenshots in sunken wells ----------- */
