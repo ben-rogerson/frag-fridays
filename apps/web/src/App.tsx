@@ -321,7 +321,7 @@ const MODES: ModeEntry[] = [
     match: /gun\s*game/i,
     name: "GunGame",
     blurb: "every kill levels you up - 23 weapons to the top",
-    rules: ["knife kills steal a level", "instant respawn", "7 bots roaming", "20 minute maps", "stuck spectating? type !restart"],
+    rules: ["knife kills steal a level", "instant respawn", "7 bots roaming", "20 minute maps"],
     emblem: GunGameEmblem,
     bots: true,
     pool: [
@@ -348,7 +348,7 @@ const MODES: ModeEntry[] = [
     match: /death\s*match/i,
     name: "Deathmatch",
     blurb: "team deathmatch, instant respawn",
-    rules: ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps", "stuck spectating? type !restart"],
+    rules: ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps"],
     emblem: DeathmatchEmblem,
     bots: true,
     pool: [

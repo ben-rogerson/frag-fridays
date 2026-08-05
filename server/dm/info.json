@@ -1,5 +1,5 @@
 {
   "mode": "Deathmatch",
   "tagline": "Team deathmatch with instant respawn - highest score when the map ends wins.",
-  "bullets": ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps", "stuck spectating? type !restart"]
+  "bullets": ["pick your guns with !guns", "instant respawn", "7 bots roaming", "15 minute maps"]
 }
