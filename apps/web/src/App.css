@@ -27,6 +27,7 @@
   --mode-gungame: #ff9d1e;
   --mode-dm: #ff4d5e;
   --mode-kz: #3fe0e8;
+  --mode-aim: #a86bff;
 }
 
 .overlay {
@@ -92,6 +93,18 @@
   --accent-rgb: 63 224 232;
   --accent-hot-rgb: 127 243 249;
   --accent-edge-dark-rgb: 11 95 101;
+}
+
+/* Aim Prac: signal violet - tracer glow against the knife horde */
+.overlay[data-mode="aim"] {
+  --accent: var(--mode-aim);
+  --accent-hot: #c49aff;
+  --accent-deep: #8746f0;
+  --accent-edge-light: #ddc9ff;
+  --accent-edge-dark: #5b2ba3;
+  --accent-rgb: 168 107 255;
+  --accent-hot-rgb: 196 154 255;
+  --accent-edge-dark-rgb: 91 43 163;
 }
 
 .overlay[data-tier="matchday"] {
@@ -1058,6 +1071,10 @@
 
 .rotation__item[data-mode="kz"] {
   --row-accent: var(--mode-kz);
+}
+
+.rotation__item[data-mode="aim"] {
+  --row-accent: var(--mode-aim);
 }
 
 .rotation__row:hover .rotation__emblem,

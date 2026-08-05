@@ -308,6 +308,13 @@ const ClassicEmblem: ModeEmblem = () => (
   </svg>
 );
 
+const AimEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M34 6L12 28l6 6L36 12z" />
+    <path d="M8 24l14 14" />
+  </svg>
+);
+
 const KzEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M2 35l12-17 7 10 8-12 9 19" />
@@ -366,6 +373,32 @@ const MODES: ModeEntry[] = [
       "de_train",
       "awp_india",
       "cs_deagle5",
+    ],
+  },
+  {
+    key: "aim",
+    match: /aim/i,
+    name: "Aim Prac",
+    blurb: "gun down the knife horde - humans hold CT",
+    rules: [
+      "16 knife bots, all on T",
+      "humans defend as CT - guns free",
+      "pick your guns with /guns",
+      "instant respawn",
+    ],
+    emblem: AimEmblem,
+    bots: true,
+    pool: [
+      "de_dust2",
+      "cs_assault",
+      "de_dust",
+      "cs_italy",
+      "cs_office",
+      "de_inferno",
+      "de_aztec",
+      "de_cbble",
+      "de_nuke",
+      "de_train",
     ],
   },
   {

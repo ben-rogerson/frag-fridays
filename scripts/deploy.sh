@@ -12,15 +12,15 @@
 # the target mod.
 #
 # Mod layout on the box:
-#   vanilla  -> /opt/cs16/docker-compose.yml, profile "vanilla" (bind-mounts mods/)
-#   gg/dm/zp -> /opt/cs16/<mod>/docker-compose.yml, own image built from addons/
+#   vanilla        -> /opt/cs16/docker-compose.yml, profile "vanilla" (bind-mounts mods/)
+#   gg/dm/zp/kz/aim -> /opt/cs16/<mod>/docker-compose.yml, own image built from addons/
 set -euo pipefail
 
 HOST="${CS16_HOST:-cs16}"
 REMOTE_ROOT="${CS16_REMOTE_ROOT:-/opt/cs16}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER_DIR="$REPO_ROOT/server"
-DIR_MODS=(gg dm zp kz)
+DIR_MODS=(gg dm zp kz aim)
 MOD="${1:-}"
 
 log() { printf '\033[1;36m[deploy]\033[0m %s\n' "$*"; }
@@ -109,8 +109,8 @@ fi
 # cmdpipe is the remote-console drop dir (scripts/rc.sh -> cmdpipe.amxx).
 # logs/<mod> receives HL kill logs; chown so the container's xashds (1000)
 # can write through the bind mount.
-ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm,kz}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,kz} \
-  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,kz}"
+ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm,kz}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,kz,aim} \
+  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,kz,aim}"
 
 # --- mcp control plane -------------------------------------------------------
 # Always-on, own compose project, publishes 27017 only - never part of the
@@ -131,7 +131,7 @@ fi
 
 if [[ -z "$MOD" ]]; then
   log "files synced. No mod named, so nothing was restarted."
-  log "to swap/restart a mod: pnpm run deploy <vanilla|gg|dm|zp|kz>"
+  log "to swap/restart a mod: pnpm run deploy <vanilla|gg|dm|zp|kz|aim>"
   exit 0
 fi
 
