@@ -1167,6 +1167,20 @@ const App: FC = () => {
                   </tbody>
                 </table>
 
+                {/* who's on the box right now - humans only, bots are just a
+                    count in the players column */}
+                {humans.length > 0 && (
+                  <p className="servers__foot servers__foot--roster">
+                    {clock.id === "live" ? "in game right now" : "warming up now"}:{" "}
+                    {humans.map((p, i) => (
+                      <Fragment key={p.name}>
+                        {i > 0 && ", "}
+                        <strong>{p.name}</strong>
+                      </Fragment>
+                    ))}
+                  </p>
+                )}
+
                 <div className="browser__lower">
                   {(stage.id === "downloading" || stage.id === "ready") && (
                     <div className="browser__aliasgroup">

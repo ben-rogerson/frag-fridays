@@ -1529,6 +1529,13 @@
   font-weight: 700;
 }
 
+/* the human roster sits between the table and the connect zone, closed off
+   by the same divider the table rows use so the connect zone stays its own
+   band */
+.servers__foot--roster {
+  border-bottom: 1px solid rgba(51, 73, 127, 0.35);
+}
+
 /* --- season standings --------------------------------------------------- */
 
 .standings {
