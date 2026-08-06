@@ -43,6 +43,17 @@ LOGEDGE_RE = re.compile(rf"{TS}: Log file (?:started|closed)")
 # bots log auth BOT on enter/kill lines but ID_BOT on disconnect
 BOT_AUTHS = {"BOT", "ID_BOT"}
 
+# never rank: the default webxash alias (player didn't set a name)
+UNRANKED_RE = re.compile(r"^Player$")
+
+# "(1)"-style dupe suffixes the engine appends on name collisions fold
+# into the base name so both connections count as one player
+DUPE_RE = re.compile(r"\s*\(\d+\)$")
+
+
+def canon(name):
+    return DUPE_RE.sub("", name)
+
 FRIDAY = 4  # datetime.weekday()
 
 
@@ -73,13 +84,14 @@ def main():
         return days if in_window else practice_days
 
     def bump(table, day, name, auth, field):
-        p = table[day][name]
+        p = table[day][canon(name)]
         p[field] += 1
         p["bot"] = p["bot"] or auth == "BOT"
 
     def credit_time(name, bot, start, end):
         """Split a presence interval into session vs practice buckets,
         day by day so nothing straddles midnight or the window edges."""
+        name = canon(name)
         cur = start
         while cur < end:
             midnight = (cur + timedelta(days=1)).replace(
@@ -190,7 +202,11 @@ def main():
     season = defaultdict(lambda: {"sessions": 0, "kills": 0, "deaths": 0, "secs": 0})
     weeks = []
     for day in sorted(days):
-        humans = {n: p for n, p in days[day].items() if not p["bot"]}
+        humans = {
+            n: p
+            for n, p in days[day].items()
+            if not p["bot"] and not UNRANKED_RE.search(n)
+        }
         if not any(p["kills"] for p in humans.values()):
             continue  # bots-only day (nobody showed) doesn't count as a session
         for name, p in humans.items():
@@ -224,7 +240,7 @@ def main():
         if last_session is not None and day <= last_session:
             continue
         for name, p in players.items():
-            if p["bot"]:
+            if p["bot"] or UNRANKED_RE.search(name):
                 continue
             warmup[name]["kills"] += p["kills"]
             warmup[name]["deaths"] += p["deaths"]

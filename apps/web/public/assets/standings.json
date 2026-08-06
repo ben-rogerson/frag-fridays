@@ -1,28 +1,21 @@
 {
- "generated": "2026-08-05T02:42:28+00:00",
+ "generated": "2026-08-06T08:31:34+00:00",
  "season": [],
  "weeks": [],
  "practice": [
   {
-   "name": "Reversons!",
-   "kills": 83,
-   "deaths": 51,
-   "kd": 1.63,
-   "time": 1542
-  },
-  {
-   "name": "Player",
-   "kills": 58,
-   "deaths": 19,
-   "kd": 3.05,
-   "time": 2787
-  },
-  {
    "name": "Thunderson",
-   "kills": 48,
-   "deaths": 101,
-   "kd": 0.48,
-   "time": 6850
+   "kills": 132,
+   "deaths": 144,
+   "kd": 0.92,
+   "time": 9642
+  },
+  {
+   "name": "Reversons!",
+   "kills": 128,
+   "deaths": 73,
+   "kd": 1.75,
+   "time": 6189
   },
   {
    "name": "Rov",
@@ -32,11 +25,18 @@
    "time": 631
   },
   {
-   "name": "Thunderson (1)",
-   "kills": 2,
+   "name": "Pikachu",
+   "kills": 12,
+   "deaths": 4,
+   "kd": 3.0,
+   "time": 1098
+  },
+  {
+   "name": "Reversons",
+   "kills": 9,
    "deaths": 2,
-   "kd": 1.0,
-   "time": 174
+   "kd": 4.5,
+   "time": 370
   }
  ],
  "practiceSince": null
