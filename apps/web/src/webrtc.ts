@@ -6,10 +6,15 @@ import { Packet, Xash3D, Xash3DOptions, Net } from 'xash3d-fwgs'
 // example on git main targets a newer server that double-encodes `data`;
 // ours sends plain objects. We accept both).
 //
-// Flow: ws connects -> peer + local tracks created on open -> server sends
-// offer -> we answer -> server-created 'read'/'write' data channels open ->
-// game packets flow over the channels. Remote audio tracks (in-game sound)
+// Flow: ws connects -> peer created on open -> server sends offer -> we
+// answer -> server-created 'read'/'write' data channels open -> game
+// packets flow over the channels. Remote audio tracks (in-game sound)
 // play through a hidden media element.
+//
+// Mic capture (in-game voice) is deliberately disabled: it was always-on
+// with no mute UI, so players were broadcasting without realising. To
+// re-enable, restore the getUserMedia call in connect() and the addTrack
+// loop in startConnection() (see git history).
 
 // 'transport' = the WebRTC session itself died (server restart, network
 // gone); 'silence' = transport still up but the game server stopped talking
@@ -24,7 +29,6 @@ export class Xash3DWebRTC extends Xash3D {
   private resolve?: () => void
   private ws?: WebSocket
   private peer?: RTCPeerConnection
-  private stream?: MediaStream
   private remoteDescription?: RTCSessionDescriptionInit
   private candidates: RTCIceCandidateInit[] = []
   private wasRemote = false
@@ -85,9 +89,6 @@ export class Xash3DWebRTC extends Xash3D {
         el.remove()
       }
     }
-    this.stream?.getTracks()?.forEach((t) => {
-      this.peer!.addTrack(t, this.stream!)
-    })
     let channelsCount = 0
     this.peer.ondatachannel = (e) => {
       e.channel.onclose = () => this.fireDrop('transport')
@@ -165,12 +166,7 @@ export class Xash3DWebRTC extends Xash3D {
     this.ws.onopen = () => this.startConnection()
   }
 
-  private async connect() {
-    // Mic feeds in-game voice. getUserMedia only exists in secure contexts
-    // (the player URL is plain http), and players may deny it - both are fine.
-    this.stream = await navigator.mediaDevices
-      ?.getUserMedia({ audio: true })
-      .catch(() => undefined)
+  private connect() {
     return new Promise<void>((resolve) => {
       this.resolve = resolve
       this.connectWs()

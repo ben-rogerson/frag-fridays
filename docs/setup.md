@@ -145,8 +145,10 @@ image's, so client and server engine versions match).
   never answered and connect hangs forever. Ours accepts both encodings.
   After boot the client must run `connect 127.0.0.1:8080` - the WebRTC data
   channels surface as a fake UDP peer at that address.
-- The mic is optional - `getUserMedia` does not exist on plain-http origins,
-  so voice needs https if ever wanted.
+- Mic capture (in-game voice) is disabled in webrtc.ts - it was always-on
+  with no mute UI, so players broadcast without realising. Re-enabling means
+  restoring the `getUserMedia` call and `addTrack` loop (see git history);
+  note `getUserMedia` needs an https origin.
 - The loading screen's YouTube background goes through a relay page:
   YouTube rejects embeds from IP-literal http origins (onError 150 via the
   widget API - verified against a known-embeddable control video, so it is
