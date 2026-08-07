@@ -629,10 +629,26 @@ const App: FC = () => {
     return () => window.clearInterval(t);
   }, [clock.id]);
 
+  // The engine's SDL layer registers its own document-level fullscreenchange
+  // handlers when the game boots (after this mount effect, so ours run first).
+  // Letting them fire corrupts the menu's console font (GetFontTall()==0) and
+  // the next menu draw traps wasm with "RuntimeError: remainder by zero" -
+  // exactly what Esc does in fullscreen, since Chrome exits fullscreen AND
+  // opens the game menu on the same keypress. Swallow the event before it
+  // reaches SDL; the engine still adapts to the new canvas size through the
+  // window resize path, which handles fullscreen transitions fine.
   useEffect(() => {
-    const onFsChange = () => setFullscreen(Boolean(document.fullscreenElement));
+    const onFsChange = (e: Event) => {
+      setFullscreen(Boolean(document.fullscreenElement));
+      e.stopImmediatePropagation();
+    };
+    // Chrome fires the webkit-prefixed event too, and SDL listens to both
     document.addEventListener("fullscreenchange", onFsChange);
-    return () => document.removeEventListener("fullscreenchange", onFsChange);
+    document.addEventListener("webkitfullscreenchange", onFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFsChange);
+      document.removeEventListener("webkitfullscreenchange", onFsChange);
+    };
   }, []);
 
   const enterFullscreen = () => {
