@@ -218,3 +218,14 @@ gone - Reconnect does a full page reload) and a 10s packet-silence watchdog
 (kicked / timed out / server shutdown - Reconnect does an in-engine `retry`,
 no re-download). Kicking a player is therefore safe to demo: they get a
 Reconnect button, not a dead tab.
+
+The in-engine retry gets exactly one shot: a WebRTC transport can go
+zombie (laptop sleep, network switch, wedged relay) while the channel
+still reports open and the peer connected, so a retry sent into it just
+vanishes and the watchdog brings the drop screen back 10s later. If that
+happens - the retry got no packet back before the next drop - the next
+Reconnect click stops trusting the transport and does a full page reload,
+which rebuilds the websocket + WebRTC session from scratch (cheap: on the
+https origin valve.zip re-reads from Cache Storage, no re-download).
+Any answered retry re-earns trust, so a later unrelated drop starts with
+the fast in-engine path again.

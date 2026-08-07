@@ -878,7 +878,9 @@ const App: FC = () => {
   };
 
   // in-engine `retry` when only the game link dropped; full reload when the
-  // WebRTC transport itself is gone (the engine can't rebuild it mid-flight)
+  // WebRTC transport is gone OR a previous retry went unanswered - a zombie
+  // transport (sleep, network switch) still reports healthy, and the engine
+  // can't rebuild it mid-flight, so the second click has to reload
   const reconnect = () => {
     if (xashRef.current?.retryConnect()) setStage({ id: "playing" });
     else location.reload();
