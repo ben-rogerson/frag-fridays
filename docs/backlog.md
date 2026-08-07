@@ -267,6 +267,12 @@ so a player who ignores the prompt (neither allow nor deny) sits on
 proceed normally. Worth a line in the Friday Slack instructions; a timeout
 race in webrtc.ts is the code fix if it bites.
 
+**Update 2026-08-07: mic capture disabled.** Voice was always-on with no
+mute UI, so players broadcast without realising - `getUserMedia` and the
+`addTrack` loop are removed from webrtc.ts for now (git history has them
+if voice comes back with a proper push-to-talk/mute). Side benefit: no
+permission prompt on PLAY, so the ignored-prompt hang above is moot.
+
 ## 14. Join-wedge incident 2026-08-03 - restart fixed it, cause unknown
 
 While verifying item 13 (~05:00 UTC), the gg server got into a state where
