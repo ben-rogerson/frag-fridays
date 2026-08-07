@@ -1,43 +1,70 @@
 {
- "generated": "2026-08-06T08:31:34+00:00",
- "season": [],
- "weeks": [],
- "practice": [
-  {
-   "name": "Thunderson",
-   "kills": 132,
-   "deaths": 144,
-   "kd": 0.92,
-   "time": 9642
-  },
-  {
-   "name": "Reversons!",
-   "kills": 128,
-   "deaths": 73,
-   "kd": 1.75,
-   "time": 6189
-  },
-  {
-   "name": "Rov",
-   "kills": 34,
-   "deaths": 22,
-   "kd": 1.55,
-   "time": 631
-  },
-  {
-   "name": "Pikachu",
-   "kills": 12,
-   "deaths": 4,
-   "kd": 3.0,
-   "time": 1098
-  },
+ "generated": "2026-08-07T06:30:20+00:00",
+ "season": [
   {
    "name": "Reversons",
-   "kills": 9,
-   "deaths": 2,
-   "kd": 4.5,
-   "time": 370
+   "sessions": 1,
+   "kills": 88,
+   "deaths": 17,
+   "kd": 5.18,
+   "time": 1341
+  },
+  {
+   "name": "ZenBot",
+   "sessions": 1,
+   "kills": 71,
+   "deaths": 38,
+   "kd": 1.87,
+   "time": 1326
+  },
+  {
+   "name": "_vicentEYyyo",
+   "sessions": 1,
+   "kills": 50,
+   "deaths": 18,
+   "kd": 2.78,
+   "time": 1601
+  },
+  {
+   "name": "professorsx",
+   "sessions": 1,
+   "kills": 25,
+   "deaths": 36,
+   "kd": 0.69,
+   "time": 1158
+  },
+  {
+   "name": "CantAim",
+   "sessions": 1,
+   "kills": 24,
+   "deaths": 19,
+   "kd": 1.26,
+   "time": 1158
+  },
+  {
+   "name": "InfraGuy",
+   "sessions": 1,
+   "kills": 22,
+   "deaths": 29,
+   "kd": 0.76,
+   "time": 1254
+  },
+  {
+   "name": "NotMario",
+   "sessions": 1,
+   "kills": 0,
+   "deaths": 1,
+   "kd": 0.0,
+   "time": 197
   }
  ],
- "practiceSince": null
+ "weeks": [
+  {
+   "date": "2026-08-07",
+   "mvp": "Reversons",
+   "kills": 88
+  }
+ ],
+ "practice": [],
+ "practiceSince": "2026-08-07"
 }

@@ -63,8 +63,8 @@ def parse_ts(s):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--from", dest="start", default="14:00", help="window start HH:MM Sydney")
-    ap.add_argument("--to", dest="end", default="16:30", help="window end HH:MM Sydney")
+    ap.add_argument("--from", dest="start", default="14:31", help="window start HH:MM Sydney")
+    ap.add_argument("--to", dest="end", default="14:55", help="window end HH:MM Sydney")
     ap.add_argument("--all-days", action="store_true", help="count every day, not just Fridays")
     args = ap.parse_args()
 
