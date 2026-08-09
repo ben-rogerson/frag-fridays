@@ -2,12 +2,17 @@
 """Parse HL kill logs (stdin) into per-map player stats for the Friday recap.
 
 Usage:
-    ssh cs16 'cat /opt/cs16/logs/*/L*.log' | \
+    ssh cs16 'grep -H "" /opt/cs16/logs/*/L*.log' | \
         python3 parse_logs.py --date 2026-08-07 --from 14:25 --to 15:15
+
+grep -H prefixes each line with its file path; the logs/<mod>/ dir names
+the game mode, so each map segment comes out tagged (gungame, deathmatch,
+classic, ...). Plain `cat` input still works - mode is just null.
 
 Times are Sydney local (Australia/Sydney); log timestamps are UTC - the
 script converts. Emits JSON: one entry per map segment played in the
-window, players sorted by kills with K/D and top weapon, bots flagged.
+window, players sorted by kills with K/D, top weapon and distinct weapon
+count (gungame ladder progress), bots flagged.
 """
 import argparse
 import json
@@ -25,6 +30,10 @@ PLAYER = r'"(.+?)<\d+><(.*?)><(.*?)>"'
 KILL_RE = re.compile(rf"{TS}: {PLAYER} killed {PLAYER} with \"(.+?)\"")
 SUICIDE_RE = re.compile(rf"{TS}: {PLAYER} committed suicide")
 MAP_RE = re.compile(rf'{TS}: Started map "(.+?)"')
+PATH_RE = re.compile(r"^(?:.*?/)?logs/([^/]+)/[^:]*\.log:")
+
+MODES = {"gg": "gungame", "dm": "deathmatch", "vanilla": "classic",
+         "aim": "aim", "kz": "kz", "zp": "zombie"}
 
 
 def parse_ts(s):
@@ -46,9 +55,11 @@ def main():
     # even though gg/dm files interleave on stdin
     events = []
     for line in sys.stdin:
+        pm = PATH_RE.match(line)
+        mode = MODES.get(pm.group(1), pm.group(1)) if pm else None
         m = MAP_RE.search(line)
         if m:
-            events.append((parse_ts(m.group(1)), "map", m.group(2)))
+            events.append((parse_ts(m.group(1)), "map", (m.group(2), mode)))
             continue
         m = KILL_RE.search(line)
         if m:
@@ -61,12 +72,12 @@ def main():
             events.append((parse_ts(ts), "suicide", (name, auth)))
     events.sort(key=lambda e: e[0])
 
-    maps = []  # ordered segments: {"map": str, "players": {name: stats}}
+    maps = []  # ordered segments: {"map": str, "mode": str, "players": {name: stats}}
     current = None
 
-    def seg(map_name):
+    def seg(map_name, mode=None):
         nonlocal current
-        current = {"map": map_name, "players": defaultdict(lambda: {
+        current = {"map": map_name, "mode": mode, "players": defaultdict(lambda: {
             "kills": 0, "deaths": 0, "bot": False, "weapons": defaultdict(int)})}
         maps.append(current)
 
@@ -74,7 +85,7 @@ def main():
         if kind == "map":
             # segment boundary matters even outside the window, so the first
             # in-window kill lands on the right map
-            seg(data)
+            seg(*data)
             continue
         if not (lo <= ts <= hi):
             continue
@@ -106,9 +117,10 @@ def main():
             kd = round(p["kills"] / p["deaths"], 2) if p["deaths"] else float(p["kills"])
             top_weapon = max(p["weapons"], key=p["weapons"].get) if p["weapons"] else None
             rows.append({"name": name, "kills": p["kills"], "deaths": p["deaths"],
-                         "kd": kd, "top_weapon": top_weapon, "bot": p["bot"]})
+                         "kd": kd, "top_weapon": top_weapon,
+                         "weapons_used": len(p["weapons"]), "bot": p["bot"]})
         rows.sort(key=lambda r: (-r["kills"], -r["kd"]))
-        out.append({"map": s["map"], "players": rows})
+        out.append({"map": s["map"], "mode": s["mode"], "players": rows})
 
     json.dump({"window_utc": [lo.isoformat(), hi.isoformat()], "maps": out},
               sys.stdout, indent=1)
