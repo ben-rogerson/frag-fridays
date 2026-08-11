@@ -158,7 +158,11 @@ Custom (non-Steam) maps live in `server/maps/` and reach the server via a
 compose mount (`cs/cstrike/maps` -> `custom/maps` in the container), so
 adding one needs no image rebuild - just the deploy + clientcfg pair.
 
-Maps rotate at `mp_timelimit` (30 min). AMXX's end-of-map vote
+Maps rotate at `mp_timelimit` (30 min; vanilla runs 10 min for three maps
+per half-hour slot, plus quick-round cvars - 16k start money, 2.5-min
+rounds, 1s freezetime, 35s c4 - via box-side `mods/zp/configs/amxx.cfg`,
+which is exec'd every map start and overrides the stock server.cfg).
+AMXX's end-of-map vote
 (`mapchooser`) is enabled and fires shortly before the limit - whether the
 vote menu renders in the browser client is untested. All players can use
 `say timeleft` and `say nextmap`. To force a specific map now:
