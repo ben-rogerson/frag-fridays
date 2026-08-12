@@ -143,6 +143,65 @@
   pointer-events: none;
 }
 
+/* --- period scrollbar: Win2000 widget chrome ---------------------------- */
+
+/* the overlay is the page's only scroller; its scrollbar joins the bevel
+   grammar - sunken track, raised chrome-navy thumb, arrow buttons.
+   NOTE: chromium ignores every ::-webkit-scrollbar rule the moment the
+   standard scrollbar-color property is set, so the flat-colour fallback
+   must stay firefox-only. */
+@supports (-moz-appearance: none) {
+  .overlay {
+    scrollbar-color: #2c4278 #0a1226; /* thumb / track */
+  }
+}
+
+.overlay::-webkit-scrollbar {
+  width: 15px;
+}
+
+.overlay::-webkit-scrollbar-track {
+  background: #0a1226;
+  border-left: 1px solid var(--bevel-dark);
+}
+
+.overlay::-webkit-scrollbar-thumb {
+  /* raised chrome: horizontal gradient so the sheen reads on a vertical bar */
+  background: linear-gradient(90deg, #33497f 0%, #2c4278 45%, #1d2f5c 100%);
+  border: 1px solid var(--bevel-light);
+  border-right-color: var(--bevel-dark);
+  border-bottom-color: var(--bevel-dark);
+}
+
+.overlay::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #3d548c 0%, #344c85 45%, #243768 100%);
+}
+
+.overlay::-webkit-scrollbar-button:vertical {
+  display: block; /* chrome hides scrollbar buttons unless explicitly shown */
+  height: 15px;
+  background-color: #1d2f5c;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 1px solid var(--bevel-light);
+  border-right-color: var(--bevel-dark);
+  border-bottom-color: var(--bevel-dark);
+}
+
+.overlay::-webkit-scrollbar-button:vertical:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7'%3E%3Cpath d='M3.5 1.5 L6.5 5.5 L0.5 5.5 Z' fill='%238b9ac0'/%3E%3C/svg%3E");
+}
+
+.overlay::-webkit-scrollbar-button:vertical:increment {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='7'%3E%3Cpath d='M0.5 1.5 L6.5 1.5 L3.5 5.5 Z' fill='%238b9ac0'/%3E%3C/svg%3E");
+}
+
+/* webkit paints one button per end by default; kill the doubled-up pair */
+.overlay::-webkit-scrollbar-button:vertical:start:increment,
+.overlay::-webkit-scrollbar-button:vertical:end:decrement {
+  display: none;
+}
+
 /* --- wallpaper atmosphere: tactical grid + radar arcs + acid streaks --- */
 
 /* CPL-era briefing grid: fine blueprint lines in the radar's hyperlink

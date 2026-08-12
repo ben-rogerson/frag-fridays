@@ -236,6 +236,9 @@ The SEASON STANDINGS panel closes the main column: tournament coverage for a six
 ### Map Imagery
 Real 1.6-era map screenshots (160x120, the classic server-browser thumb size) bundled per map name in `src/assets/maps/`, always framed by the `mapshot` well: a sunken tile (inverted bevel on #060b18) whose well-inset shadow is painted over the image by an overlay pane. One placement: THE MAP POOL - a flush thumbnail-gallery strip in the CURRENT MODE card showing tonight's mode's real mapcycle, names below in Hyperlink Blue at 0.68rem. The map running on the server takes a livedot and its name in Live Signal Green. A map with no shot on hand renders the flat "no map image" tile in Faint Slate - never a stretched or invented image. Screenshots are the only bitmaps in the system; everything else stays inline SVG.
 
+### Scrollbar
+The overlay's scrollbar is period widget chrome: a 15px sunken track (#0a1226, bevel-dark left edge) with a raised chrome-navy thumb (horizontal #33497f → #1d2f5c gradient, bevel borders) and bevelled arrow buttons at each end (slate-blue SVG triangles). Firefox falls back to flat `scrollbar-color` - the standard property must never be set for Chromium, which drops all `::-webkit-scrollbar` styling when it is present.
+
 ### Footer Counter (signature)
 "you are visitor" followed by six sunken single-digit cells: acid digits on #060b18 in inverted-bevel boxes, tabular numerals. Reads 001337.
 
