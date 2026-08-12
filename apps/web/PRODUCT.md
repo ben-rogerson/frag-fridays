@@ -32,7 +32,7 @@ laptop".
 
 - One shared server (Vultr VPS, Sydney) runs one mod at a time - vanilla,
   GunGame, deathmatch, or zombie plague - all on the same player URL.
-- Sessions run Fridays from 2:30pm Sydney, announced and recapped in the work
+- Sessions run Fridays from 2pm Sydney, announced and recapped in the work
   Slack; the page is the only join surface.
 - The start page must download ~1GB-scale game files before play, so players
   spend real time on it every session - it doubles as the pre-match hype
@@ -62,7 +62,7 @@ laptop".
 ## Brand Commitments
 
 - **Frag Fridays** name (renamed from Frag Friday, Aug 2026) and the Friday
-  framing are fixed. Sessions kick off **Friday 2:30pm Sydney**.
+  framing are fixed. Sessions kick off **Friday 2pm Sydney**.
 - **Esports matchday framing**: the page is an event page for the weekly
   session (countdown to kickoff, main-event card, live data), not a passive
   fansite. Before kickoff the open server is framed as practice/warm-up, not

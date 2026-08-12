@@ -157,12 +157,12 @@ const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
 );
 
 // --- session clock ------------------------------------------------------
-// Sessions kick off Friday 2:30pm Sydney; the strip reads LIVE for the two
-// hours after kickoff, then the countdown rolls to next week.
+// Sessions kick off Friday 2pm Sydney; the strip reads LIVE for the half
+// hour of the session, then the countdown rolls to next week.
 const SESSION_DAY = 5; // Friday
 const SESSION_HOUR = 14;
-const SESSION_MINUTE = 30;
-const SESSION_LIVE_MS = 2 * 3_600_000;
+const SESSION_MINUTE = 0;
+const SESSION_LIVE_MS = 30 * 60_000;
 
 type SessionClock =
   | { id: "live" }
@@ -938,7 +938,7 @@ const App: FC = () => {
             </div>
             <p className="masthead__facts">
               <span className="masthead__game">counter-strike 1.6</span>
-              <span className="masthead__when">every friday 2:30 pm &middot; sydney server</span>
+              <span className="masthead__when">every friday 2 pm &middot; sydney server</span>
             </p>
           </header>
 
@@ -995,7 +995,7 @@ const App: FC = () => {
                     {clock.isToday ? "matchday" : "next session"}
                   </span>
                   <span className="event__when">
-                    {clock.isToday ? "today" : clock.kickoffLabel} &middot; 2:30 pm sydney
+                    {clock.isToday ? "today" : clock.kickoffLabel} &middot; 2 pm sydney
                   </span>
                   {/* the box runs all week - joining before kickoff is warm-up,
                       not the event. only claimed once a poll has answered. */}

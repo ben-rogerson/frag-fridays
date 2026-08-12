@@ -84,6 +84,39 @@ export async function downloadValveZip(
   return out;
 }
 
+// Mic capture kill-switch. The engine wasm prompts for the microphone at
+// boot: OpenAL's capture-device init and SDL's audio-capture probe both call
+// navigator.mediaDevices.getUserMedia({audio:true}). Voice is disabled
+// server-side and mic-off is deliberate - players were broadcasting without
+// realising (same rationale as webrtc.ts). With getUserMedia undefined,
+// SDL's capability probe reports no capture support and OpenAL's .catch
+// takes its handled alcErr path, so no prompt ever appears. Audio OUTPUT
+// (AudioContext playback, the hidden media elements for remote WebRTC
+// tracks in webrtc.ts) is untouched - only capture entry points are shadowed.
+function disableMicCapture() {
+  const nav = navigator as Navigator & Record<string, unknown>;
+  try {
+    if (nav.mediaDevices) {
+      // shadow the prototype method with an own undefined property
+      Object.defineProperty(nav.mediaDevices, "getUserMedia", {
+        value: undefined,
+        configurable: true,
+      });
+    }
+  } catch {
+    /* defineProperty refused - legacy shims below still starve SDL's probe */
+  }
+  for (const key of ["getUserMedia", "webkitGetUserMedia", "mozGetUserMedia"]) {
+    try {
+      if (key in nav) {
+        Object.defineProperty(nav, key, { value: undefined, configurable: true });
+      }
+    } catch {
+      /* ignore - property absent or locked down */
+    }
+  }
+}
+
 export type LaunchStatus =
   | { phase: "engine" }
   | { phase: "unpacking"; done: number; total: number };
@@ -171,6 +204,7 @@ export async function launchGame(
   onStatus: (s: LaunchStatus) => void,
   onDrop: (kind: DropKind) => void,
 ): Promise<Xash3DWebRTC> {
+  disableMicCapture(); // must run before the engine probes for audio capture
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],

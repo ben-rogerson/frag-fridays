@@ -26,6 +26,9 @@ services:
       # classic rotation over the stock 2-map cycle (all-stock maps already in
       # the valve.zip keep-list); keep line 1 equal to the +map boot arg
       - "./vanilla/mapcycle.txt:/xashds/cstrike/mapcycle.txt:ro"
+      # hostname "Frag Fridays" over the base default ("My WebXash3D CS
+      # Server" - the join banner); mod images bake this in their Dockerfiles
+      - "./vanilla/server.cfg:/xashds/cstrike/server.cfg:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
