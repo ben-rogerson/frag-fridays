@@ -926,6 +926,12 @@ const App: FC = () => {
         data-tier={tier}
         data-mode={themeMode}
       >
+        <div className="tacgrid" aria-hidden="true">
+          <span className="tacgrid__mark" style={{ top: "21%", left: "6%" }} data-coord="B2" />
+          <span className="tacgrid__mark" style={{ top: "58%", left: "90%" }} data-coord="G6" />
+          <span className="tacgrid__mark" style={{ top: "84%", left: "11%" }} data-coord="C9" />
+          <span className="tacgrid__frame" />
+        </div>
         <div className={`radar${wentLive ? " radar--burst" : ""}`} aria-hidden="true" />
         <div className="streaks" aria-hidden="true" />
         <div className="page">

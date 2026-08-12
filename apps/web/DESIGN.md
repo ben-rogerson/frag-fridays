@@ -156,7 +156,7 @@ The CS 1.6 splash wallpaper reduced to a working palette: layered navies for gro
 
 ## Layout
 
-A centred 1000px page (`max-width: 1000px`, padding 1.4rem 1.25rem 2rem) floating over two fixed atmosphere layers: a 720px radar-ring cluster bleeding off the top-right with a 24s conic sweep, and two bands of horizontal acid streaks drifting on a 14s alternate loop. Both are pointer-transparent and killed under `prefers-reduced-motion`.
+A centred 1000px page (`max-width: 1000px`, padding 1.4rem 1.25rem 2rem) floating over three fixed atmosphere layers: a CPL-style tactical briefing grid (fine 1px hyperlink-blue lines at 44px pitch with a heavier major every 176px, masked to fade behind the centre column, static, opacity riding the fuse via `--grid-o`) carrying CS-crosshair surveyor marks with ghosted grid coordinates in the accent (desktop only) and hyperlink-blue viewfinder corner brackets; a 720px radar-ring cluster bleeding off the top-right with a 24s conic sweep and scope lines through its centre; and two bands of horizontal acid streaks drifting on a 14s alternate loop. All are pointer-transparent and the animated pair is killed under `prefers-reduced-motion`.
 
 Vertical order: masthead (crest + logo + "server online"), session strip (countdown clock or LIVE state), front-page grid, footer. The grid is two columns (`1fr 300px`, 0.9rem gaps) with named areas:
 

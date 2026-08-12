@@ -46,6 +46,7 @@
   --radar-speed: 24s;
   --streak-o: 0.75;
   --streak-b: 1;
+  --grid-o: 0.6;
   /* the accent role: data-mode (set from the live info.json mode) remaps
      these, and the whole wallpaper follows - streaks, radar sweep, clock
      digits, crest, CONNECT chrome. Baseline = classic acid. */
@@ -111,12 +112,14 @@
   --radar-speed: 17s;
   --streak-o: 0.9;
   --streak-b: 1.2;
+  --grid-o: 0.75;
 }
 
 .overlay[data-tier="finalhour"] {
   --radar-speed: 10s;
   --streak-o: 1;
   --streak-b: 1.45;
+  --grid-o: 0.9;
 }
 
 /* last minute: the streaks pull back while the clock runs hot -
@@ -125,12 +128,14 @@
   --radar-speed: 7s;
   --streak-o: 0.45;
   --streak-b: 1;
+  --grid-o: 0.4;
 }
 
 .overlay[data-tier="live"] {
   --radar-speed: 13s;
   --streak-o: 0.95;
   --streak-b: 1.3;
+  --grid-o: 0.8;
 }
 
 .overlay--hidden {
@@ -138,9 +143,117 @@
   pointer-events: none;
 }
 
-/* --- wallpaper atmosphere: radar arcs + acid scanline streaks ---------- */
+/* --- wallpaper atmosphere: tactical grid + radar arcs + acid streaks --- */
 
-/* concentric radar rings sweeping in the top-right, like the splash art */
+/* CPL-era briefing grid: fine blueprint lines in the radar's hyperlink
+   blue with a heavier major line every 4th, strongest in the gutters and
+   fading behind the centre column. Static furniture - the motion stays
+   with the streaks and radar. Intensity rides the fuse via --grid-o. */
+.tacgrid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(143, 182, 240, 0.075) 0 1px,
+      transparent 1px 176px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(143, 182, 240, 0.075) 0 1px,
+      transparent 1px 176px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(143, 182, 240, 0.045) 0 1px,
+      transparent 1px 44px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      rgba(143, 182, 240, 0.045) 0 1px,
+      transparent 1px 44px
+    );
+  -webkit-mask-image: radial-gradient(
+    ellipse 85% 70% at 50% 42%,
+    rgba(0, 0, 0, 0.35) 0%,
+    #000 82%
+  );
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 42%, rgba(0, 0, 0, 0.35) 0%, #000 82%);
+  opacity: var(--grid-o, 0.6);
+  transition: opacity 1.6s ease;
+}
+
+/* surveyor marks: CS-style crosshairs (four ticks, centre gap - no circle)
+   at grid references, ghosted coordinates alongside, in the mode's signal
+   colour so the whole wallpaper remaps together */
+.tacgrid__mark {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(
+        180deg,
+        rgb(var(--accent-rgb) / 0.35) 0 8px,
+        transparent 8px 18px,
+        rgb(var(--accent-rgb) / 0.35) 18px 26px
+      )
+      50% 50% / 1px 100% no-repeat,
+    linear-gradient(
+        90deg,
+        rgb(var(--accent-rgb) / 0.35) 0 8px,
+        transparent 8px 18px,
+        rgb(var(--accent-rgb) / 0.35) 18px 26px
+      )
+      50% 50% / 100% 1px no-repeat;
+}
+
+.tacgrid__mark::after {
+  content: attr(data-coord);
+  position: absolute;
+  top: -4px;
+  left: calc(100% + 7px);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-rgb) / 0.38);
+}
+
+/* the surveyor marks live in the desktop gutters; on a phone there are no
+   gutters and a clipped coordinate reads as a stray glyph */
+@media (max-width: 760px) {
+  .tacgrid__mark {
+    display: none;
+  }
+}
+
+/* viewfinder corner brackets framing the viewport */
+.tacgrid__frame {
+  position: fixed;
+  inset: 12px;
+  background:
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) left top / 18px 1px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) left top / 1px 18px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) right top / 18px 1px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) right top / 1px 18px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) left bottom / 18px 1px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) left bottom / 1px 18px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) right bottom / 18px 1px
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.16), rgba(143, 182, 240, 0.16)) right bottom / 1px 18px
+      no-repeat;
+}
+
+/* concentric radar rings sweeping in the top-right, like the splash art;
+   scope lines through the centre tie it into the briefing grid */
 .radar {
   position: fixed;
   top: -220px;
@@ -148,11 +261,16 @@
   width: 720px;
   height: 720px;
   pointer-events: none;
-  background: repeating-radial-gradient(
-    circle at center,
-    transparent 0 78px,
-    rgba(143, 182, 240, 0.07) 78px 80px
-  );
+  background:
+    linear-gradient(rgba(143, 182, 240, 0.09), rgba(143, 182, 240, 0.09)) 50% 0 / 1px 100%
+      no-repeat,
+    linear-gradient(rgba(143, 182, 240, 0.09), rgba(143, 182, 240, 0.09)) 0 50% / 100% 1px
+      no-repeat,
+    repeating-radial-gradient(
+      circle at center,
+      transparent 0 78px,
+      rgba(143, 182, 240, 0.07) 78px 80px
+    );
   -webkit-mask-image: radial-gradient(circle at center, #000 0%, transparent 68%);
   mask-image: radial-gradient(circle at center, #000 0%, transparent 68%);
 }
