@@ -42,6 +42,16 @@ services:
       # yapb dir stays writable - YaPB downloads graphs into data/ at map start.
       - "./mods/yapb:/xashds/cstrike/addons/yapb"
       - "./mods/metamod-plugins.ini:/xashds/cstrike/addons/metamod/plugins.ini:ro"
+      # HL kill logs (log on + mp_logfile in vanilla/server.cfg) - persisted
+      # for the recap; mod images do the same via their Dockerfiles
+      - "./logs/vanilla:/xashds/cstrike/logs"
+      # segfault forensics: host kernel.core_pattern=/cores/core.%e.%t writes
+      # dumps here (2026-08-14 session: two engine crashes, no evidence left)
+      - "./cores:/cores"
+    ulimits:
+      core:
+        soft: -1
+        hard: -1
     ports:
       - "27016:27016"
       - "27018:27018/udp"

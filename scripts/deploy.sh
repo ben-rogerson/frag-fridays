@@ -108,9 +108,10 @@ fi
 # the root compose bind-mounts these; they must exist even when empty.
 # cmdpipe is the remote-console drop dir (scripts/rc.sh -> cmdpipe.amxx).
 # logs/<mod> receives HL kill logs; chown so the container's xashds (1000)
-# can write through the bind mount.
-ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm,kz}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,kz,aim} \
-  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,kz,aim}"
+# can write through the bind mount. cores/ catches segfault dumps (host
+# kernel.core_pattern points at /cores; 1777 so any container uid can write).
+ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm,kz}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,kz,aim,vanilla} $REMOTE_ROOT/cores \
+  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,kz,aim,vanilla} && chmod 1777 $REMOTE_ROOT/cores"
 
 # --- mcp control plane -------------------------------------------------------
 # Always-on, own compose project, publishes 27017 only - never part of the
@@ -137,6 +138,16 @@ fi
 
 # --- swap mod ----------------------------------------------------------------
 # One mod at a time: everything binds 27016 so the player URL never changes.
+
+# The teardown below DESTROYS the old container and its docker logs with it -
+# vanilla's only record of play, and crash output on any mod (learned
+# 2026-08-14: two engine crashes left no evidence). Snapshot first.
+log "snapshotting console logs of the running container..."
+ssh "$HOST" 'c=$(docker ps --filter publish=27016 --format "{{.Names}}" | head -n1); \
+  if [ -n "$c" ]; then mkdir -p '"$REMOTE_ROOT"'/logs/console \
+  && docker logs --since 24h "$c" > '"$REMOTE_ROOT"'/logs/console/$c-$(date -u +%Y%m%dT%H%M%SZ).log 2>&1 \
+  && echo "  saved logs/console/$c-$(date -u +%Y%m%dT%H%M%SZ).log"; fi'
+
 log "stopping whatever is running..."
 ssh "$HOST" "
   cd $REMOTE_ROOT && docker compose --profile vanilla down --remove-orphans 2>/dev/null || true

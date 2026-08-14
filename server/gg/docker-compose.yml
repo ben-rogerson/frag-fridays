@@ -23,6 +23,12 @@ services:
       - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"
       # HL kill logs (log on + mp_logfile in server.cfg) - persisted for the recap
       - "../logs/gg:/xashds/cstrike/logs"
+      # segfault forensics: host kernel.core_pattern=/cores/core.%e.%t
+      - "../cores:/cores"
+    ulimits:
+      core:
+        soft: -1
+        hard: -1
     ports:
       - "27016:27016"
       - "27018:27018"
