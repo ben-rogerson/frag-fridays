@@ -34,6 +34,14 @@ services:
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "./cmdpipe:/xashds/cstrike/cmdpipe:ro"
+      # YaPB bots (mod images bake these in; vanilla mounts them). Seeded
+      # BOX-SIDE like the rest of mods/: /opt/cs16/mods/yapb is a copy of
+      # gg/addons/yapb with yb_quota 0 (bots are added manually via rc, e.g.
+      # "yb add_t"), chown 1000; mods/metamod-plugins.ini = the image's stock
+      # Metamod plugins.ini (amxmodx line) + the yapb registration line.
+      # yapb dir stays writable - YaPB downloads graphs into data/ at map start.
+      - "./mods/yapb:/xashds/cstrike/addons/yapb"
+      - "./mods/metamod-plugins.ini:/xashds/cstrike/addons/metamod/plugins.ini:ro"
     ports:
       - "27016:27016"
       - "27018:27018/udp"
