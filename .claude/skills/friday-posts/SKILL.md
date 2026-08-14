@@ -61,7 +61,10 @@ back. Must include, in join order:
    kills steal a level, first to gold knife wins; classic: press B to buy
    at round start, no respawns - dead means spectating until next round, so
    don't rush the AWP alone
-6. Bots fill the server and leave as humans join - early birds aren't alone
+6. Bot line is mode-dependent - gg/dm: bots fill the server and leave as
+   humans join, early birds aren't alone. classic/vanilla: NO bots
+   (yb_quota 0, manual adds only) - don't claim bots will fill in; pitch
+   showing up on time instead, since early birds wait for humans
 
 Do NOT include the mic-prompt instruction in posts (Ben's call - keep the
 posts fun, and the refresh step covers stalls anyway).
@@ -72,8 +75,10 @@ posts fun, and the refresh step covers stalls anyway).
   old IP URL - never put the IP URL in a post.
 - Gun chat commands are **`/guns`**, `/ak`, `/awp` etc - dm's info.json
   says `!guns`, which is wrong.
-- Bot count: trust the live `status.json` / `yb_quota` (7 as of 2026-08-03);
-  game-guide.md's "quota 9" is stale. Or just say "bots fill the server".
+- Bot count: trust the live `status.json` / `yb_quota` (7 as of 2026-08-03
+  on gg/dm; 0 on classic/vanilla - no bots there unless added by hand);
+  game-guide.md's "quota 9" is stale. Or just say "bots fill the server"
+  (gg/dm only).
 - The team menu DOES render in-browser (runbook says otherwise - stale);
   F1/F2 are the easy path, not the only path.
 - Never name the current map in posts - maps rotate and there's voting, so
