@@ -6,9 +6,11 @@ Usage:
     ssh cs16 'cat /opt/cs16/logs/*/L*.log' | python3 scripts/standings.py
 
 Log timestamps are UTC; sessions are grouped by Sydney date. By default
-only Fridays inside the session window (14:00-16:30 Sydney) count, so
-midweek testing doesn't pollute the table. --all-days lifts the Friday
-filter, --from/--to widen the window.
+only Fridays inside the session window count, so midweek testing doesn't
+pollute the table. The window is era-aware: 14:31-14:55 for the 2pm-slot
+Fridays, 13:30-14:10 from 2026-08-14 when the session moved to 1:30pm.
+--all-days lifts the Friday filter, --from/--to override the window for
+every era.
 
 Kills outside the session window feed a separate practice table: warm-up
 frags since the most recent session (the table resets at each kickoff).
@@ -26,7 +28,7 @@ import json
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 SYD = ZoneInfo("Australia/Sydney")
@@ -63,13 +65,26 @@ def parse_ts(s):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--from", dest="start", default="14:31", help="window start HH:MM Sydney")
-    ap.add_argument("--to", dest="end", default="14:55", help="window end HH:MM Sydney")
+    ap.add_argument("--from", dest="start", default=None, help="window start HH:MM Sydney")
+    ap.add_argument("--to", dest="end", default=None, help="window end HH:MM Sydney")
     ap.add_argument("--all-days", action="store_true", help="count every day, not just Fridays")
     args = ap.parse_args()
 
-    lo = datetime.strptime(args.start, "%H:%M").time()
-    hi = datetime.strptime(args.end, "%H:%M").time()
+    # Session slot per era - the slot moved from 2pm to 1:30pm on
+    # 2026-08-14, and regeneration replays the whole log history, so the
+    # window must match what each Friday actually played.
+    NEW_SLOT_FROM = date(2026, 8, 14)
+
+    def session_window(d):
+        if d >= NEW_SLOT_FROM:
+            lo, hi = time(13, 30), time(14, 10)
+        else:
+            lo, hi = time(14, 31), time(14, 55)
+        if args.start:
+            lo = datetime.strptime(args.start, "%H:%M").time()
+        if args.end:
+            hi = datetime.strptime(args.end, "%H:%M").time()
+        return lo, hi
 
     # per Sydney date -> per player -> {kills, deaths, secs, bot}; session
     # play in days, everything else (midweek testing, warm-up) in practice
@@ -80,6 +95,7 @@ def main():
     lines = kills = 0
 
     def bucket(syd):
+        lo, hi = session_window(syd.date())
         in_window = (args.all_days or syd.weekday() == FRIDAY) and lo <= syd.time() <= hi
         return days if in_window else practice_days
 
@@ -108,6 +124,7 @@ def main():
                     p["bot"] = p["bot"] or bot
 
             if args.all_days or cur.weekday() == FRIDAY:
+                lo, hi = session_window(cur.date())
                 w0 = cur.replace(hour=lo.hour, minute=lo.minute, second=0, microsecond=0)
                 w1 = cur.replace(hour=hi.hour, minute=hi.minute, second=0, microsecond=0)
                 add(days, min(piece_end, w1) - max(cur, w0))

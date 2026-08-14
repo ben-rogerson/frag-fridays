@@ -6,7 +6,7 @@ description: Generate the two Friday-session Slack posts (morning announcement, 
 # Friday Slack posts
 
 Generate both session-day Slack posts in one run, ready to copy-paste.
-Session default: **Friday 2pm Sydney time** - 30 minutes at the end of
+Session default: **Friday 1:30pm Sydney time** - 30 minutes at the end of
 the half-day Friday, so it's the wind-down after work wraps, not a
 lunch-break squeeze. Pitch it that way (finish the week fragging), never as
 "sneak off and be back at your desk". An argument overrides the time, e.g.
@@ -43,7 +43,7 @@ unfurls/links it.
 
 **Post 1 - morning announcement (~9am).** Sets turnout. Mode name + a
 one-line pitch rewritten with banter (not the info.json tagline verbatim),
-day + time ("today 2pm"), the URL, and *Chrome on desktop for best
+day + time ("today 1:30pm"), the URL, and *Chrome on desktop for best
 performance*. Short.
 
 No preload post - loading is fast now, don't ask people to prep.
