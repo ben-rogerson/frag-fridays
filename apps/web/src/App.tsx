@@ -441,10 +441,11 @@ const MODES: ModeEntry[] = [
 
 // the Vultr box (update if the VPS is ever resized)
 const SERVER_SPECS: [string, string][] = [
-  ["vCPUs", "1 vCPU"],
-  ["RAM", "2048.00 MB"],
-  ["Storage", "25 GB NVMe"],
-  ["Location", "Sydney, AU"],
+  ["vCPUs", "2 vCPUs"],
+  ["RAM", "4096.00 MB"],
+  ["Storage", "50 GB NVMe"],
+  ["Bandwidth", "102.11 GB"],
+  ["Location", "Sydney, AU \u{1F1E6}\u{1F1FA}"],
 ];
 
 // crest above the heading (supplied artwork, recoloured via currentColor)
