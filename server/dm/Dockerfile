@@ -1,4 +1,4 @@
-FROM yohimik/cs-web-server-metpamx:latest
+FROM yohimik/cs-web-server-metpamx:0.1.3
 
 # frag_dm.sma is compiled at build time by the toolchain the base image ships
 # in scripting/ (same pattern as gg). CSDM was abandoned: its binary module

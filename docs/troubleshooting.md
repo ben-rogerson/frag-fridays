@@ -199,3 +199,79 @@ Engine console output does not reach the browser console, and `waitLog`/
 `getCVar` promises never settle because no log lines flow at runtime;
 verify cvar state with `host_writeconfig` + reading back
 `/rodir/cstrike/config.cfg`.
+
+## Base image must stay pinned - and signalling dialects differ across tags
+
+`yohimik/cs-web-server-metpamx:0.1.3` (tagged `latest` since 2026-08-02)
+changed the websocket signalling protocol: the embedded Go server sends
+`["v1:offer", {...}]` / `["v1:candidate", {...}]` JSON arrays instead of
+0.1.2's `{"event": "offer", "data": {...}}` objects, and expects
+`["v1:answer", ...]` back. A client speaking the wrong dialect silently
+ignores every message - players hang forever at "starting engine,
+connecting to server…" while the page, valve.zip download, bots, and
+cmdpipe all look perfectly healthy. Found 2026-08-19 when a routine
+`pnpm run swap gg` rebuilt the image: BuildKit re-resolves
+`FROM ...:latest` from the registry on every build, so the rebuild
+swallowed the new base even though nothing in the repo changed.
+
+Resolution (same day): `apps/web/src/webrtc.ts` now speaks BOTH dialects -
+it adopts whichever one the server's first message uses - and every
+Dockerfile plus `server/docker-compose.yml` is pinned to an explicit tag
+(`0.1.3`). Keep the pin explicit forever; never `latest`. Server-side
+quirk worth knowing: the 0.1.3 Go server re-offers up to 5 times per
+connection by design (`signalsCount` in its webrtc.go) - repeated
+`v1:offer` messages are normal, not an error loop. Its logs are also
+near-silent about webrtc sessions even at LOG_LEVEL=debug; absence of
+"websocket" errors means healthy, not absent traffic.
+
+Diagnosis recipes that found it: inject a main-world `<script>` wrapping
+`window.WebSocket`/`RTCPeerConnection` to log raw messages (the extension
+JS tool runs in an isolated world - page globals like `__xash` are
+invisible and hooks from there never reach page code; write findings into
+`document.documentElement.dataset` to read them back across worlds). To
+bisect client vs server, boot a throwaway base image with the STOCK client
+on alt ports (`-e PORT=27028 -e IP=... -p 27026:27016 -p 27028:27028/udp`,
+mount `/opt/cs16/valve.zip` in - without it the stock client dies on a
+placeholder zip). And when a headless/automation tab "fails to connect" at
+the game level with a healthy transport: check `document.hidden` FIRST -
+Chrome freezes rAF in hidden tabs, the engine loop stops, and connect
+packets (sent from the frame loop, not the `connect` command itself) never
+leave. Only a visible tab is a valid end-to-end test - or shim the frame
+loop from the isolated world before clicking connect (works because
+emscripten looks up `window.requestAnimationFrame` at call time):
+
+```js
+const s = document.createElement('script')
+s.textContent = `window.requestAnimationFrame = cb =>
+  setTimeout(() => cb(performance.now()), 16);
+window.cancelAnimationFrame = id => clearTimeout(id);`
+document.documentElement.appendChild(s)
+```
+
+Verified 2026-08-20: with the shim a fully hidden automation tab boots,
+connects, and shows up as a human on the server scoreboard - `pnpm run
+status`-level proof without a visible window.
+
+## Server sim dies silently: Host_Error kills it, the container lives on
+
+The engine's internal server can die while the container, Go websocket
+wrapper, page, and status row all stay green. Seen 2026-08-20 (09:10 UTC):
+after 14h uptime and ~54 map changes, a rotation into cs_assault hit
+
+    Host_Error: MAX_MODELS limit exceeded (4096)
+    Server was killed due to an error
+
+The engine leaks model precache slots across `Spawn Server` calls, so a
+long-lived process eventually blows the 4096 cap on a model-heavy map.
+After the kill, clients complete the websocket/WebRTC handshake and then
+hang forever on the splash screen ("the game doesn't boot"); status.json
+freezes at its last write (stale bot scoreboard, mapTimeLeft 0), and the
+only server-side trace of a connect attempt is a
+`websocket: close 1006 (abnormal closure)` line when the client gives up.
+
+Diagnosis: `pnpm run logs gg | grep -E "Host_Error|killed"` - a
+`Server was killed` line with no later `Spawn Server` means the sim is
+dead. Fix: `docker restart <container>` (docker logs survive a restart).
+Prevention idea (not built): a healthcheck on status.json staleness, or a
+pre-session restart, since uptime measured in days plus map churn is what
+arms this.

@@ -1,10 +1,16 @@
 import { Packet, Xash3D, Xash3DOptions, Net } from 'xash3d-fwgs'
 
 // WebRTC networking for the Xash3D engine, matching the signalling protocol
-// of the goxash3d-fwgs server embedded in our yohimik/cs-web-server image
-// (ported from the image's stock client, not the upstream example - the
-// example on git main targets a newer server that double-encodes `data`;
-// ours sends plain objects. We accept both).
+// of the goxash3d-fwgs server embedded in our yohimik/cs-web-server image.
+//
+// Two signalling dialects exist. Base images up to 0.1.2 speak
+// `{"event": "offer", "data": {...}}` objects (data sometimes
+// double-encoded as a JSON string - we accept both). 0.1.3+ speaks
+// versioned tuples: `["v1:offer", {...}]` / `["v1:candidate", {...}]` in,
+// `["v1:answer", {...}]` / `["v1:candidate", {...}]` out. The server sends
+// the first message (the offer), so we adopt whichever dialect it opens
+// with and answer in kind - one client works against every mod image on
+// the box regardless of which base it was built from.
 //
 // Flow: ws connects -> peer created on open -> server sends offer -> we
 // answer -> server-created 'read'/'write' data channels open -> game
@@ -32,6 +38,9 @@ export class Xash3DWebRTC extends Xash3D {
   private remoteDescription?: RTCSessionDescriptionInit
   private candidates: RTCIceCandidateInit[] = []
   private wasRemote = false
+  // adopted from the server's first message; v1 until proven otherwise
+  // (the box default is the 0.1.3+ base)
+  private v1 = true
   private silenceTimer?: number
   private droppedFired = false
   private sawTraffic = false
@@ -61,7 +70,7 @@ export class Xash3DWebRTC extends Xash3D {
   }
 
   private wsSend(event: string, data: unknown) {
-    this.ws?.send(JSON.stringify({ event, data }))
+    this.ws?.send(JSON.stringify(this.v1 ? [`v1:${event}`, data] : { event, data }))
   }
 
   private startConnection() {
@@ -152,14 +161,24 @@ export class Xash3DWebRTC extends Xash3D {
     this.ws = new WebSocket(`${proto}://${location.host}/websocket`)
     this.ws.addEventListener('message', async (e: MessageEvent) => {
       const msg = JSON.parse(e.data)
-      const data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data
-      switch (msg.event) {
+      let event: string
+      let data: unknown
+      if (Array.isArray(msg)) {
+        this.v1 = true
+        event = String(msg[0]).replace(/^v1:/, '')
+        data = msg[1]
+      } else {
+        this.v1 = false
+        event = msg.event
+        data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data
+      }
+      switch (event) {
         case 'offer':
-          this.remoteDescription = data
+          this.remoteDescription = data as RTCSessionDescriptionInit
           await this.handleDescription()
           break
         case 'candidate':
-          this.candidates.push(data)
+          this.candidates.push(data as RTCIceCandidateInit)
           if (this.wasRemote) this.handleCandidates()
           break
       }

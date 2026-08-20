@@ -1,4 +1,4 @@
-FROM yohimik/cs-web-server-metpamx:latest
+FROM yohimik/cs-web-server-metpamx:0.1.3
 
 # kz.sma is compiled at build time by the toolchain the base image ships in
 # scripting/ (same pattern as gg/dm). No YaPB here on purpose: bots cannot

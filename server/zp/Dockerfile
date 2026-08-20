@@ -1,4 +1,4 @@
-FROM yohimik/cs-web-server-metpamx:latest
+FROM yohimik/cs-web-server-metpamx:0.1.3
 
 COPY addons cstrike/addons
 

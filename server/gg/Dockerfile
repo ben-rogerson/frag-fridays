@@ -1,4 +1,4 @@
-FROM yohimik/cs-web-server-metpamx:latest
+FROM yohimik/cs-web-server-metpamx:0.1.3
 COPY addons cstrike/addons
 # curated rotation. maps.ini is regenerated from it so the end-of-map vote
 # only ever offers maps that are actually in the (trimmed) client valve.zip.

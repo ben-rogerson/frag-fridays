@@ -1,6 +1,6 @@
 services:
   vanilla:
-    image: yohimik/cs-web-server-metpamx:latest
+    image: yohimik/cs-web-server-metpamx:0.1.3
     platform: linux/386
     profiles: ["vanilla"]
     # +sv_timeout: browsers freeze the WASM game loop in background tabs, so
@@ -57,7 +57,7 @@ services:
       - "27018:27018/udp"
 
   gg:
-    image: yohimik/cs-web-server-metpamx:latest
+    image: yohimik/cs-web-server-metpamx:0.1.3
     platform: linux/386
     profiles: ["gg"]
     command: ["+map de_dust2", "+maxplayers 14", "+mp_friendlyfire 0"]
@@ -80,7 +80,7 @@ services:
       - "27028:27028/udp"
 
   dm:
-    image: yohimik/cs-web-server-metpamx:latest
+    image: yohimik/cs-web-server-metpamx:0.1.3
     platform: linux/386
     profiles: ["dm"]
     command: ["+map de_dust2", "+maxplayers 14", "+mp_friendlyfire 0"]

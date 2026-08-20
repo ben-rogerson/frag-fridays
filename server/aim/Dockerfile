@@ -1,4 +1,4 @@
-FROM yohimik/cs-web-server-metpamx:latest
+FROM yohimik/cs-web-server-metpamx:0.1.3
 
 # Aim Prac: dm's frag_dm.sma with dm_bot_knives on - 20 knife-only YaPB bots
 # on T (yapb.cfg: quota 20, join_team t, jasonmode, autovacate off), humans
