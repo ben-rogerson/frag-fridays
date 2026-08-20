@@ -252,6 +252,23 @@ Verified 2026-08-20: with the shim a fully hidden automation tab boots,
 connects, and shows up as a human on the server scoreboard - `pnpm run
 status`-level proof without a visible window.
 
+## Saved-settings snapshot replays OVER shipped userconfig defaults
+
+The localStorage snapshot (`ff-settings-v2`, see launch.ts) replays a
+player's deliberate cvar diffs after every boot - which means changing a
+default in userconfig.cfg does NOT reach players who ever changed that
+cvar themselves: their old value replays over the new shipped one.
+Testing has the same trap in reverse: cvars poked during a debugging
+session get persisted as "deliberate" diffs and survive into later
+sessions, so a fresh boot shows YOUR old experiments, not the shipped
+defaults (bit us 2026-08-21 shipping the hud-scale revert).
+
+Cleaning the snapshot has an ordering trap: persistSettings runs on page
+unload, so localStorage edits made while a session is live get
+overwritten when that page unloads. Set the live cvars back to the
+shipped values FIRST (then the diff is empty), and only then clean
+`ff-settings-v2` - or do the cleanup with no game session open.
+
 ## Server sim dies silently: Host_Error kills it, the container lives on
 
 The engine's internal server can die while the container, Go websocket
