@@ -1373,6 +1373,14 @@
   color: var(--live);
 }
 
+/* the running map's shot glows in the same signal green; -1px margin keeps
+   the thicker border from nudging the tile off the grid */
+.pool__tile--live .mapshot {
+  border: 2px solid var(--live);
+  margin: -1px;
+  box-shadow: 0 0 8px rgba(75, 227, 129, 0.55);
+}
+
 /* pool strip inside a mode preview - the sheet already pads, thumbs shrink */
 .pool--preview {
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
