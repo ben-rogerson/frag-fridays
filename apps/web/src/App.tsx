@@ -44,6 +44,15 @@ type ServerStatus = {
   players: { name: string; frags: number; bot: boolean }[];
 };
 
+type WeekPlayer = {
+  name: string;
+  kills: number;
+  deaths: number;
+  kd: number;
+  plants?: number;
+  time?: number;
+};
+
 // season standings, aggregated from the box's kill logs by
 // scripts/standings.sh after each session. Ships in the build and is
 // refreshed in place on the box, so one fetch is enough.
@@ -51,12 +60,14 @@ type Standings = {
   generated: string;
   // time is seconds on the server, from enter/disconnect log intervals;
   // optional so a stale standings.json from before the field existed parses
+  // plants = bombs the player planted that detonated; optional like time
   season: {
     name: string;
     sessions: number;
     kills: number;
     deaths: number;
     kd: number;
+    plants?: number;
     time?: number;
   }[];
   // one row per Friday since the first session. mvp is null and players
@@ -66,11 +77,11 @@ type Standings = {
     date: string;
     mvp: string | null;
     kills: number;
-    players?: { name: string; kills: number; deaths: number; kd: number; time?: number }[];
+    players?: WeekPlayer[];
     note?: string;
   }[];
   // warm-up frags since the last session; kickoff resets the table
-  practice?: { name: string; kills: number; deaths: number; kd: number; time?: number }[];
+  practice?: WeekPlayer[];
   practiceSince?: string | null;
 };
 
@@ -81,6 +92,46 @@ const playTime = (secs: number) => {
 };
 
 // "2026-08-07" -> "fri 7 aug", the kickoffLabel grammar
+// kills as a share of kills + deaths - a ratio reads badly past 1.0, a
+// percentage says "won 84% of the trades" in one glance
+const kdPct = (kills: number, deaths: number) =>
+  kills + deaths === 0 ? "-" : `${Math.round((100 * kills) / (kills + deaths))}%`;
+
+// the podium wears medals instead of rank digits
+const MEDALS = ["\u{1F947}", "\u{1F948}", "\u{1F949}"];
+const rankLabel = (i: number) =>
+  i < 3 ? <span className="standings__medal">{MEDALS[i]}</span> : String(i + 1);
+
+// the one table body shared by the weekly and practice tables
+const PlayerRows: FC<{ players: WeekPlayer[]; medals: boolean }> = ({ players, medals }) => (
+  <>
+    <thead>
+      <tr>
+        <th className="standings__num">#</th>
+        <th>player</th>
+        <th className="standings__num">k / d</th>
+        <th className="standings__num">k/d %</th>
+        <th className="standings__num">plants</th>
+        <th className="standings__num">time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {players.map((p, i) => (
+        <tr key={p.name}>
+          <td className="standings__num standings__rank">{medals ? rankLabel(i) : i + 1}</td>
+          <td className="standings__player">{p.name}</td>
+          <td className="standings__num">
+            {p.kills} / {p.deaths}
+          </td>
+          <td className="standings__num">{kdPct(p.kills, p.deaths)}</td>
+          <td className="standings__num">{p.plants ? p.plants : "-"}</td>
+          <td className="standings__num">{p.time !== undefined ? playTime(p.time) : "-"}</td>
+        </tr>
+      ))}
+    </tbody>
+  </>
+);
+
 const sessionDateLabel = (iso: string) =>
   new Date(`${iso}T12:00:00`)
     .toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
@@ -1394,9 +1445,9 @@ const App: FC = () => {
                             <th className="standings__num">#</th>
                             <th>player</th>
                             <th className="standings__num">sessions</th>
-                            <th className="standings__num">kills</th>
-                            <th className="standings__num">deaths</th>
-                            <th className="standings__num">k/d</th>
+                            <th className="standings__num">k / d</th>
+                            <th className="standings__num">k/d %</th>
+                            <th className="standings__num">plants</th>
                             <th className="standings__num">time</th>
                             <th className="standings__num">mvps</th>
                           </tr>
@@ -1406,12 +1457,14 @@ const App: FC = () => {
                             const mvps = standings.weeks.filter((w) => w.mvp === p.name).length;
                             return (
                               <tr key={p.name}>
-                                <td className="standings__num standings__rank">{i + 1}</td>
+                                <td className="standings__num standings__rank">{rankLabel(i)}</td>
                                 <td className="standings__player">{p.name}</td>
                                 <td className="standings__num">{p.sessions}</td>
-                                <td className="standings__num">{p.kills}</td>
-                                <td className="standings__num">{p.deaths}</td>
-                                <td className="standings__num">{p.kd.toFixed(2)}</td>
+                                <td className="standings__num">
+                                  {p.kills} / {p.deaths}
+                                </td>
+                                <td className="standings__num">{kdPct(p.kills, p.deaths)}</td>
+                                <td className="standings__num">{p.plants ? p.plants : "-"}</td>
                                 <td className="standings__num">
                                   {p.time !== undefined ? playTime(p.time) : "-"}
                                 </td>
@@ -1429,51 +1482,36 @@ const App: FC = () => {
                           {sessionDateLabel(played[played.length - 1].date)})
                         </p>
                       )}
-                      {/* week by week, newest first. A Friday with nothing in
-                          the logs keeps its row so the gap is stated, not
+                      {/* week by week, newest first, each week folded so the
+                          season table keeps the stage. A Friday with nothing
+                          in the logs keeps its row so the gap is stated, not
                           hidden; a partial week says what's missing */}
                       {standings.weeks
                         .map((w, i) => ({ ...w, n: i + 1 }))
                         .reverse()
-                        .map((w) => (
-                          <Fragment key={w.date}>
-                            <h3 className="card__subbar">
-                              week {w.n} &middot; {sessionDateLabel(w.date)}
-                              <span className="card__subnote">
-                                {w.mvp ? `mvp ${w.mvp} (${w.kills} kills)` : (w.note ?? "no stats recorded")}
-                              </span>
-                            </h3>
-                            {w.players && w.players.length > 0 && (
-                              <table className="standings standings--week">
-                                <thead>
-                                  <tr>
-                                    <th className="standings__num">#</th>
-                                    <th>player</th>
-                                    <th className="standings__num">kills</th>
-                                    <th className="standings__num">deaths</th>
-                                    <th className="standings__num">k/d</th>
-                                    <th className="standings__num">time</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {w.players.map((p, i) => (
-                                    <tr key={p.name}>
-                                      <td className="standings__num standings__rank">{i + 1}</td>
-                                      <td className="standings__player">{p.name}</td>
-                                      <td className="standings__num">{p.kills}</td>
-                                      <td className="standings__num">{p.deaths}</td>
-                                      <td className="standings__num">{p.kd.toFixed(2)}</td>
-                                      <td className="standings__num">
-                                        {p.time !== undefined ? playTime(p.time) : "-"}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                            {w.mvp && w.note && <p className="standings__foot">{w.note}</p>}
-                          </Fragment>
-                        ))}
+                        .map((w) => {
+                          const hasTable = !!w.players && w.players.length > 0;
+                          return (
+                            <details key={w.date} className="week">
+                              <summary className={`card__subbar week__bar${hasTable ? "" : " week__bar--empty"}`}>
+                                <span>
+                                  week {w.n} &middot; {sessionDateLabel(w.date)}
+                                </span>
+                                <span className="card__subnote">
+                                  {w.mvp
+                                    ? `mvp ${w.mvp} (${w.kills} kills)`
+                                    : (w.note ?? "no stats recorded")}
+                                </span>
+                              </summary>
+                              {hasTable && (
+                                <table className="standings standings--week">
+                                  <PlayerRows players={w.players!} medals />
+                                </table>
+                              )}
+                              {w.mvp && w.note && <p className="standings__foot">{w.note}</p>}
+                            </details>
+                          );
+                        })}
                     </>
                   ) : (
                     <p className="standings__none">
@@ -1495,31 +1533,9 @@ const App: FC = () => {
                           - reset at kickoff
                         </span>
                       </h3>
+                      {/* warm-up frags earn no medals */}
                       <table className="standings standings--practice">
-                        <thead>
-                          <tr>
-                            <th className="standings__num">#</th>
-                            <th>player</th>
-                            <th className="standings__num">kills</th>
-                            <th className="standings__num">deaths</th>
-                            <th className="standings__num">k/d</th>
-                            <th className="standings__num">time</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {standings.practice.map((p, i) => (
-                            <tr key={p.name}>
-                              <td className="standings__num standings__rank">{i + 1}</td>
-                              <td className="standings__player">{p.name}</td>
-                              <td className="standings__num">{p.kills}</td>
-                              <td className="standings__num">{p.deaths}</td>
-                              <td className="standings__num">{p.kd.toFixed(2)}</td>
-                              <td className="standings__num">
-                                {p.time !== undefined ? playTime(p.time) : "-"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
+                        <PlayerRows players={standings.practice} medals={false} />
                       </table>
                     </>
                   )}

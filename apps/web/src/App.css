@@ -964,14 +964,20 @@
     white-space: normal;
   }
 
-  /* sessions, time and mvp columns sit out on a phone; the core K/D line
-     stays */
+  /* sessions, plants, time and mvp columns sit out on a phone; the core
+     K/D line stays */
   .standings--season th:nth-child(3),
   .standings--season td:nth-child(3),
+  .standings--season th:nth-child(6),
+  .standings--season td:nth-child(6),
   .standings--season th:nth-child(7),
   .standings--season td:nth-child(7),
   .standings--season th:nth-child(8),
   .standings--season td:nth-child(8),
+  .standings--week th:nth-child(5),
+  .standings--week td:nth-child(5),
+  .standings--practice th:nth-child(5),
+  .standings--practice td:nth-child(5),
   .standings--practice th:nth-child(6),
   .standings--practice td:nth-child(6),
   .standings--week th:nth-child(6),
@@ -1796,6 +1802,15 @@ th.standings__num {
   color: var(--text-faint);
 }
 
+/* emoji sit well below cap height at table size; scale the medal up
+   without opening the row */
+.standings__medal {
+  display: inline-block;
+  font-size: 1.15rem;
+  line-height: 0.8;
+  vertical-align: -0.1em;
+}
+
 /* the season leader wears the mode's signal colour on the rank digit only -
    a micro-accent, never a second accent action. The practice leader doesn't:
    warm-up frags earn no crown */
@@ -1823,6 +1838,38 @@ th.standings__num {
   padding: 0.8rem;
   font-size: 0.8rem;
   color: var(--text-faint);
+}
+
+/* week-by-week folds: the sub-bar is the disclosure, a "+" / "-" glyph in
+   the micro-label style marks the state. Weeks start closed so the season
+   table keeps the stage */
+.week__bar {
+  cursor: pointer;
+  list-style: none;
+}
+
+.week__bar::-webkit-details-marker {
+  display: none;
+}
+
+.week__bar > span:first-child::before {
+  content: "+";
+  display: inline-block;
+  width: 1em;
+  color: var(--text-mute);
+}
+
+.week[open] > .week__bar > span:first-child::before {
+  content: "-";
+}
+
+.week__bar--empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.week__bar--empty > span:first-child::before {
+  content: "";
 }
 
 /* --- media player panel ------------------------------------------------ */

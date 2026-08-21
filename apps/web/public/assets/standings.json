@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-21T06:39:59+00:00",
+ "generated": "2026-08-21T07:14:01+00:00",
  "season": [
   {
    "name": "ZenBot",
@@ -7,6 +7,7 @@
    "kills": 199,
    "deaths": 127,
    "kd": 1.57,
+   "plants": 0,
    "time": 3818
   },
   {
@@ -15,6 +16,7 @@
    "kills": 168,
    "deaths": 44,
    "kd": 3.82,
+   "plants": 1,
    "time": 2799
   },
   {
@@ -23,6 +25,7 @@
    "kills": 101,
    "deaths": 102,
    "kd": 0.99,
+   "plants": 0,
    "time": 2521
   },
   {
@@ -31,6 +34,7 @@
    "kills": 68,
    "deaths": 71,
    "kd": 0.96,
+   "plants": 0,
    "time": 2545
   },
   {
@@ -39,6 +43,7 @@
    "kills": 54,
    "deaths": 41,
    "kd": 1.32,
+   "plants": 0,
    "time": 1926
   },
   {
@@ -47,6 +52,7 @@
    "kills": 50,
    "deaths": 18,
    "kd": 2.78,
+   "plants": 0,
    "time": 1601
   },
   {
@@ -55,6 +61,7 @@
    "kills": 41,
    "deaths": 33,
    "kd": 1.24,
+   "plants": 0,
    "time": 2029
   },
   {
@@ -63,6 +70,7 @@
    "kills": 32,
    "deaths": 19,
    "kd": 1.68,
+   "plants": 0,
    "time": 1058
   },
   {
@@ -71,6 +79,7 @@
    "kills": 25,
    "deaths": 36,
    "kd": 0.69,
+   "plants": 0,
    "time": 1158
   },
   {
@@ -79,6 +88,7 @@
    "kills": 22,
    "deaths": 29,
    "kd": 0.76,
+   "plants": 0,
    "time": 1254
   },
   {
@@ -87,6 +97,7 @@
    "kills": 21,
    "deaths": 34,
    "kd": 0.62,
+   "plants": 0,
    "time": 1384
   },
   {
@@ -95,6 +106,7 @@
    "kills": 15,
    "deaths": 47,
    "kd": 0.32,
+   "plants": 0,
    "time": 1315
   },
   {
@@ -103,6 +115,7 @@
    "kills": 14,
    "deaths": 18,
    "kd": 0.78,
+   "plants": 0,
    "time": 772
   },
   {
@@ -111,6 +124,7 @@
    "kills": 8,
    "deaths": 3,
    "kd": 2.67,
+   "plants": 0,
    "time": 127
   },
   {
@@ -119,6 +133,7 @@
    "kills": 6,
    "deaths": 12,
    "kd": 0.5,
+   "plants": 0,
    "time": 492
   },
   {
@@ -127,6 +142,7 @@
    "kills": 0,
    "deaths": 1,
    "kd": 0.0,
+   "plants": 0,
    "time": 197
   }
  ],
@@ -141,6 +157,7 @@
      "kills": 88,
      "deaths": 17,
      "kd": 5.18,
+     "plants": 1,
      "time": 1341
     },
     {
@@ -148,6 +165,7 @@
      "kills": 71,
      "deaths": 38,
      "kd": 1.87,
+     "plants": 0,
      "time": 1326
     },
     {
@@ -155,6 +173,7 @@
      "kills": 50,
      "deaths": 18,
      "kd": 2.78,
+     "plants": 0,
      "time": 1601
     },
     {
@@ -162,6 +181,7 @@
      "kills": 25,
      "deaths": 36,
      "kd": 0.69,
+     "plants": 0,
      "time": 1158
     },
     {
@@ -169,6 +189,7 @@
      "kills": 24,
      "deaths": 19,
      "kd": 1.26,
+     "plants": 0,
      "time": 1158
     },
     {
@@ -176,6 +197,7 @@
      "kills": 22,
      "deaths": 29,
      "kd": 0.76,
+     "plants": 0,
      "time": 1254
     },
     {
@@ -183,6 +205,7 @@
      "kills": 0,
      "deaths": 1,
      "kd": 0.0,
+     "plants": 0,
      "time": 197
     }
    ]
@@ -197,6 +220,7 @@
      "kills": 26,
      "deaths": 9,
      "kd": 2.89,
+     "plants": 0,
      "time": 516
     },
     {
@@ -204,6 +228,7 @@
      "kills": 23,
      "deaths": 6,
      "kd": 3.83,
+     "plants": 0,
      "time": 515
     },
     {
@@ -211,6 +236,7 @@
      "kills": 14,
      "deaths": 20,
      "kd": 0.7,
+     "plants": 0,
      "time": 534
     },
     {
@@ -218,6 +244,7 @@
      "kills": 9,
      "deaths": 23,
      "kd": 0.39,
+     "plants": 0,
      "time": 911
     },
     {
@@ -225,6 +252,7 @@
      "kills": 6,
      "deaths": 10,
      "kd": 0.6,
+     "plants": 0,
      "time": 497
     },
     {
@@ -232,6 +260,7 @@
      "kills": 6,
      "deaths": 12,
      "kd": 0.5,
+     "plants": 0,
      "time": 492
     }
    ],
@@ -247,6 +276,7 @@
      "kills": 102,
      "deaths": 80,
      "kd": 1.27,
+     "plants": 0,
      "time": 1976
     },
     {
@@ -254,6 +284,7 @@
      "kills": 87,
      "deaths": 82,
      "kd": 1.06,
+     "plants": 0,
      "time": 1987
     },
     {
@@ -261,6 +292,7 @@
      "kills": 59,
      "deaths": 48,
      "kd": 1.23,
+     "plants": 0,
      "time": 1634
     },
     {
@@ -268,6 +300,7 @@
      "kills": 57,
      "deaths": 21,
      "kd": 2.71,
+     "plants": 0,
      "time": 943
     },
     {
@@ -275,6 +308,7 @@
      "kills": 48,
      "deaths": 31,
      "kd": 1.55,
+     "plants": 0,
      "time": 1429
     },
     {
@@ -282,6 +316,7 @@
      "kills": 32,
      "deaths": 19,
      "kd": 1.68,
+     "plants": 0,
      "time": 1058
     },
     {
@@ -289,6 +324,7 @@
      "kills": 21,
      "deaths": 34,
      "kd": 0.62,
+     "plants": 0,
      "time": 1384
     },
     {
@@ -296,6 +332,7 @@
      "kills": 17,
      "deaths": 14,
      "kd": 1.21,
+     "plants": 0,
      "time": 871
     },
     {
@@ -303,6 +340,7 @@
      "kills": 15,
      "deaths": 47,
      "kd": 0.32,
+     "plants": 0,
      "time": 1315
     },
     {
@@ -310,6 +348,7 @@
      "kills": 14,
      "deaths": 18,
      "kd": 0.78,
+     "plants": 0,
      "time": 772
     },
     {
@@ -317,6 +356,7 @@
      "kills": 8,
      "deaths": 3,
      "kd": 2.67,
+     "plants": 0,
      "time": 127
     }
    ]

@@ -27,6 +27,10 @@ across the window boundary the same way. A "Log file closed/started" pair
 (map change, restart) closes any open interval, so crashes never inflate
 anyone's hours.
 
+Plants count bombs that detonated: the round's planter ("Planted_The_Bomb")
+is credited when the Team "Target_Bombed" line follows. Defusals, round
+starts and log edges clear the pending planter.
+
 Both tables are humans only - bots never rank (auth field <BOT>).
 """
 import argparse
@@ -47,6 +51,10 @@ ENTER_RE = re.compile(rf"{TS}: {PLAYER} entered the game")
 LEAVE_RE = re.compile(rf"{TS}: {PLAYER} disconnected")
 RENAME_RE = re.compile(rf'{TS}: {PLAYER} changed name to "(.+?)"')
 LOGEDGE_RE = re.compile(rf"{TS}: Log file (?:started|closed)")
+PLANT_RE = re.compile(rf'{TS}: {PLAYER} triggered "Planted_The_Bomb"')
+BOMBED_RE = re.compile(rf'{TS}: Team "TERRORIST" triggered "Target_Bombed"')
+# a defuse logs as Team "CT", a new round as World
+PLANT_OVER_RE = re.compile(rf'{TS}: (?:World|Team "CT") triggered "(?:Round_Start|Bomb_Defused)"')
 
 # bots log auth BOT on enter/kill lines but ID_BOT on disconnect
 BOT_AUTHS = {"BOT", "ID_BOT"}
@@ -106,7 +114,9 @@ def main():
     # per Sydney date -> per player -> {kills, deaths, secs, bot}; session
     # play in days, everything else (midweek testing, warm-up) in practice
     fresh = lambda: defaultdict(
-        lambda: defaultdict(lambda: {"kills": 0, "deaths": 0, "secs": 0, "bot": False})
+        lambda: defaultdict(
+            lambda: {"kills": 0, "deaths": 0, "plants": 0, "secs": 0, "bot": False}
+        )
     )
     days, practice_days = fresh(), fresh()
     lines = kills = 0
@@ -158,6 +168,7 @@ def main():
     # interval from that sighting.
     on_server = {}  # userid -> {"start": syd time, "name": str, "bot": bool}
     last_seen = None  # syd time of the last parsed line
+    planter = None  # (name, auth, syd time of the plant) until the round resolves
 
     def seen(uid, name, auth, syd):
         p = on_server.get(uid)
@@ -216,8 +227,26 @@ def main():
             if uid in on_server:
                 on_server[uid]["name"] = new
             continue
+        m = PLANT_RE.search(line)
+        if m:
+            ts_s, name, uid, auth, _ = m.groups()
+            syd = last_seen = parse_ts(ts_s).astimezone(SYD)
+            seen(uid, name, auth, syd)
+            planter = (name, auth, syd)
+            continue
+        m = BOMBED_RE.search(line)
+        if m:
+            if planter:
+                name, auth, syd = planter
+                bump(bucket(syd), syd.date().isoformat(), name, auth, "plants")
+                planter = None
+            continue
+        if PLANT_OVER_RE.search(line):
+            planter = None  # defused, or a new round: that plant never blew
+            continue
         m = LOGEDGE_RE.search(line)
         if m:
+            planter = None
             # map change or restart: everyone re-enters in the next file, so
             # close open intervals here. Close at the last activity we saw -
             # the cat'ed files aren't strictly chronological across mods, and
@@ -239,10 +268,13 @@ def main():
             "kills": p["kills"],
             "deaths": p["deaths"],
             "kd": round(p["kills"] / p["deaths"], 2) if p["deaths"] else float(p["kills"]),
+            "plants": p["plants"],
             "time": p["secs"],
         }
 
-    season = defaultdict(lambda: {"sessions": 0, "kills": 0, "deaths": 0, "secs": 0})
+    season = defaultdict(
+        lambda: {"sessions": 0, "kills": 0, "deaths": 0, "plants": 0, "secs": 0}
+    )
     played = {}  # date -> week entry, only days with human kills in the window
     for day in sorted(days):
         humans = {
@@ -260,6 +292,7 @@ def main():
             s["sessions"] += 1
             s["kills"] += p["kills"]
             s["deaths"] += p["deaths"]
+            s["plants"] += p["plants"]
             s["secs"] += p["secs"]
         players = sorted(
             (row(n, p) for n, p in humans.items()), key=lambda r: (-r["kills"], -r["kd"])
@@ -300,6 +333,7 @@ def main():
             "kills": s["kills"],
             "deaths": s["deaths"],
             "kd": round(s["kills"] / s["deaths"], 2) if s["deaths"] else float(s["kills"]),
+            "plants": s["plants"],
             "time": s["secs"],
         }
         for name, s in season.items()
@@ -308,7 +342,7 @@ def main():
 
     # practice: warm-up frags since the last session; kickoff resets the table
     last_session = max(played) if played else None
-    warmup = defaultdict(lambda: {"kills": 0, "deaths": 0, "secs": 0})
+    warmup = defaultdict(lambda: {"kills": 0, "deaths": 0, "plants": 0, "secs": 0})
     for day, players in practice_days.items():
         if last_session is not None and day <= last_session:
             continue
@@ -317,6 +351,7 @@ def main():
                 continue
             warmup[name]["kills"] += p["kills"]
             warmup[name]["deaths"] += p["deaths"]
+            warmup[name]["plants"] += p["plants"]
             warmup[name]["secs"] += p["secs"]
     practice = [
         row(name, s)
