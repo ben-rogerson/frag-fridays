@@ -157,12 +157,36 @@ const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
 );
 
 // --- session clock ------------------------------------------------------
-// Sessions kick off Friday 1:30pm Sydney; the strip reads LIVE for the half
-// hour of the session, then the countdown rolls to next week.
+// Sessions kick off Friday afternoons Sydney time, but the exact slot moves
+// week to week. /assets/session.json (editable on the box without a
+// rebuild, same serving path as standings.json) names the next kickoff:
+// {"date":"2026-08-21","hour":14,"minute":0}. It only applies while its
+// date matches the coming Friday, so a stale file falls back to the
+// default below and can never show last week's time. The strip reads LIVE
+// for the half hour of the session, then the countdown rolls to next week.
 const SESSION_DAY = 5; // Friday
 const SESSION_HOUR = 13;
 const SESSION_MINUTE = 30;
 const SESSION_LIVE_MS = 30 * 60_000;
+
+let sessionOverride: { date: string; hour: number; minute: number } | null = null;
+fetch("/assets/session.json", { cache: "no-store" })
+  .then((r) => (r.ok ? r.json() : null))
+  .then((j) => {
+    if (j && typeof j.date === "string" && Number.isFinite(j.hour)) {
+      sessionOverride = { date: j.date, hour: j.hour, minute: Number.isFinite(j.minute) ? j.minute : 0 };
+    }
+  })
+  .catch(() => {}); // no file / bad json -> default time
+
+const dateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// stamp the kickoff time onto a Date already set to the right Friday
+const applyKickoffTime = (kickoff: Date) => {
+  const o = sessionOverride && sessionOverride.date === dateKey(kickoff) ? sessionOverride : null;
+  kickoff.setHours(o ? o.hour : SESSION_HOUR, o ? o.minute : SESSION_MINUTE, 0, 0);
+};
 
 type SessionClock =
   | { id: "live" }
@@ -175,6 +199,7 @@ type SessionClock =
       secs: number;
       isToday: boolean;
       kickoffLabel: string; // e.g. "fri 7 aug"
+      timeLabel: string; // e.g. "1.30 pm", "2 pm" - this week's actual slot
     };
 
 // The page's energy tracks the countdown: calm midweek, charged on matchday,
@@ -207,7 +232,12 @@ const DEBUG_MODE = new URLSearchParams(window.location.search).get("mode");
 const sydneyNow = () =>
   new Date(new Date().toLocaleString("en-US", { timeZone: "Australia/Sydney" }));
 
-const countdownFrom = (ms: number, isToday: boolean, kickoffLabel: string): SessionClock => ({
+const countdownFrom = (
+  ms: number,
+  isToday: boolean,
+  kickoffLabel: string,
+  timeLabel: string,
+): SessionClock => ({
   id: "countdown",
   msLeft: ms,
   days: Math.floor(ms / 86_400_000),
@@ -216,21 +246,25 @@ const countdownFrom = (ms: number, isToday: boolean, kickoffLabel: string): Sess
   secs: Math.floor(ms / 1_000) % 60,
   isToday,
   kickoffLabel,
+  timeLabel,
 });
 
 function sessionClock(): SessionClock {
   if (DEBUG_KICKOFF !== null) {
     const ms = DEBUG_KICKOFF - Date.now();
-    return ms <= 0 ? { id: "live" } : countdownFrom(ms, true, "today");
+    return ms <= 0 ? { id: "live" } : countdownFrom(ms, true, "today", "1.30 pm");
   }
   const now = sydneyNow();
   const kickoff = new Date(now);
   kickoff.setDate(kickoff.getDate() + ((SESSION_DAY - now.getDay() + 7) % 7));
-  kickoff.setHours(SESSION_HOUR, SESSION_MINUTE, 0, 0);
+  applyKickoffTime(kickoff);
   if (kickoff.getTime() <= now.getTime()) {
     if (now.getTime() - kickoff.getTime() < SESSION_LIVE_MS) return { id: "live" };
     kickoff.setDate(kickoff.getDate() + 7);
+    applyKickoffTime(kickoff); // next week may have its own slot (or the default)
   }
+  const h = kickoff.getHours();
+  const m = kickoff.getMinutes();
   const ms = kickoff.getTime() - now.getTime();
   return countdownFrom(
     ms,
@@ -239,6 +273,7 @@ function sessionClock(): SessionClock {
       .toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
       .replace(",", "")
       .toLowerCase(),
+    `${h % 12 || 12}${m ? "." + String(m).padStart(2, "0") : ""} ${h < 12 ? "am" : "pm"}`,
   );
 }
 
@@ -949,7 +984,7 @@ const App: FC = () => {
             </div>
             <p className="masthead__facts">
               <span className="masthead__game">counter-strike 1.6</span>
-              <span className="masthead__when">every friday 1.30 pm &middot; sydney server</span>
+              <span className="masthead__when">every friday &middot; sydney server</span>
             </p>
           </header>
 
@@ -1006,7 +1041,7 @@ const App: FC = () => {
                     {clock.isToday ? "matchday" : "next session"}
                   </span>
                   <span className="event__when">
-                    {clock.isToday ? "today" : clock.kickoffLabel} &middot; 1.30 pm sydney
+                    {clock.isToday ? "today" : clock.kickoffLabel} &middot; {clock.timeLabel} sydney
                   </span>
                   {/* the box runs all week - joining before kickoff is warm-up,
                       not the event. only claimed once a poll has answered. */}
