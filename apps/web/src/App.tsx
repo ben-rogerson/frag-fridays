@@ -439,13 +439,17 @@ const MODES: ModeEntry[] = [
   },
 ];
 
-// the Vultr box (update if the VPS is ever resized)
-const SERVER_SPECS: [string, string][] = [
-  ["vCPUs", "2 vCPUs"],
-  ["RAM", "4096.00 MB"],
-  ["Storage", "50 GB NVMe"],
-  ["Bandwidth", "102.11 GB"],
-  ["Location", "Sydney, AU \u{1F1E6}\u{1F1FA}"],
+// the Vultr box (update if the VPS is ever resized). `was` is the pre-resize
+// value - rows that carry one render as a before -> after delta so the
+// upgrade reads as real numbers, not a claim.
+type ServerSpec = { label: string; value: string; was?: string };
+const SERVER_UPGRADED_ON = "19 aug 2026";
+const SERVER_SPECS: ServerSpec[] = [
+  { label: "vCPUs", value: "2 vCPUs", was: "1 vCPU" },
+  { label: "RAM", value: "4096.00 MB", was: "2048.00 MB" },
+  { label: "Storage", value: "50 GB NVMe", was: "25 GB NVMe" },
+  { label: "Bandwidth", value: "102.11 GB" },
+  { label: "Location", value: "Sydney, AU \u{1F1E6}\u{1F1FA}" },
 ];
 
 // crest above the heading (supplied artwork, recoloured via currentColor)
@@ -1480,20 +1484,43 @@ const App: FC = () => {
                   )}
                 </h2>
                 <div className="panel__body">
-                  <img
-                    className="specs__photo"
-                    src="/assets/server-hardware.jpg"
-                    alt="The actual server: a dusty Compaq ProLiant tower labelled CS 1.6 SERVER"
-                    loading="lazy"
-                  />
+                  <div className="specs__figure">
+                    <img
+                      className="specs__photo"
+                      src="/assets/server-hardware.jpg"
+                      alt="The actual server: a dusty Compaq ProLiant tower labelled CS 1.6 SERVER"
+                      loading="lazy"
+                    />
+                    {/* early-2000s product-ad sticker; decorative, the facts are in the table */}
+                    <span className="specs__burst" aria-hidden="true">
+                      <span className="specs__burst-new">new!</span>
+                      <span className="specs__burst-sub">2× spec</span>
+                    </span>
+                  </div>
                   <dl className="specs">
-                    {SERVER_SPECS.map(([k, v]) => (
-                      <div className="specs__row" key={k}>
-                        <dt>{k}</dt>
-                        <dd>{v}</dd>
+                    {SERVER_SPECS.map(({ label, value, was }) => (
+                      <div className={was ? "specs__row specs__row--up" : "specs__row"} key={label}>
+                        <dt>{label}</dt>
+                        <dd>
+                          {was ? (
+                            <>
+                              <s className="specs__was">{was}</s>
+                              <span className="specs__arrow" aria-hidden="true">
+                                →
+                              </span>
+                              <span className="specs__now">{value}</span>
+                            </>
+                          ) : (
+                            value
+                          )}
+                        </dd>
                       </div>
                     ))}
                   </dl>
+                  <p className="specs__note">
+                    <span className="specs__flag">upgraded</span>
+                    resized {SERVER_UPGRADED_ON} - double the cores, ram and disk.
+                  </p>
                 </div>
               </section>
             </aside>
