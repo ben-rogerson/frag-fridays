@@ -55,9 +55,9 @@ press start, race to the top, press stop; finishes are announced and logged.
 ## Bots (YaPB 4.4.957)
 
 Both gg and dm ship YaPB so the server is never empty. `yb_quota_mode fill`
-with `yb_quota 8` keeps the *total* headcount at 8: 8 bots on an empty
-server, each human that joins displaces one bot, zero bots once 8 humans are
-in. (The previous `normal` mode meant "always 8 bots" - `yb_autovacate` /
+with `yb_quota 10` keeps the *total* headcount at 10 (5v5): 10 bots on an
+empty server, each human that joins displaces one bot, zero bots once 10
+humans are in. (The previous `normal` mode meant "always 7 bots" - `yb_autovacate` /
 `yb_kick_after_player_connect` only kick to free a slot, so with 16 slots
 bots hung around until the 8th human. Changed 2026-08-21.) Bots are unmistakable on the scoreboard: names are
 prefixed `[BOT]` and the ping column shows `BOT` rather than a fake ping.
@@ -95,7 +95,7 @@ and `yb_difficulty_auto 0`, then `yb_difficulty` alone applies.
 
 | Cvar | Current | Notes |
 |---|---|---|
-| `yb_quota` | 8 | target total players in `fill` mode (bot count in `normal`); lower it for tiny maps |
+| `yb_quota` | 10 | target total players in `fill` mode (bot count in `normal`); lower it for tiny maps |
 | `yb_quota_mode` | fill | `fill` = top up to quota counting humans (bots leave as humans arrive); `normal` = fixed bot count, only vacate when slots run out; `match` = N bots per human |
 | `yb_join_team` | any | force `t`/`ct` to stack one side |
 | `yb_chat` / `yb_chat_percent` | 0 / 30 | text-chat banter, off since 2026-08-02 |
