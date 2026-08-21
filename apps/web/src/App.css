@@ -973,7 +973,9 @@
   .standings--season th:nth-child(8),
   .standings--season td:nth-child(8),
   .standings--practice th:nth-child(6),
-  .standings--practice td:nth-child(6) {
+  .standings--practice td:nth-child(6),
+  .standings--week th:nth-child(6),
+  .standings--week td:nth-child(6) {
     display: none;
   }
 

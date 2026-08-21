@@ -59,7 +59,16 @@ type Standings = {
     kd: number;
     time?: number;
   }[];
-  weeks: { date: string; mvp: string; kills: number }[];
+  // one row per Friday since the first session. mvp is null and players
+  // empty for a week with nothing in the logs; note states why a week's
+  // figures are partial (or that none were recorded)
+  weeks: {
+    date: string;
+    mvp: string | null;
+    kills: number;
+    players?: { name: string; kills: number; deaths: number; kd: number; time?: number }[];
+    note?: string;
+  }[];
   // warm-up frags since the last session; kickoff resets the table
   practice?: { name: string; kills: number; deaths: number; kd: number; time?: number }[];
   practiceSince?: string | null;
@@ -631,6 +640,9 @@ const App: FC = () => {
   const [openMode, setOpenMode] = useState<string | null>(null);
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
   const [standings, setStandings] = useState<Standings | null>(null);
+  // weeks that actually produced results; unlogged Fridays stay in the
+  // breakdown but never count as sessions
+  const played = standings?.weeks.filter((w) => w.mvp) ?? [];
   // measured round-trip of the last successful status poll; pollTick remounts
   // the masthead livedot so it blips once per real answer from the box
   const [ping, setPing] = useState<number | null>(null);
@@ -1409,16 +1421,59 @@ const App: FC = () => {
                           })}
                         </tbody>
                       </table>
-                      {standings.weeks.length > 0 && (
+                      {played.length > 0 && (
                         <p className="standings__foot">
-                          {standings.weeks.length}{" "}
-                          {standings.weeks.length === 1 ? "session" : "sessions"} played &middot;
-                          last mvp:{" "}
-                          <strong>{standings.weeks[standings.weeks.length - 1].mvp}</strong> (
-                          {standings.weeks[standings.weeks.length - 1].kills} kills,{" "}
-                          {sessionDateLabel(standings.weeks[standings.weeks.length - 1].date)})
+                          {played.length} {played.length === 1 ? "session" : "sessions"} played
+                          &middot; last mvp: <strong>{played[played.length - 1].mvp}</strong> (
+                          {played[played.length - 1].kills} kills,{" "}
+                          {sessionDateLabel(played[played.length - 1].date)})
                         </p>
                       )}
+                      {/* week by week, newest first. A Friday with nothing in
+                          the logs keeps its row so the gap is stated, not
+                          hidden; a partial week says what's missing */}
+                      {standings.weeks
+                        .map((w, i) => ({ ...w, n: i + 1 }))
+                        .reverse()
+                        .map((w) => (
+                          <Fragment key={w.date}>
+                            <h3 className="card__subbar">
+                              week {w.n} &middot; {sessionDateLabel(w.date)}
+                              <span className="card__subnote">
+                                {w.mvp ? `mvp ${w.mvp} (${w.kills} kills)` : (w.note ?? "no stats recorded")}
+                              </span>
+                            </h3>
+                            {w.players && w.players.length > 0 && (
+                              <table className="standings standings--week">
+                                <thead>
+                                  <tr>
+                                    <th className="standings__num">#</th>
+                                    <th>player</th>
+                                    <th className="standings__num">kills</th>
+                                    <th className="standings__num">deaths</th>
+                                    <th className="standings__num">k/d</th>
+                                    <th className="standings__num">time</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {w.players.map((p, i) => (
+                                    <tr key={p.name}>
+                                      <td className="standings__num standings__rank">{i + 1}</td>
+                                      <td className="standings__player">{p.name}</td>
+                                      <td className="standings__num">{p.kills}</td>
+                                      <td className="standings__num">{p.deaths}</td>
+                                      <td className="standings__num">{p.kd.toFixed(2)}</td>
+                                      <td className="standings__num">
+                                        {p.time !== undefined ? playTime(p.time) : "-"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                            {w.mvp && w.note && <p className="standings__foot">{w.note}</p>}
+                          </Fragment>
+                        ))}
                     </>
                   ) : (
                     <p className="standings__none">

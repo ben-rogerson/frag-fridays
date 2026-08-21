@@ -7,10 +7,16 @@ Usage:
 
 Log timestamps are UTC; sessions are grouped by Sydney date. By default
 only Fridays inside the session window count, so midweek testing doesn't
-pollute the table. The window is era-aware: 14:31-14:55 for the 2pm-slot
-Fridays, 13:30-14:10 from 2026-08-14 when the session moved to 1:30pm.
+pollute the table. The window is per era (SLOT_ERAS below) because the slot
+moves week to week and regeneration replays the whole log history.
 --all-days lifts the Friday filter, --from/--to override the window for
 every era.
+
+Every Friday from the first session onwards gets a row in "weeks" with its
+own player table, so the page can show a week-by-week breakdown. A Friday
+with no kills in its window is still listed - "no stats recorded" - and a
+week whose logs are known to be incomplete carries a note (WEEK_NOTES).
+Neither counts as a session for the season totals unless it has kills.
 
 Kills outside the session window feed a separate practice table: warm-up
 frags since the most recent session (the table resets at each kickoff).
@@ -58,6 +64,25 @@ def canon(name):
 
 FRIDAY = 4  # datetime.weekday()
 
+# Session window per era, Sydney time, newest first: (first Friday it
+# applies from, start, end). The slot has moved twice, and the window only
+# needs to bracket the actual play - warm-up before kickoff is practice.
+SLOT_ERAS = [
+    (date(2026, 8, 21), time(14, 0), time(15, 0)),  # 2pm slot (late start, played 14:17-14:53)
+    (date(2026, 8, 14), time(13, 30), time(14, 10)),  # 1:30pm slot
+    (date.min, time(14, 31), time(14, 55)),  # 2pm slot, gungame half only
+]
+
+# Weeks whose logs don't tell the whole story. Stated flat on the page.
+WEEK_NOTES = {
+    "2026-08-14": (
+        "partial - kill logging was off for the classic half (1:30-2pm); "
+        "only the deathmatch stretch from 2pm to the server crash at 2:11 is counted"
+    ),
+}
+
+NO_STATS = "no stats recorded"
+
 
 def parse_ts(s):
     return datetime.strptime(s, "%m/%d/%Y - %H:%M:%S").replace(tzinfo=timezone.utc)
@@ -70,16 +95,8 @@ def main():
     ap.add_argument("--all-days", action="store_true", help="count every day, not just Fridays")
     args = ap.parse_args()
 
-    # Session slot per era - the slot moved from 2pm to 1:30pm on
-    # 2026-08-14, and regeneration replays the whole log history, so the
-    # window must match what each Friday actually played.
-    NEW_SLOT_FROM = date(2026, 8, 14)
-
     def session_window(d):
-        if d >= NEW_SLOT_FROM:
-            lo, hi = time(13, 30), time(14, 10)
-        else:
-            lo, hi = time(14, 31), time(14, 55)
+        lo, hi = next((lo, hi) for since, lo, hi in SLOT_ERAS if d >= since)
         if args.start:
             lo = datetime.strptime(args.start, "%H:%M").time()
         if args.end:
@@ -216,26 +233,65 @@ def main():
         for uid in list(on_server):
             leave(uid, last_seen)
 
+    def row(name, p):
+        return {
+            "name": name,
+            "kills": p["kills"],
+            "deaths": p["deaths"],
+            "kd": round(p["kills"] / p["deaths"], 2) if p["deaths"] else float(p["kills"]),
+            "time": p["secs"],
+        }
+
     season = defaultdict(lambda: {"sessions": 0, "kills": 0, "deaths": 0, "secs": 0})
-    weeks = []
+    played = {}  # date -> week entry, only days with human kills in the window
     for day in sorted(days):
         humans = {
             n: p
             for n, p in days[day].items()
             if not p["bot"] and not UNRANKED_RE.search(n)
+            # kills or deaths required: never fragged, never fell is a
+            # spectator, not a player
+            and (p["kills"] or p["deaths"])
         }
         if not any(p["kills"] for p in humans.values()):
             continue  # bots-only day (nobody showed) doesn't count as a session
         for name, p in humans.items():
-            if not (p["kills"] or p["deaths"]):
-                continue  # never fragged, never fell: a spectator, not a player
             s = season[name]
             s["sessions"] += 1
             s["kills"] += p["kills"]
             s["deaths"] += p["deaths"]
             s["secs"] += p["secs"]
-        mvp = max(humans, key=lambda n: humans[n]["kills"])
-        weeks.append({"date": day, "mvp": mvp, "kills": humans[mvp]["kills"]})
+        players = sorted(
+            (row(n, p) for n, p in humans.items()), key=lambda r: (-r["kills"], -r["kd"])
+        )
+        entry = {
+            "date": day,
+            "mvp": players[0]["name"],
+            "kills": players[0]["kills"],
+            "players": players,
+        }
+        if day in WEEK_NOTES:
+            entry["note"] = WEEK_NOTES[day]
+        played[day] = entry
+
+    # One row per Friday from the first session to the most recent Friday
+    # whose window has passed, so a week with nothing in the logs shows up
+    # as exactly that instead of silently vanishing from the season.
+    weeks = []
+    if played and not args.all_days:
+        now = datetime.now(SYD)
+        last_friday = now.date() - timedelta(days=(now.weekday() - FRIDAY) % 7)
+        if last_friday == now.date() and now.time() < session_window(last_friday)[1]:
+            last_friday -= timedelta(days=7)
+        d = date.fromisoformat(min(played))
+        while d <= max(last_friday, date.fromisoformat(max(played))):
+            weeks.append(
+                played.get(d.isoformat())
+                or {"date": d.isoformat(), "mvp": None, "kills": 0, "players": [], "note": NO_STATS}
+            )
+            d += timedelta(days=7)
+    else:
+        weeks = [played[d] for d in sorted(played)]
 
     table = [
         {
@@ -251,7 +307,7 @@ def main():
     table.sort(key=lambda r: (-r["kills"], -r["kd"]))
 
     # practice: warm-up frags since the last session; kickoff resets the table
-    last_session = weeks[-1]["date"] if weeks else None
+    last_session = max(played) if played else None
     warmup = defaultdict(lambda: {"kills": 0, "deaths": 0, "secs": 0})
     for day, players in practice_days.items():
         if last_session is not None and day <= last_session:
@@ -263,13 +319,7 @@ def main():
             warmup[name]["deaths"] += p["deaths"]
             warmup[name]["secs"] += p["secs"]
     practice = [
-        {
-            "name": name,
-            "kills": s["kills"],
-            "deaths": s["deaths"],
-            "kd": round(s["kills"] / s["deaths"], 2) if s["deaths"] else float(s["kills"]),
-            "time": s["secs"],
-        }
+        row(name, s)
         for name, s in warmup.items()
         # kills or deaths required: headless probes and spectators clock
         # hours without ever touching the game, and they never rank
@@ -291,7 +341,7 @@ def main():
     print()
     print(
         f"standings: {lines} log lines, {kills} counted kills, "
-        f"{len(weeks)} sessions, {len(table)} ranked players, "
+        f"{len(played)} sessions over {len(weeks)} weeks, {len(table)} ranked players, "
         f"{len(practice)} in practice",
         file=sys.stderr,
     )

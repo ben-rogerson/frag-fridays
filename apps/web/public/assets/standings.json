@@ -1,21 +1,45 @@
 {
- "generated": "2026-08-07T06:30:20+00:00",
+ "generated": "2026-08-21T06:39:59+00:00",
  "season": [
   {
-   "name": "Reversons",
-   "sessions": 1,
-   "kills": 88,
-   "deaths": 17,
-   "kd": 5.18,
-   "time": 1341
+   "name": "ZenBot",
+   "sessions": 3,
+   "kills": 199,
+   "deaths": 127,
+   "kd": 1.57,
+   "time": 3818
   },
   {
-   "name": "ZenBot",
-   "sessions": 1,
-   "kills": 71,
-   "deaths": 38,
-   "kd": 1.87,
-   "time": 1326
+   "name": "Reversons",
+   "sessions": 3,
+   "kills": 168,
+   "deaths": 44,
+   "kd": 3.82,
+   "time": 2799
+  },
+  {
+   "name": "Bot 1 (easy)",
+   "sessions": 2,
+   "kills": 101,
+   "deaths": 102,
+   "kd": 0.99,
+   "time": 2521
+  },
+  {
+   "name": "Al",
+   "sessions": 2,
+   "kills": 68,
+   "deaths": 71,
+   "kd": 0.96,
+   "time": 2545
+  },
+  {
+   "name": "Cem",
+   "sessions": 2,
+   "kills": 54,
+   "deaths": 41,
+   "kd": 1.32,
+   "time": 1926
   },
   {
    "name": "_vicentEYyyo",
@@ -26,19 +50,27 @@
    "time": 1601
   },
   {
+   "name": "CantAim",
+   "sessions": 2,
+   "kills": 41,
+   "deaths": 33,
+   "kd": 1.24,
+   "time": 2029
+  },
+  {
+   "name": "Khoa",
+   "sessions": 1,
+   "kills": 32,
+   "deaths": 19,
+   "kd": 1.68,
+   "time": 1058
+  },
+  {
    "name": "professorsx",
    "sessions": 1,
    "kills": 25,
    "deaths": 36,
    "kd": 0.69,
-   "time": 1158
-  },
-  {
-   "name": "CantAim",
-   "sessions": 1,
-   "kills": 24,
-   "deaths": 19,
-   "kd": 1.26,
    "time": 1158
   },
   {
@@ -48,6 +80,46 @@
    "deaths": 29,
    "kd": 0.76,
    "time": 1254
+  },
+  {
+   "name": "Mauro",
+   "sessions": 1,
+   "kills": 21,
+   "deaths": 34,
+   "kd": 0.62,
+   "time": 1384
+  },
+  {
+   "name": "professorx",
+   "sessions": 1,
+   "kills": 15,
+   "deaths": 47,
+   "kd": 0.32,
+   "time": 1315
+  },
+  {
+   "name": "[Bot] Hai-bot",
+   "sessions": 1,
+   "kills": 14,
+   "deaths": 18,
+   "kd": 0.78,
+   "time": 772
+  },
+  {
+   "name": "ViteJS",
+   "sessions": 1,
+   "kills": 8,
+   "deaths": 3,
+   "kd": 2.67,
+   "time": 127
+  },
+  {
+   "name": "Mitchell",
+   "sessions": 1,
+   "kills": 6,
+   "deaths": 12,
+   "kd": 0.5,
+   "time": 492
   },
   {
    "name": "NotMario",
@@ -62,9 +134,194 @@
   {
    "date": "2026-08-07",
    "mvp": "Reversons",
-   "kills": 88
+   "kills": 88,
+   "players": [
+    {
+     "name": "Reversons",
+     "kills": 88,
+     "deaths": 17,
+     "kd": 5.18,
+     "time": 1341
+    },
+    {
+     "name": "ZenBot",
+     "kills": 71,
+     "deaths": 38,
+     "kd": 1.87,
+     "time": 1326
+    },
+    {
+     "name": "_vicentEYyyo",
+     "kills": 50,
+     "deaths": 18,
+     "kd": 2.78,
+     "time": 1601
+    },
+    {
+     "name": "professorsx",
+     "kills": 25,
+     "deaths": 36,
+     "kd": 0.69,
+     "time": 1158
+    },
+    {
+     "name": "CantAim",
+     "kills": 24,
+     "deaths": 19,
+     "kd": 1.26,
+     "time": 1158
+    },
+    {
+     "name": "InfraGuy",
+     "kills": 22,
+     "deaths": 29,
+     "kd": 0.76,
+     "time": 1254
+    },
+    {
+     "name": "NotMario",
+     "kills": 0,
+     "deaths": 1,
+     "kd": 0.0,
+     "time": 197
+    }
+   ]
+  },
+  {
+   "date": "2026-08-14",
+   "mvp": "ZenBot",
+   "kills": 26,
+   "players": [
+    {
+     "name": "ZenBot",
+     "kills": 26,
+     "deaths": 9,
+     "kd": 2.89,
+     "time": 516
+    },
+    {
+     "name": "Reversons",
+     "kills": 23,
+     "deaths": 6,
+     "kd": 3.83,
+     "time": 515
+    },
+    {
+     "name": "Bot 1 (easy)",
+     "kills": 14,
+     "deaths": 20,
+     "kd": 0.7,
+     "time": 534
+    },
+    {
+     "name": "Al",
+     "kills": 9,
+     "deaths": 23,
+     "kd": 0.39,
+     "time": 911
+    },
+    {
+     "name": "Cem",
+     "kills": 6,
+     "deaths": 10,
+     "kd": 0.6,
+     "time": 497
+    },
+    {
+     "name": "Mitchell",
+     "kills": 6,
+     "deaths": 12,
+     "kd": 0.5,
+     "time": 492
+    }
+   ],
+   "note": "partial - kill logging was off for the classic half (1:30-2pm); only the deathmatch stretch from 2pm to the server crash at 2:11 is counted"
+  },
+  {
+   "date": "2026-08-21",
+   "mvp": "ZenBot",
+   "kills": 102,
+   "players": [
+    {
+     "name": "ZenBot",
+     "kills": 102,
+     "deaths": 80,
+     "kd": 1.27,
+     "time": 1976
+    },
+    {
+     "name": "Bot 1 (easy)",
+     "kills": 87,
+     "deaths": 82,
+     "kd": 1.06,
+     "time": 1987
+    },
+    {
+     "name": "Al",
+     "kills": 59,
+     "deaths": 48,
+     "kd": 1.23,
+     "time": 1634
+    },
+    {
+     "name": "Reversons",
+     "kills": 57,
+     "deaths": 21,
+     "kd": 2.71,
+     "time": 943
+    },
+    {
+     "name": "Cem",
+     "kills": 48,
+     "deaths": 31,
+     "kd": 1.55,
+     "time": 1429
+    },
+    {
+     "name": "Khoa",
+     "kills": 32,
+     "deaths": 19,
+     "kd": 1.68,
+     "time": 1058
+    },
+    {
+     "name": "Mauro",
+     "kills": 21,
+     "deaths": 34,
+     "kd": 0.62,
+     "time": 1384
+    },
+    {
+     "name": "CantAim",
+     "kills": 17,
+     "deaths": 14,
+     "kd": 1.21,
+     "time": 871
+    },
+    {
+     "name": "professorx",
+     "kills": 15,
+     "deaths": 47,
+     "kd": 0.32,
+     "time": 1315
+    },
+    {
+     "name": "[Bot] Hai-bot",
+     "kills": 14,
+     "deaths": 18,
+     "kd": 0.78,
+     "time": 772
+    },
+    {
+     "name": "ViteJS",
+     "kills": 8,
+     "deaths": 3,
+     "kd": 2.67,
+     "time": 127
+    }
+   ]
   }
  ],
  "practice": [],
- "practiceSince": "2026-08-07"
+ "practiceSince": "2026-08-21"
 }
