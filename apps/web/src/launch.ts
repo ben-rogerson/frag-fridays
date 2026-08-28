@@ -170,6 +170,34 @@ function captureEngineFatals(onFatal: (message: string) => void) {
   );
 }
 
+// Escape must never reach the engine: this build cannot draw its own menus,
+// and the attempt throws RuntimeError: remainder by zero in UI_DrawString and
+// takes the render loop with it (backlog item 2). The tab freezes, the client
+// goes silent, and the drop watchdog reports a disconnect ~10s later.
+//
+// Registered BEFORE the engine initialises, and that ordering is the whole
+// point: capture-phase listeners on one target fire in registration order, so
+// a handler added later (say, when play starts) loses the race to SDL's own
+// and the menu opens anyway - exactly what happened on the first attempt at
+// this fix (2026-08-28). Registered first on window+capture it beats SDL
+// wherever SDL listens, since capture runs window -> document -> canvas
+// before any bubble handler.
+//
+// Deliberately no preventDefault: leaving the default alone keeps the
+// browser's fullscreen and pointer-lock exit on Escape, both handled above
+// the page and uncancellable by it anyway.
+function interceptEscape(onEscape: () => void) {
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape" || !engineRunning) return;
+      e.stopImmediatePropagation();
+      onEscape();
+    },
+    true,
+  );
+}
+
 export type LaunchStatus =
   | { phase: "engine" }
   | { phase: "unpacking"; done: number; total: number };
@@ -275,9 +303,11 @@ export async function launchGame(
   onStatus: (s: LaunchStatus) => void,
   onDrop: (kind: DropKind) => void,
   onFatal: (message: string) => void,
+  onEscape: () => void,
 ): Promise<Xash3DWebRTC> {
   disableMicCapture(); // must run before the engine probes for audio capture
   captureEngineFatals(onFatal); // ...and before it can Sys_Error
+  interceptEscape(onEscape); // ...and before SDL claims the keyboard
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],
