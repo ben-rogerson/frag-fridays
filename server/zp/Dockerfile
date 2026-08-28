@@ -10,4 +10,13 @@ RUN chmod +x cstrike/addons/amxmodx/scripting/compile.sh && chmod +x cstrike/add
  && ./compile.sh \
  && cp compiled/*.amxx ../plugins/
 
+# the engine creates cstrike/custom.hpk - the spray/decal store - the first
+# time a client uploads its decal, and DELETES the file again when it drops
+# to a single entry, so it must create and unlink entries in cstrike/ itself;
+# a pre-created writable file is not enough. Root-owned, every spray logged
+# "FS_SysOpen: can't open file cstrike/custom.hpk: Permission denied" - three
+# lines per map spawn with three humans on (seen 2026-08-28). Only the
+# directory entry changes hands; the files inside stay root-owned.
+RUN chown xashds cstrike
+
 USER xashds

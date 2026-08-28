@@ -292,3 +292,44 @@ dead. Fix: `docker restart <container>` (docker logs survive a restart).
 Prevention idea (not built): a healthcheck on status.json staleness, or a
 pre-session restart, since uptime measured in days plus map churn is what
 arms this.
+
+## Engine crashes surface as a native `alert()` that freezes the tab
+
+Reported 2026-08-28 (Windows/Chrome): after being dropped by the server, the
+page showed a browser modal reading
+
+    Xash Error
+
+    Mem_FreeBlock: not allocated or double freed
+
+`Mem_FreeBlock: not allocated or double freed pool %d` is the engine's zone
+allocator refusing a block whose pool is already gone - a free against a
+pool torn down on disconnect. Upstream bug in this wasm build, in the same
+post-disconnect area as the `UI_DrawString` message-box crash in backlog
+item 2; we can't fix it without rebuilding the engine.
+
+What we CAN fix is the aftermath, and did. The engine's `Sys_Error` hands
+its message box to `alert(title + "\n\n" + body)` in the wasm glue (the only
+`alert(` in `xash3d-fwgs/dist/raw.js`, an `EM_ASM` at the SDL message-box
+call). A native modal blocks the whole page, so the drop overlay and its
+Reconnect button were dead behind it, and dismissing it left a frozen canvas
+- exactly the dead tab the lobby exists to prevent. `launch.ts` now shadows
+`window.alert` before the engine boots (same trick as the mic-capture
+kill-switch), so a fatal comes back as a `crashed` stage: lobby returns with
+the engine's own message and a `reload` button. A crash also outranks a
+drop - the silence watchdog fires ~10s later and must not downgrade
+`crashed` (reload only) to `dropped` (offers a reconnect a dead engine can
+never honour) - and `persistSettings` skips a dead engine rather than
+re-entering the crashed heap with `host_writeconfig`.
+
+What dropped that player: the server engine segfaulted. `/opt/cs16/cores`
+holds three dumps from that morning (04:34, 04:45, 05:18 UTC), and one
+second after the 05:18:26 dump the log has `YaPB ... successfully loaded` +
+`16 player server started` - the container's supervisor respawns xashds in
+place, so `docker inspect` still reads `RestartCount=0` and only the cores
+and a fresh `player server started` line give it away. Every human is
+dropped at that instant, which is the drop the client then died on.
+
+Reproducing the wrapper (not the crash): join, then in devtools run
+`alert("Xash Error\n\nMem_FreeBlock: not allocated or double freed pool 0")`
+- that is byte-for-byte the call the engine makes.

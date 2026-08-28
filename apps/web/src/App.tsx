@@ -11,6 +11,7 @@ type Stage =
   | { id: "unpacking"; done: number; total: number }
   | { id: "playing" }
   | { id: "dropped"; kind: "transport" | "silence" }
+  | { id: "crashed"; message: string }
   | { id: "error"; message: string };
 
 const SEGMENTS = 24;
@@ -617,6 +618,7 @@ function stageProgress(stage: Stage): number | null {
     case "playing":
       return 1;
     case "dropped":
+    case "crashed":
     case "error":
       return 0;
   }
@@ -654,6 +656,8 @@ function stageLabel(stage: Stage): string {
       return stage.kind === "transport"
         ? "connection to the server was lost"
         : "you were dropped from the server";
+    case "crashed":
+      return `the game engine crashed - ${stage.message}`;
     case "error":
       return stage.message;
   }
@@ -972,12 +976,19 @@ const App: FC = () => {
         (kind) => {
           // the engine may still hold the pointer when the server vanishes
           document.exitPointerLock?.();
-          setStage({ id: "dropped", kind });
+          // a crash goes silent, so the watchdog fires ~10s later - it must
+          // not downgrade "crashed" (reload only) to "dropped" (offers a
+          // reconnect the dead engine can never honour)
+          setStage((s) => (s.id === "crashed" ? s : { id: "dropped", kind }));
+        },
+        (message) => {
+          document.exitPointerLock?.();
+          setStage({ id: "crashed", message });
         },
       );
       zipRef.current = null;
       // a drop during launch must not be clobbered by the launch resolving
-      setStage((s) => (s.id === "dropped" ? s : { id: "playing" }));
+      setStage((s) => (s.id === "dropped" || s.id === "crashed" ? s : { id: "playing" }));
       // music rides into the game briefly, then fades out
       endMusicSoon();
       // snapshot in-game settings every 30s, plus when the tab hides or the
@@ -1393,6 +1404,15 @@ const App: FC = () => {
                         <p className="status status--error">{stageLabel(stage)}</p>
                         <button className="join" onClick={reconnect}>
                           reconnect
+                        </button>
+                      </>
+                    ) : stage.id === "crashed" ? (
+                      <>
+                        <p className="status status--error">{stageLabel(stage)}</p>
+                        {/* the engine is gone - only a fresh boot gets back in,
+                            and the zip comes off Cache Storage so it is quick */}
+                        <button className="join" onClick={() => location.reload()}>
+                          reload
                         </button>
                       </>
                     ) : stage.id === "ready" ? (

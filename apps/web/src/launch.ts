@@ -117,6 +117,27 @@ function disableMicCapture() {
   }
 }
 
+// The engine's fatal path is a native `alert()`: Sys_Error hands its message
+// box to `alert(title + "\n\n" + body)` in the wasm glue, so a crash freezes
+// the tab behind a modal that dismisses into a dead canvas - "no dead tabs",
+// broken by the one dialog we don't own. Crashes just after a server drop are
+// a known hazard in this build (the engine's own message-box path is fragile -
+// see backlog item 2), and the drop overlay is useless while a modal blocks
+// the page. Shadow alert, hand the text to the app, let it offer a reload.
+// Set before the engine boots: init() can die too.
+let engineDead = false;
+
+function captureEngineFatals(onFatal: (message: string) => void) {
+  window.alert = (message?: unknown) => {
+    engineDead = true;
+    const text = String(message ?? "");
+    console.error("[engine fatal]", text);
+    // "Xash Error\n\nMem_FreeBlock: not allocated or double freed pool 0"
+    const detail = text.split("\n").filter((l) => l.trim()).pop() ?? "";
+    onFatal(detail.slice(0, 120) || "the engine stopped");
+  };
+}
+
 export type LaunchStatus =
   | { phase: "engine" }
   | { phase: "unpacking"; done: number; total: number };
@@ -177,7 +198,9 @@ function readCfgFiles(x: Xash3DWebRTC): Record<string, string> {
 }
 
 export function persistSettings(x: Xash3DWebRTC) {
-  if (!x.em?.FS || x.exited || !baseline) return;
+  // a dead engine still answers ccall, and host_writeconfig on it re-enters
+  // the crashed heap - the snapshot is lost either way, so skip it
+  if (!x.em?.FS || x.exited || engineDead || !baseline) return;
   const out: Record<string, string> = {};
   for (const [name, text] of Object.entries(readCfgFiles(x))) {
     const base = baseline[name] ?? new Map<string, string>();
@@ -203,8 +226,10 @@ export async function launchGame(
   playerName: string,
   onStatus: (s: LaunchStatus) => void,
   onDrop: (kind: DropKind) => void,
+  onFatal: (message: string) => void,
 ): Promise<Xash3DWebRTC> {
   disableMicCapture(); // must run before the engine probes for audio capture
+  captureEngineFatals(onFatal); // ...and before it can Sys_Error
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],

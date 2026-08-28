@@ -50,6 +50,16 @@ RUN touch public/status.json && chown xashds public/status.json
 # a file and asks for it in-band; a root-owned dir makes that write a fatal
 # Xash error that crash-loops the server on every such connect
 RUN chown xashds cstrike/maps
+
+# the engine creates cstrike/custom.hpk - the spray/decal store - the first
+# time a client uploads its decal, and DELETES the file again when it drops
+# to a single entry, so it must create and unlink entries in cstrike/ itself;
+# a pre-created writable file is not enough. Root-owned, every spray logged
+# "FS_SysOpen: can't open file cstrike/custom.hpk: Permission denied" - three
+# lines per map spawn with three humans on (seen 2026-08-28). Only the
+# directory entry changes hands; the files inside stay root-owned.
+RUN chown xashds cstrike
+
 # AMXX creates logs/L<date>.log at map start; without a writable logs dir it
 # fails and disables its own logging for the map
 RUN mkdir -p cstrike/addons/amxmodx/logs && chown xashds cstrike/addons/amxmodx/logs
