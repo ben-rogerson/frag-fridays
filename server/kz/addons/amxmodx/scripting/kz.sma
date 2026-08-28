@@ -70,7 +70,12 @@ public client_putinserver(id)
 	g_hinted[id] = false;
 }
 
-public client_disconnected(id)
+// client_disconnect, not client_disconnected: the newer forward needs AMXX's
+// SV_DropClient detour, which we disable in gamedata (it crashes this engine -
+// see addons/amxmodx/data/gamedata/common.games/custom/). The legacy forward
+// fires from ClientDisconnect and is unaffected. It misses clients that abort
+// mid-connect; those never had tasks queued.
+public client_disconnect(id)
 {
 	remove_task(TASK_RESPAWN + id);
 	remove_task(TASK_TPBACK + id);

@@ -379,16 +379,34 @@ that function needs a 192KB stack frame (`memset(send_buf, 0, 0x30030)`)
 that the handler does not have. So the core says "SIGSEGV in memset" and the
 real cause is only in the saved signal context (`cr2`/`eip`) or in the log.
 
-**Fix (shipped 2026-08-28):** `addons/amxmodx/data/gamedata/custom/`
-`fragfridays-sv-dropclient.txt` in gg/dm/kz/aim overrides the signature with
-a symbol the engine does not export, so `GetMemSig()` fails and the detour
-is never installed. This is AMXX's own documented override mechanism and the
-hook is optional upstream. Cost: the `client_disconnected` forward loses its
-drop-reason string and `bDrop` flag - it still fires, from
-`C_ClientDisconnect`, and CPlayer cleanup still runs there.
+**Fix (shipped 2026-08-28):** `addons/amxmodx/data/gamedata/common.games/`
+`custom/fragfridays-sv-dropclient.txt` in gg/dm/kz/aim overrides the
+signature with a symbol the engine does not export, so `GetMemSig()` fails
+and the detour is never installed. This is AMXX's own override mechanism and
+the hook is optional upstream.
+
+The directory matters: `common.games` is a master-based config, so the
+loader globs `gamedata/<name>/custom/*.txt` (`CGameConfigs.cpp`).
+`gamedata/custom/` is the path for single-file configs and is NOT read here -
+a file placed there is silently ignored and changes nothing. Confirm it
+loaded by the AMXX log line `Parsed custom gamedata override file:`.
+
+Cost, stated by AMXX itself at every map start: `client_disconnected and
+client_remove forwards have been disabled - check your gamedata files.`
+They are disabled outright, not downgraded. The legacy `client_disconnect`
+forward still fires from `C_ClientDisconnect`, so our plugins use that
+(`frag_dm.sma`, `kz.sma`); it misses clients that abort mid-connect, which
+never have tasks queued. Three stock plugins we load - `admincmd`,
+`adminhelp`, `multilingual` - reference `client_disconnected` for per-player
+state resets and silently lose them; the state they leak is a language
+setting or a menu page, against a bug that killed the whole server.
 
 Verifying it, without waiting for a crash - read the engine's function entry
-in the live process and look for a detour jump:
+in the live process and look for a detour jump. **Wait for AMXX to attach
+first**: read it seconds after a container start and the hook is simply not
+installed yet, which looks exactly like success. Gate on `Cvar_DirectSet`
+(same gamedata file, deliberately not overridden) reading as detoured before
+trusting a clean `SV_DropClient_`:
 
     ssh cs16 'PID=$(docker inspect -f "{{.State.Pid}}" dm-xash3d-1); \
       python3 -c "f=open(\"/proc/$PID/mem\",\"rb\"); f.seek(0x0855a120); \

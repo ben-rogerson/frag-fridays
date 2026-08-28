@@ -31,8 +31,12 @@
  * still runs there. Nothing we ship reads either (frag_dm.sma only clears
  * its respawn tasks).
  *
- * This "custom" directory is AMXX's own override mechanism - files here are
- * parsed after the stock gamedata. See docs/troubleshooting.md.
+ * This "custom" directory is AMXX's own override mechanism - for a
+ * master-based config like common.games the loader globs
+ * gamedata/<name>/custom/*.txt and parses each after the stock files
+ * (CGameConfigs.cpp), logging "Parsed custom gamedata override file".
+ * gamedata/custom/ is the single-file-config path and is NOT read here -
+ * putting it there silently changes nothing. See docs/troubleshooting.md.
  */
 
 "Games"
