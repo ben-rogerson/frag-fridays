@@ -548,8 +548,20 @@ the key. `fullscreenchange` was already swallowed for the same reason on
 
 The cost of hiding pointerlockchange is that `Browser.pointerLock` goes
 stale, so emscripten's canvas-click handler will not re-request the lock -
-closing the menu calls `requestPointerLock()` explicitly, from the keypress
-or click so the user gesture still counts.
+closing the menu calls `requestPointerLock()` explicitly, and any click on
+the canvas re-locks if the pointer is loose. Both are needed: Escape
+releases the lock and Chrome then refuses to hand it back for a moment, so
+the request on Resume can silently fail and the click is the fallback.
+
+For the overlay to actually behave as a pause menu it also has to stop input
+reaching the engine: SDL reads mouse motion from the document whether or not
+the pointer is locked, so without that your view swings as you move the
+cursor over the menu and you return facing somewhere else (2026-08-28).
+`blockInputWhileMenuOpen` swallows mousemove/wheel/key events while it is up,
+skipping form fields so the alias box still types. Clicks are deliberately
+NOT swallowed - React listens at its root container, below window, so
+blocking them there would kill the Resume button, and with the overlay
+covering the canvas they never reach the engine anyway.
 
 The lobby opens over the game instead - the cursor is already free
 because the browser released it, and Escape or Resume goes back. It

@@ -209,6 +209,45 @@ function swallowPointerLockChange() {
   }
 }
 
+// While the lobby is open over the game it has to actually be a pause menu:
+// SDL reads mouse motion from the document whether or not the pointer is
+// locked, so without this your view swings around as you move the cursor over
+// the menu and you come back facing somewhere else (reported 2026-08-28).
+// Keys are blocked for the same reason - WASD should not walk you into a
+// wall while you are reading the map pool - except in form fields, so the
+// alias box still types.
+//
+// Clicks are deliberately NOT blocked: React listens at its root container,
+// below window, so swallowing those here would kill the Resume button. With
+// the overlay covering the canvas, clicks land on overlay elements and never
+// reach the engine anyway.
+let menuCaptured = false;
+export function setMenuCapture(open: boolean) {
+  menuCaptured = open;
+}
+
+function blockInputWhileMenuOpen() {
+  const block = (e: Event) => {
+    if (!menuCaptured) return;
+    const el = e.target as HTMLElement | null;
+    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+    e.stopImmediatePropagation();
+  };
+  for (const type of ["mousemove", "wheel", "keydown", "keyup", "keypress"]) {
+    window.addEventListener(type, block, true);
+  }
+}
+
+// Escape releases the pointer lock and Chrome then refuses to hand it back
+// for a moment, so the request on Resume can silently fail. Emscripten's own
+// click-to-lock is no help - it is gated on `Browser.pointerLock`, which we
+// deliberately left stale. So take the lock back on any click on the canvas.
+function relockOnCanvasClick(canvas: HTMLCanvasElement) {
+  canvas.addEventListener("click", () => {
+    if (!document.pointerLockElement) canvas.requestPointerLock?.();
+  });
+}
+
 function interceptEscape(onEscape: () => void) {
   window.addEventListener(
     "keydown",
@@ -332,6 +371,8 @@ export async function launchGame(
   captureEngineFatals(onFatal); // ...and before it can Sys_Error
   interceptEscape(onEscape); // ...and before SDL claims the keyboard
   swallowPointerLockChange(); // ...and before it can watch the pointer lock
+  blockInputWhileMenuOpen(); // ...and before it can read the mouse
+  relockOnCanvasClick(canvas);
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],

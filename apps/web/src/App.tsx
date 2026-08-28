@@ -1,5 +1,11 @@
 import { FC, Fragment, useEffect, useRef, useState } from "react";
-import { downloadValveZip, launchGame, leaveServer, persistSettings } from "./launch";
+import {
+  downloadValveZip,
+  launchGame,
+  leaveServer,
+  persistSettings,
+  setMenuCapture,
+} from "./launch";
 import { Xash3DWebRTC } from "./webrtc";
 import "@fontsource/black-ops-one";
 import "./App.css";
@@ -808,6 +814,7 @@ const App: FC = () => {
     if (!playing) {
       menuOpenRef.current = false;
       setMenuOpen(false);
+      setMenuCapture(false);
     }
   }, [playing]);
 
@@ -815,6 +822,8 @@ const App: FC = () => {
     const next = !menuOpenRef.current;
     menuOpenRef.current = next;
     setMenuOpen(next);
+    // stop mouse and keys reaching the engine while the menu is up
+    setMenuCapture(next);
     // Going back to the game: take the pointer back ourselves. SDL never saw
     // it released (we swallow pointerlockchange to keep the engine out of its
     // own menu), so nothing else is going to ask for it. Called straight from
