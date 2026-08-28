@@ -252,6 +252,22 @@ export function persistSettings(x: Xash3DWebRTC) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(out));
 }
 
+// Tell the server we are going, so it frees the slot now instead of holding
+// it for sv_timeout (600s). Without this a reload leaves a ghost: the old
+// session stays in the sim, keeps a slot on a 16-player server, and can be
+// handed objectives - on 2026-08-28 a reloading player's ghost was given the
+// bomb and carried it for nearly seven minutes. The engine sends the
+// disconnect over the still-open data channel before the page tears it down;
+// a hard kill (crash, force-quit) still falls back to the timeout.
+export function leaveServer(x: Xash3DWebRTC) {
+  if (!x.em || x.exited || engineDead) return;
+  try {
+    x.Cmd_ExecuteString("disconnect");
+  } catch {
+    /* engine already gone - the timeout will reap the slot */
+  }
+}
+
 export async function launchGame(
   canvas: HTMLCanvasElement,
   zipBytes: Uint8Array,

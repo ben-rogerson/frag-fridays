@@ -1,5 +1,5 @@
 import { FC, Fragment, useEffect, useRef, useState } from "react";
-import { downloadValveZip, launchGame, persistSettings } from "./launch";
+import { downloadValveZip, launchGame, leaveServer, persistSettings } from "./launch";
 import { Xash3DWebRTC } from "./webrtc";
 import "@fontsource/black-ops-one";
 import "./App.css";
@@ -1031,7 +1031,12 @@ const App: FC = () => {
         if (xashRef.current) persistSettings(xashRef.current);
       };
       window.setInterval(persist, 30_000);
-      window.addEventListener("pagehide", persist);
+      // settings first, then hand the slot back - a reload fires pagehide, so
+      // the reconnect button no longer leaves its own ghost behind
+      window.addEventListener("pagehide", () => {
+        persist();
+        if (xashRef.current) leaveServer(xashRef.current);
+      });
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "hidden") persist();
       });

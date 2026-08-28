@@ -549,3 +549,27 @@ to the `crashed` stage, so an engine death reads as "the game engine
 crashed" with a reload button rather than as a network drop. The listener is
 armed only once `main()` is running, so a download or React failure cannot
 be mistaken for an engine fault.
+
+## A reload used to leave a ghost holding a slot (and the bomb)
+
+The engine keeps a client until `sv_timeout` (600s), so closing or reloading
+the tab left the old session live in the sim for up to ten minutes. Seen
+2026-08-28: a player reloaded at 10:14, rejoined on a new slot 14s later,
+and at 10:15:22 the server handed the ABANDONED slot the C4
+(`Spawned_With_The_Bomb`) - a bomb carried by nobody for nearly seven
+minutes, plus a wasted slot on a 16-player server.
+
+`leaveServer()` in `launch.ts` now runs `disconnect` on `pagehide`, so the
+engine hands the slot back immediately; the reconnect button reloads, so it
+cleans up after itself too. A hard kill (browser crash, force quit) still
+falls back to the timeout, which is the correct floor.
+
+Lowering `sv_timeout` is NOT the fix - it exists at 600s precisely because a
+backgrounded tab freezes the game loop and goes network-silent, and a short
+timeout would drop alt-tabbed players mid-session.
+
+Dropping the ghost server-side is not available to us: the transport-close
+line (`websocket: close 1001`) is logged by the Go layer inside the
+prebuilt image and names no player, and every browser client shares one
+auth id (`ID_7dea362b...`, the hash of an absent steamid), so there is
+nothing to dedupe on.
