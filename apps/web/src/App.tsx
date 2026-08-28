@@ -16,6 +16,36 @@ type Stage =
 
 const SEGMENTS = 24;
 
+// What changed, in the players' terms - the server is worked on between
+// Fridays and nothing on the page said so. Flat facts only, newest first,
+// and known issues stay listed until they are actually fixed: a player who
+// knows Escape kills the game reloads and keeps playing, one who doesn't
+// thinks the server dropped them.
+const NEWS: { label: string; items: string[]; known?: boolean }[] = [
+  {
+    label: "28 aug",
+    items: [
+      "a player leaving no longer restarts the server - one timed-out connection used to drop everyone mid-round",
+      "reconnect works: it reloads properly instead of landing on a black screen",
+      "leaving frees your slot straight away, instead of holding it for ten minutes",
+      "sprays are saved again",
+      "if the game does crash the page now says so, with a reload button, instead of freezing the tab",
+    ],
+  },
+  {
+    label: "21 aug",
+    items: [
+      "bots fill the server to 10 - each human who joins bumps one",
+      "standings show bomb plants, k/d as a share and medals for the podium",
+    ],
+  },
+  {
+    label: "known issues",
+    known: true,
+    items: ["pressing escape crashes the game - reload the page to get back in"],
+  },
+];
+
 // Background: Counter Strike 1.6 ANNIHILATION 2 HQ (7:36). Random start so
 // the music differs each load; capped at 400s to leave a stretch before the
 // loop wraps to 0.
@@ -1660,6 +1690,28 @@ const App: FC = () => {
               </section>
             </aside>
           </main>
+
+          <section className="panel news" aria-label="Server news">
+            <h2 className="panel__bar">
+              Server News
+              <span className="panel__barnote">worked on between fridays</span>
+            </h2>
+            <div className="panel__body news__body">
+              {NEWS.map((entry) => (
+                <div
+                  className={`news__entry${entry.known ? " news__entry--known" : ""}`}
+                  key={entry.label}
+                >
+                  <p className="card__ruleslabel">{entry.label}</p>
+                  <ul className="card__rulelist news__list">
+                    {entry.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <footer className="footer">
             <p>© 2026 frag fridays &middot; best viewed at 1024×768</p>

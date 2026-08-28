@@ -2168,3 +2168,30 @@ th.standings__num {
   outline: 2px solid var(--acid-hot);
   outline-offset: 1px;
 }
+
+/* --- server news: the between-Fridays log ------------------------------ */
+
+/* Reuses the mode card's rules vocabulary - micro-label over an acid-marked
+   list - so the log reads as more site furniture rather than a new device.
+   One column, unlike the rules grid: these are sentences, not specs. */
+.news {
+  margin-top: 1rem;
+}
+
+.news__body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.news__list {
+  grid-template-columns: 1fr;
+}
+
+/* known issues carry the same weight as a fix - the marker just stops them
+   reading as another thing that got better. Alert red, not acid: acid is
+   reserved for live and powered things. */
+.news__entry--known .card__rulelist li::before {
+  content: "!";
+  color: var(--alert);
+  font-weight: 700;
+}

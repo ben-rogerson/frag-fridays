@@ -239,6 +239,18 @@ Real 1.6-era map screenshots (160x120, the classic server-browser thumb size) bu
 ### Scrollbar
 The overlay's scrollbar is period widget chrome: a 15px sunken track (#0a1226, bevel-dark left edge) with a raised chrome-navy thumb (horizontal #33497f → #1d2f5c gradient, bevel borders) and bevelled arrow buttons at each end (slate-blue SVG triangles). Firefox falls back to flat `scrollbar-color` - the standard property must never be set for Chromium, which drops all `::-webkit-scrollbar` styling when it is present.
 
+### Server News
+A full-width panel between the front grid and the footer, logging what
+changed for players between Fridays. Reuses the mode card's rules
+vocabulary rather than inventing a device: a lowercase date micro-label
+(`card__ruleslabel`) over an acid-marked list (`card__rulelist`), one column
+instead of the rules grid because these are sentences, not specs. Bar note
+reads "worked on between fridays". Known issues are the last entry and swap
+the acid "»" for an Alert Red "!" - they carry the same weight as a fix but
+must not read as another thing that got better. Copy obeys the Straight Face
+Rule: flat statements of what a player will notice, no roadmap language, no
+apology, and an issue stays listed until it is actually fixed.
+
 ### Footer Counter (signature)
 "you are visitor" followed by six sunken single-digit cells: acid digits on #060b18 in inverted-bevel boxes, tabular numerals. Reads 001337.
 
