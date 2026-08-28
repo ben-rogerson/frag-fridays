@@ -203,7 +203,15 @@ function captureEngineFatals(onFatal: (message: string) => void) {
 // handler will not re-request the lock. Closing the menu asks for it back
 // explicitly (see toggleMenu in App.tsx).
 function swallowPointerLockChange() {
-  const swallow = (e: Event) => e.stopImmediatePropagation();
+  const swallow = (e: Event) => {
+    // Only hide the lock being LOST. Hiding the acquire too was a regression
+    // (2026-08-28, "mouse isn't responding in full screen"): SDL enters
+    // relative mouse mode when it sees the lock granted, so swallowing that
+    // event left the engine with no look input at all - on a fresh load, not
+    // just after the menu.
+    if (document.pointerLockElement) return;
+    e.stopImmediatePropagation();
+  };
   for (const type of ["pointerlockchange", "webkitpointerlockchange", "mozpointerlockchange"]) {
     document.addEventListener(type, swallow, true);
   }
