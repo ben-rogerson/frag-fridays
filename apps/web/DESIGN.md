@@ -249,7 +249,10 @@ reads "worked on between fridays". Known issues are the last entry and swap
 the acid "»" for an Alert Red "!" - they carry the same weight as a fix but
 must not read as another thing that got better. Copy obeys the Straight Face
 Rule: flat statements of what a player will notice, no roadmap language, no
-apology, and an issue stays listed until it is actually fixed.
+apology, and an issue stays listed until it is actually fixed. The bar for an
+entry is whether a player would have noticed the problem or notices the
+change - infrastructure wins that are invisible from a player's seat stay
+out, because filler makes the real entries cheaper.
 
 ### Footer Counter (signature)
 "you are visitor" followed by six sunken single-digit cells: acid digits on #060b18 in inverted-bevel boxes, tabular numerals. Reads 001337.

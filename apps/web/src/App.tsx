@@ -17,27 +17,29 @@ type Stage =
 const SEGMENTS = 24;
 
 // What changed, in the players' terms - the server is worked on between
-// Fridays and nothing on the page said so. Flat facts only, newest first,
-// and known issues stay listed until they are actually fixed: a player who
-// knows Escape kills the game reloads and keeps playing, one who doesn't
-// thinks the server dropped them.
+// Fridays and nothing on the page said so.
+//
+// The bar for an entry: would a player have noticed the problem, or notice
+// the change? If not it is filler, and filler makes the real entries
+// cheaper. Freeing a slot on leave, fixing the spray store and reworking the
+// standings columns all failed that test and were cut - real work, invisible
+// from a player's seat. Flat facts only, newest first, no roadmap language.
+//
+// Known issues stay listed until they are actually fixed: a player who knows
+// Escape kills the game reloads and keeps playing, one who doesn't thinks
+// the server dropped them.
 const NEWS: { label: string; items: string[]; known?: boolean }[] = [
   {
     label: "28 aug",
     items: [
       "a player leaving no longer restarts the server - one timed-out connection used to drop everyone mid-round",
       "reconnect works: it reloads properly instead of landing on a black screen",
-      "leaving frees your slot straight away, instead of holding it for ten minutes",
-      "sprays are saved again",
       "if the game does crash the page now says so, with a reload button, instead of freezing the tab",
     ],
   },
   {
     label: "21 aug",
-    items: [
-      "bots fill the server to 10 - each human who joins bumps one",
-      "standings show bomb plants, k/d as a share and medals for the podium",
-    ],
+    items: ["bots fill the server to 10 - each human who joins bumps one"],
   },
   {
     label: "known issues",
