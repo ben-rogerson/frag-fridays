@@ -465,7 +465,7 @@ reload (`apps/web/src/App.tsx`); the zombie-transport tiebreaker in
 valve.zip comes from Cache Storage, so a reload costs an unpack, not a
 316MB download.
 
-## Mod swaps core-dump the engine (harmless, but that is where the cores come from)
+## Mod swaps can core-dump the engine (harmless, but that is where the cores come from)
 
 Two of the eight cores in `/opt/cs16/cores` are not a gameplay crash at all.
 Both happened the instant a `docker compose down` tore the gg container
@@ -507,9 +507,14 @@ run from signal context, there by blowing a 192KB stack frame, here by
 re-entering Go. The engine should not do network shutdown from a signal
 handler at all.
 
+It is intermittent, not every swap: SIGTERM has to land while the main
+thread happens to be parked in the scheduler with `m.curg` already nil. The
+dm -> gg swap on 2026-08-28 09:44 shut down cleanly and produced no core,
+against two that did on 19/20 Aug.
+
 Deliberately NOT fixed. It only fires while a container is being destroyed
-during a swap, with players dropped regardless; the cost is a ~270MB core
-per swap and clients missing the final shutdown message. The real fix is
+during a swap, with players dropped regardless; the cost is an occasional
+~270MB core and clients missing the final shutdown message. The real fix is
 upstream (have the handler set a flag and let the main loop shut down), and
 carrying an engine patch is not worth that. The tempting workaround - send
 `quit` over the cmdpipe and wait before `docker stop` - is untested and may
