@@ -524,3 +524,28 @@ this build (2026-08-04).
 
 If cores ever fill the disk, they are safe to delete; `/opt/cs16/cores` is
 1777 and only catches dumps.
+
+## Escape is intercepted: the engine's own menu kills the render loop
+
+Pressing Escape in-game used to freeze the tab and then report a drop that
+never happened (seen live 2026-08-28). Escape opens the engine's menu, and
+this wasm build cannot draw it - the message box throws `RuntimeError:
+remainder by zero` in `UI_DrawString` and takes the render loop with it
+(backlog item 2). A dead render loop means the client stops sending, so ~10s
+later the silence watchdog fires and the lobby says "you were dropped from
+the server". The server is fine and still holds the slot; the fault is
+entirely local.
+
+`App.tsx` now swallows Escape in the capture phase, beating SDL's listener,
+and opens the lobby over the game instead - the cursor is already free
+because the browser released it, and Escape or Resume goes back. It
+deliberately does NOT call preventDefault: leaving the default alone is what
+keeps the browser's fullscreen and pointer-lock exit working on Escape (both
+are handled above the page and cannot be cancelled by it anyway).
+
+`launch.ts` also listens for uncaught wasm traps now
+(`WebAssembly.RuntimeError`, or a stack carrying `wasm://`) and routes them
+to the `crashed` stage, so an engine death reads as "the game engine
+crashed" with a reload button rather than as a network drop. The listener is
+armed only once `main()` is running, so a download or React failure cannot
+be mistaken for an engine fault.

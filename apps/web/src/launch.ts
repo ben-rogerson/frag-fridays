@@ -126,16 +126,48 @@ function disableMicCapture() {
 // the page. Shadow alert, hand the text to the app, let it offer a reload.
 // Set before the engine boots: init() can die too.
 let engineDead = false;
+// set once main() is running, so the error listener below cannot mistake a
+// React or download failure for an engine fault
+let engineRunning = false;
 
 function captureEngineFatals(onFatal: (message: string) => void) {
-  window.alert = (message?: unknown) => {
+  const fatal = (detail: string) => {
     engineDead = true;
+    onFatal(detail.slice(0, 120) || "the engine stopped");
+  };
+
+  window.alert = (message?: unknown) => {
     const text = String(message ?? "");
     console.error("[engine fatal]", text);
     // "Xash Error\n\nMem_FreeBlock: not allocated or double freed pool 0"
-    const detail = text.split("\n").filter((l) => l.trim()).pop() ?? "";
-    onFatal(detail.slice(0, 120) || "the engine stopped");
+    fatal(text.split("\n").filter((l) => l.trim()).pop() ?? "");
   };
+
+  // Not every engine death is polite enough to call Sys_Error. A wasm trap
+  // just throws out of the rAF callback and the render loop stops - the tab
+  // freezes, the client goes silent, and the drop watchdog then blames the
+  // network for what was a local crash ("you were dropped from the server",
+  // reported 2026-08-28 after the engine's own menu was opened). Catch the
+  // trap and say what actually happened.
+  window.addEventListener(
+    "error",
+    (e) => {
+      if (!engineRunning || engineDead) return;
+      const err: unknown = e.error;
+      const text = err instanceof Error ? `${err.name}: ${err.message}` : String(e.message ?? "");
+      const stack = err instanceof Error ? (err.stack ?? "") : "";
+      // wasm traps surface as WebAssembly.RuntimeError, and emscripten frames
+      // carry wasm:// URLs - anything else is the page's own problem
+      const fromEngine =
+        (typeof WebAssembly !== "undefined" && err instanceof WebAssembly.RuntimeError) ||
+        stack.includes("wasm://") ||
+        /RuntimeError/.test(text);
+      if (!fromEngine) return;
+      console.error("[engine fatal]", text, stack);
+      fatal(text);
+    },
+    true,
+  );
 }
 
 export type LaunchStatus =
@@ -287,6 +319,7 @@ export async function launchGame(
   fs.writeFile("/extras.pk3", extrasBytes);
 
   fs.chdir("/rodir");
+  engineRunning = true;
   x.main();
   // debug handle for poking the live engine from devtools
   (window as unknown as { __xash?: Xash3DWebRTC }).__xash = x;

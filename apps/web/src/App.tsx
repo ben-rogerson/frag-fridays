@@ -687,6 +687,8 @@ const App: FC = () => {
   const fadeRef = useRef<number | null>(null);
   const [name, setName] = useState(() => localStorage.getItem("ff-name") ?? "");
   const [nameNeeded, setNameNeeded] = useState(false);
+  // Escape opens this lobby as the in-game menu - see the keydown handler below
+  const [menuOpen, setMenuOpen] = useState(false);
   const aliasRef = useRef<HTMLInputElement>(null);
   const [musicOver, setMusicOver] = useState(false);
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
@@ -771,6 +773,37 @@ const App: FC = () => {
   // the same poll so a mod swap updates the match panel on an already-open
   // page. Parse failures (mid-write reads, plugin absent) just skip the tick.
   const playing = stage.id === "playing";
+
+  // Escape must never reach the engine. This wasm build cannot draw its own
+  // menus - the message box throws `RuntimeError: remainder by zero` in
+  // UI_DrawString and takes the render loop with it (backlog item 2), so one
+  // press freezes the tab, the client goes silent, and the drop watchdog
+  // reports a disconnect that never happened. Seen live 2026-08-28.
+  //
+  // stopImmediatePropagation (capture phase) beats SDL's own listener to it.
+  // Deliberately NOT preventDefault: leaving Escape's default alone is what
+  // keeps the browser's own fullscreen and pointer-lock exit working - both
+  // are handled above the page and cannot be cancelled by it anyway.
+  //
+  // In its place Escape toggles this lobby over the game: the cursor is free
+  // (the browser just released it), the server card and map pool are right
+  // there, and Escape or Resume goes back. The engine keeps running - CS
+  // never paused in multiplayer either.
+  useEffect(() => {
+    if (!playing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      setMenuOpen((open) => !open);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [playing]);
+
+  // a drop or a crash is not a moment to be hiding behind the pause menu
+  useEffect(() => {
+    if (!playing) setMenuOpen(false);
+  }, [playing]);
   useEffect(() => {
     if (playing) return;
     let cancelled = false;
@@ -1040,7 +1073,7 @@ const App: FC = () => {
     <>
       <canvas id="canvas" ref={canvasRef} />
       <div
-        className={`overlay${playing ? " overlay--hidden" : ""}`}
+        className={`overlay${playing && !menuOpen ? " overlay--hidden" : ""}`}
         data-tier={tier}
         data-mode={themeMode}
       >
@@ -1417,6 +1450,15 @@ const App: FC = () => {
                             and the zip comes off Cache Storage so it is quick */}
                         <button className="join" onClick={() => location.reload()}>
                           reload
+                        </button>
+                      </>
+                    ) : menuOpen ? (
+                      <>
+                        <p className="status">
+                          still in the game - the round is running without you
+                        </p>
+                        <button className="join" onClick={() => setMenuOpen(false)}>
+                          resume
                         </button>
                       </>
                     ) : stage.id === "ready" ? (

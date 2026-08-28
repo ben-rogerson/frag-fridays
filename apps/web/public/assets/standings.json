@@ -1,23 +1,23 @@
 {
- "generated": "2026-08-21T07:14:01+00:00",
+ "generated": "2026-08-28T10:15:07+00:00",
  "season": [
   {
    "name": "ZenBot",
-   "sessions": 3,
-   "kills": 199,
-   "deaths": 127,
-   "kd": 1.57,
+   "sessions": 4,
+   "kills": 367,
+   "deaths": 217,
+   "kd": 1.69,
    "plants": 0,
-   "time": 3818
+   "time": 6337
   },
   {
    "name": "Reversons",
-   "sessions": 3,
-   "kills": 168,
-   "deaths": 44,
-   "kd": 3.82,
+   "sessions": 4,
+   "kills": 344,
+   "deaths": 103,
+   "kd": 3.34,
    "plants": 1,
-   "time": 2799
+   "time": 5429
   },
   {
    "name": "Bot 1 (easy)",
@@ -36,6 +36,15 @@
    "kd": 0.96,
    "plants": 0,
    "time": 2545
+  },
+  {
+   "name": "Quan",
+   "sessions": 1,
+   "kills": 59,
+   "deaths": 112,
+   "kd": 0.53,
+   "plants": 0,
+   "time": 2594
   },
   {
    "name": "Cem",
@@ -102,12 +111,21 @@
   },
   {
    "name": "professorx",
-   "sessions": 1,
-   "kills": 15,
-   "deaths": 47,
-   "kd": 0.32,
+   "sessions": 2,
+   "kills": 20,
+   "deaths": 60,
+   "kd": 0.33,
    "plants": 0,
-   "time": 1315
+   "time": 2348
+  },
+  {
+   "name": "HaiBot",
+   "sessions": 1,
+   "kills": 17,
+   "deaths": 3,
+   "kd": 5.67,
+   "plants": 0,
+   "time": 323
   },
   {
    "name": "[Bot] Hai-bot",
@@ -360,8 +378,55 @@
      "time": 127
     }
    ]
+  },
+  {
+   "date": "2026-08-28",
+   "mvp": "Reversons",
+   "kills": 176,
+   "players": [
+    {
+     "name": "Reversons",
+     "kills": 176,
+     "deaths": 59,
+     "kd": 2.98,
+     "plants": 0,
+     "time": 2630
+    },
+    {
+     "name": "ZenBot",
+     "kills": 168,
+     "deaths": 90,
+     "kd": 1.87,
+     "plants": 0,
+     "time": 2519
+    },
+    {
+     "name": "Quan",
+     "kills": 59,
+     "deaths": 112,
+     "kd": 0.53,
+     "plants": 0,
+     "time": 2594
+    },
+    {
+     "name": "HaiBot",
+     "kills": 17,
+     "deaths": 3,
+     "kd": 5.67,
+     "plants": 0,
+     "time": 323
+    },
+    {
+     "name": "professorx",
+     "kills": 5,
+     "deaths": 13,
+     "kd": 0.38,
+     "plants": 0,
+     "time": 1033
+    }
+   ]
   }
  ],
  "practice": [],
- "practiceSince": "2026-08-21"
+ "practiceSince": "2026-08-28"
 }
