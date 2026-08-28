@@ -186,88 +186,6 @@ function captureEngineFatals(onFatal: (message: string) => void) {
 // Deliberately no preventDefault: leaving the default alone keeps the
 // browser's fullscreen and pointer-lock exit on Escape, both handled above
 // the page and uncancellable by it anyway.
-// The other half of the same problem. Escape does two things no page can
-// cancel: it exits fullscreen (already hidden from SDL - see the
-// fullscreenchange handler in App.tsx, 2026-08-07) and it releases the
-// pointer lock. SDL reads the lock dying as the window losing focus and the
-// engine opens its menu, which is the crash again - confirmed 2026-08-28,
-// "the game engine crashed - RuntimeError: remainder by zero" after Escape,
-// with the keydown already being swallowed.
-//
-// Emscripten registers its own on document in the BUBBLE phase
-// (`document.addEventListener("pointerlockchange", pointerLockChange, false)`
-// in raw.js) and SDL registers through JSEvents, so a document listener added
-// here - capture, before either exists - runs first and stops both.
-//
-// Cost: `Browser.pointerLock` goes stale, so emscripten's canvas-click
-// handler will not re-request the lock. Closing the menu asks for it back
-// explicitly (see toggleMenu in App.tsx).
-function swallowPointerLockChange() {
-  const swallow = (e: Event) => {
-    // Only hide the lock being LOST. Hiding the acquire too was a regression
-    // (2026-08-28, "mouse isn't responding in full screen"): SDL enters
-    // relative mouse mode when it sees the lock granted, so swallowing that
-    // event left the engine with no look input at all - on a fresh load, not
-    // just after the menu.
-    if (document.pointerLockElement) return;
-    e.stopImmediatePropagation();
-  };
-  for (const type of ["pointerlockchange", "webkitpointerlockchange", "mozpointerlockchange"]) {
-    document.addEventListener(type, swallow, true);
-  }
-}
-
-// While the lobby is open over the game it has to actually be a pause menu:
-// SDL reads mouse motion from the document whether or not the pointer is
-// locked, so without this your view swings around as you move the cursor over
-// the menu and you come back facing somewhere else (reported 2026-08-28).
-// Keys are blocked for the same reason - WASD should not walk you into a
-// wall while you are reading the map pool - except in form fields, so the
-// alias box still types.
-//
-// Clicks are deliberately NOT blocked: React listens at its root container,
-// below window, so swallowing those here would kill the Resume button. With
-// the overlay covering the canvas, clicks land on overlay elements and never
-// reach the engine anyway.
-let menuCaptured = false;
-export function setMenuCapture(open: boolean) {
-  menuCaptured = open;
-}
-
-function blockInputWhileMenuOpen() {
-  const block = (e: Event) => {
-    if (!menuCaptured) return;
-    const el = e.target as HTMLElement | null;
-    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-    e.stopImmediatePropagation();
-  };
-  for (const type of ["mousemove", "wheel", "keydown", "keyup", "keypress"]) {
-    window.addEventListener(type, block, true);
-  }
-}
-
-// Escape releases the pointer lock and Chrome then refuses to hand it back
-// for a moment, so the request on Resume can silently fail. Emscripten's own
-// click-to-lock is no help - it is gated on `Browser.pointerLock`, which we
-// deliberately left stale. So take the lock back on any click on the canvas.
-function relockOnCanvasClick(canvas: HTMLCanvasElement) {
-  canvas.addEventListener("click", () => {
-    if (!document.pointerLockElement) canvas.requestPointerLock?.();
-  });
-}
-
-function interceptEscape(onEscape: () => void) {
-  window.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.key !== "Escape" || !engineRunning) return;
-      e.stopImmediatePropagation();
-      onEscape();
-    },
-    true,
-  );
-}
-
 export type LaunchStatus =
   | { phase: "engine" }
   | { phase: "unpacking"; done: number; total: number };
@@ -373,14 +291,9 @@ export async function launchGame(
   onStatus: (s: LaunchStatus) => void,
   onDrop: (kind: DropKind) => void,
   onFatal: (message: string) => void,
-  onEscape: () => void,
 ): Promise<Xash3DWebRTC> {
   disableMicCapture(); // must run before the engine probes for audio capture
   captureEngineFatals(onFatal); // ...and before it can Sys_Error
-  interceptEscape(onEscape); // ...and before SDL claims the keyboard
-  swallowPointerLockChange(); // ...and before it can watch the pointer lock
-  blockInputWhileMenuOpen(); // ...and before it can read the mouse
-  relockOnCanvasClick(canvas);
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],

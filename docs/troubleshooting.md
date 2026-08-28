@@ -525,56 +525,40 @@ this build (2026-08-04).
 If cores ever fill the disk, they are safe to delete; `/opt/cs16/cores` is
 1777 and only catches dumps.
 
-## Escape is intercepted: the engine's own menu kills the render loop
+## Escape crashes the client - three attempts, all reverted
 
-Pressing Escape in-game used to freeze the tab and then report a drop that
-never happened (seen live 2026-08-28). Escape opens the engine's menu, and
-this wasm build cannot draw it - the message box throws `RuntimeError:
-remainder by zero` in `UI_DrawString` and takes the render loop with it
-(backlog item 2). A dead render loop means the client stops sending, so ~10s
-later the silence watchdog fires and the lobby says "you were dropped from
-the server". The server is fine and still holds the slot; the fault is
-entirely local.
+Pressing Escape in-game kills the render loop: it opens the engine's menu,
+which this wasm build cannot draw, and the attempt throws `RuntimeError:
+remainder by zero` in `UI_DrawString` (backlog item 2). The tab freezes, the
+client goes silent and the drop watchdog reports a disconnect.
 
-Escape has to be blocked on TWO routes, and the keypress is only one of
-them. `launch.ts` swallows the keydown (window, capture, registered before
-the engine so SDL cannot get in first - a handler added later loses the race
-and the menu opens anyway) AND swallows `pointerlockchange` on document,
-because Escape releases the pointer lock and no page can stop it; SDL reads
-the lock dying as the window losing focus and opens the menu regardless of
-the key. `fullscreenchange` was already swallowed for the same reason on
-2026-08-07. Blocking only the key still crashed:
-`RuntimeError: remainder by zero` after Escape, 2026-08-28.
+The page now REPORTS this honestly - "the game engine crashed - RuntimeError:
+remainder by zero", with a reload button - but does not prevent it. Three
+attempts on 2026-08-28, all reverted, in the order they failed:
 
-The cost of hiding pointerlockchange is that `Browser.pointerLock` goes
-stale, so emscripten's canvas-click handler will not re-request the lock -
-closing the menu calls `requestPointerLock()` explicitly, and any click on
-the canvas re-locks if the pointer is loose. Both are needed: Escape
-releases the lock and Chrome then refuses to hand it back for a moment, so
-the request on Resume can silently fail and the click is the fallback.
+1. **Swallow the keydown** in a React effect when play starts. No effect:
+   capture-phase listeners on one target fire in registration order, and
+   SDL's was registered first, during engine init.
+2. **Swallow it before init**, so ours registers first. The keypress stopped
+   reaching SDL and the crash still happened - Escape also releases the
+   pointer lock, which no page can cancel, and SDL reads the lock dying as
+   the window losing focus and opens the menu anyway. (`fullscreenchange`
+   was already hidden from SDL for this reason on 2026-08-07 - that fix
+   stays, it works.)
+3. **Swallow `pointerlockchange` too.** This broke mouse look outright,
+   because hiding the event hid the lock being GRANTED as well and SDL
+   enters relative mouse mode on exactly that. Narrowing it to only hide
+   the release did not stop the crash either, so the trigger is a fourth
+   route - `blur`, `visibilitychange` or something else SDL watches.
 
-For the overlay to actually behave as a pause menu it also has to stop input
-reaching the engine: SDL reads mouse motion from the document whether or not
-the pointer is locked, so without that your view swings as you move the
-cursor over the menu and you return facing somewhere else (2026-08-28).
-`blockInputWhileMenuOpen` swallows mousemove/wheel/key events while it is up,
-skipping form fields so the alias box still types. Clicks are deliberately
-NOT swallowed - React listens at its root container, below window, so
-blocking them there would kill the Resume button, and with the overlay
-covering the canvas they never reach the engine anyway.
-
-The lobby opens over the game instead - the cursor is already free
-because the browser released it, and Escape or Resume goes back. It
-deliberately does NOT call preventDefault: leaving the default alone is what
-keeps the browser's fullscreen and pointer-lock exit working on Escape (both
-are handled above the page and cannot be cancelled by it anyway).
-
-`launch.ts` also listens for uncaught wasm traps now
-(`WebAssembly.RuntimeError`, or a stack carrying `wasm://`) and routes them
-to the `crashed` stage, so an engine death reads as "the game engine
-crashed" with a reload button rather than as a network drop. The listener is
-armed only once `main()` is running, so a download or React failure cannot
-be mistaken for an engine fault.
+Do not attempt a fourth fix against a live session. The repo has a repro
+harness for precisely this (see the drop-watchdog notes: Playwright with
+`channel: 'chrome'` joins the real server headless): instrument which events
+SDL actually has registered - `getEventListeners(document)` in devtools, or
+wrap `addEventListener` before the engine boots and log every registration -
+and find the real route before writing another swallow. Blocking events the
+engine needs is worse than the crash: a crash costs one reload, a broken
+mouse costs the session.
 
 ## A reload used to leave a ghost holding a slot (and the bomb)
 
