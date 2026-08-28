@@ -7,10 +7,10 @@ Usage:
 
 Log timestamps are UTC; sessions are grouped by Sydney date. By default
 only Fridays inside the session window count, so midweek testing doesn't
-pollute the table. The window is per era (SLOT_ERAS below) because the slot
-moves week to week and regeneration replays the whole log history.
---all-days lifts the Friday filter, --from/--to override the window for
-every era.
+pollute the table. The window comes from data/sessions.json (via
+scripts/sessions.py) - one entry per Friday, because the slot moves week to
+week and regeneration replays the whole log history. --all-days lifts the
+Friday filter, --from/--to override the window for every week.
 
 Every Friday from the first session onwards gets a row in "weeks" with its
 own player table, so the page can show a week-by-week breakdown. A Friday
@@ -38,10 +38,10 @@ import json
 import re
 import sys
 from collections import defaultdict
-from datetime import date, datetime, time, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timedelta, timezone
 
-SYD = ZoneInfo("Australia/Sydney")
+import sessions
+from sessions import FRIDAY, SYD
 
 TS = r"(\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2})"
 PLAYER = r'"(.+?)<(\d+)><(.*?)><(.*?)>"'
@@ -70,18 +70,6 @@ DUPE_RE = re.compile(r"\s*\(\d+\)$")
 def canon(name):
     return DUPE_RE.sub("", name)
 
-FRIDAY = 4  # datetime.weekday()
-
-# Session window per era, Sydney time, newest first: (first Friday it
-# applies from, start, end). The slot has moved twice, and the window only
-# needs to bracket the actual play - warm-up before kickoff is practice.
-SLOT_ERAS = [
-    (date(2026, 8, 28), time(14, 30), time(15, 0)),  # 2:30pm slot
-    (date(2026, 8, 21), time(14, 0), time(15, 0)),  # 2pm slot (late start, played 14:17-14:53)
-    (date(2026, 8, 14), time(13, 30), time(14, 10)),  # 1:30pm slot
-    (date.min, time(14, 31), time(14, 55)),  # 2pm slot, gungame half only
-]
-
 # Weeks whose logs don't tell the whole story. Stated flat on the page.
 WEEK_NOTES = {
     "2026-08-14": (
@@ -104,8 +92,11 @@ def main():
     ap.add_argument("--all-days", action="store_true", help="count every day, not just Fridays")
     args = ap.parse_args()
 
+    # read once: session_window is called per log line, not per week
+    schedule = sessions.load()
+
     def session_window(d):
-        lo, hi = next((lo, hi) for since, lo, hi in SLOT_ERAS if d >= since)
+        lo, hi = sessions.window(d, schedule)
         if args.start:
             lo = datetime.strptime(args.start, "%H:%M").time()
         if args.end:

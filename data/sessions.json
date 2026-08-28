@@ -1,0 +1,25 @@
+{
+ "_readme": [
+  "When Frag Fridays actually runs, Sydney time. THE one place to say it.",
+  "The slot moves week to week, so it's one entry per Friday: start is the",
+  "scheduled kickoff, end is when the slot is over. A Friday with no entry",
+  "uses \"default\", so an ordinary week needs no edit - and an unlisted week",
+  "can never silently inherit last week's odd time.",
+  "",
+  "Read by scripts/sessions.py, which feeds:",
+  "  scripts/standings.py                      log window for the leaderboards",
+  "  .claude/skills/friday-recap/parse_logs.py recap window",
+  "  scripts/session.sh                        the site's countdown (session.json)",
+  "",
+  "Changing a past week's times re-cuts its leaderboard: scripts/standings.sh",
+  "replays the whole log archive every run. Warm-up before start and play",
+  "after end land in the practice table, not the session."
+ ],
+ "default": { "start": "14:30", "end": "15:00" },
+ "weeks": {
+  "2026-08-07": { "start": "14:31", "end": "14:55", "note": "gungame half only" },
+  "2026-08-14": { "start": "13:30", "end": "14:10" },
+  "2026-08-21": { "start": "14:00", "end": "15:00" },
+  "2026-08-28": { "start": "14:30", "end": "15:00" }
+ }
+}

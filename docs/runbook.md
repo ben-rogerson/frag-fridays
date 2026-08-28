@@ -33,6 +33,12 @@ files tree - players won't see it.)
 Generate the text with the `/friday-posts` skill - it checks the live
 server for the running mod and emits all three, paste-ready.
 
+The slot moves week to week, so the time isn't a constant anywhere: it lives
+in `data/sessions.json`, one entry per Friday. If this week has moved, put it
+in there **before** posting - the announcement, the leaderboards, the recap
+and the site's countdown all read it. `python3 scripts/sessions.py` prints
+what the coming Friday resolves to.
+
 Three messages on the day, each doing a specific job:
 
 1. **Morning announcement** - what's on, what mode, what time. Sets turnout.
@@ -71,6 +77,12 @@ Say so in the announcement.
   [decisions.md](decisions.md) - it is the raw material for the blog and much
   easier to capture now than to reconstruct.
 - Add any new work items to [backlog.md](backlog.md).
+- `pnpm run standings` - replays the box's kill logs into the leaderboards and
+  pushes them live. It counts the slot in `data/sessions.json`, so if play ran
+  outside it, fix that week's entry and re-run rather than passing `--from`.
+- `pnpm run session` - rolls the site's countdown to the next Friday from the
+  same file. Do it after adding next week's entry if the slot has moved.
+- `/friday-recap` for the Slack results post.
 
 ## 5. Remote control from the phone (MCP)
 

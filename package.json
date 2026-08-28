@@ -21,6 +21,7 @@
     "rebalance": "scripts/rebalance.sh",
     "announce": "scripts/announce.sh",
     "standings": "scripts/standings.sh",
+    "session": "scripts/session.sh",
     "swap": "scripts/swap.sh",
     "status": "ssh cs16 'docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"'",
     "logs": "scripts/logs.sh"

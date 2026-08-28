@@ -219,23 +219,34 @@ const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
 
 // --- session clock ------------------------------------------------------
 // Sessions kick off Friday afternoons Sydney time, but the exact slot moves
-// week to week. /assets/session.json (editable on the box without a
-// rebuild, same serving path as standings.json) names the next kickoff:
-// {"date":"2026-08-21","hour":14,"minute":0}. It only applies while its
-// date matches the coming Friday, so a stale file falls back to the
-// default below and can never show last week's time. The strip reads LIVE
-// for the half hour of the session, then the countdown rolls to next week.
+// week to week. /assets/session.json (served beside standings.json, so it
+// lands on the box without a rebuild) names the coming Friday's slot:
+// {"date":"2026-09-04","hour":14,"minute":30,"end":"15:00"}. It only applies
+// while its date matches the Friday we're counting to, so a stale file falls
+// back to the defaults below and can never show last week's time. The strip
+// reads LIVE for the length of that slot, then rolls to next week.
+//
+// Don't hand-edit the file: data/sessions.json is the schedule everything
+// reads, and scripts/session.sh regenerates this from it.
 const SESSION_DAY = 5; // Friday
-const SESSION_HOUR = 13;
+// Fallbacks for a missing or stale file - keep in step with the "default"
+// in data/sessions.json.
+const SESSION_HOUR = 14;
 const SESSION_MINUTE = 30;
 const SESSION_LIVE_MS = 30 * 60_000;
 
-let sessionOverride: { date: string; hour: number; minute: number } | null = null;
+type SessionSlot = { date: string; hour: number; minute: number; end?: string };
+let sessionOverride: SessionSlot | null = null;
 fetch("/assets/session.json", { cache: "no-store" })
   .then((r) => (r.ok ? r.json() : null))
   .then((j) => {
     if (j && typeof j.date === "string" && Number.isFinite(j.hour)) {
-      sessionOverride = { date: j.date, hour: j.hour, minute: Number.isFinite(j.minute) ? j.minute : 0 };
+      sessionOverride = {
+        date: j.date,
+        hour: j.hour,
+        minute: Number.isFinite(j.minute) ? j.minute : 0,
+        end: typeof j.end === "string" ? j.end : undefined,
+      };
     }
   })
   .catch(() => {}); // no file / bad json -> default time
@@ -243,10 +254,25 @@ fetch("/assets/session.json", { cache: "no-store" })
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+// the published slot for a given Friday, or null if the file is for another week
+const slotFor = (kickoff: Date) =>
+  sessionOverride && sessionOverride.date === dateKey(kickoff) ? sessionOverride : null;
+
 // stamp the kickoff time onto a Date already set to the right Friday
 const applyKickoffTime = (kickoff: Date) => {
-  const o = sessionOverride && sessionOverride.date === dateKey(kickoff) ? sessionOverride : null;
+  const o = slotFor(kickoff);
   kickoff.setHours(o ? o.hour : SESSION_HOUR, o ? o.minute : SESSION_MINUTE, 0, 0);
+};
+
+// How long the strip stays on air. The slot isn't always half an hour - 21 Aug
+// ran a full hour - so honour the published end when there is one.
+const liveMsFor = (kickoff: Date) => {
+  const m = slotFor(kickoff)?.end?.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return SESSION_LIVE_MS;
+  const end = new Date(kickoff);
+  end.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  const ms = end.getTime() - kickoff.getTime();
+  return ms > 0 ? ms : SESSION_LIVE_MS;
 };
 
 type SessionClock =
@@ -320,7 +346,7 @@ function sessionClock(): SessionClock {
   kickoff.setDate(kickoff.getDate() + ((SESSION_DAY - now.getDay() + 7) % 7));
   applyKickoffTime(kickoff);
   if (kickoff.getTime() <= now.getTime()) {
-    if (now.getTime() - kickoff.getTime() < SESSION_LIVE_MS) return { id: "live" };
+    if (now.getTime() - kickoff.getTime() < liveMsFor(kickoff)) return { id: "live" };
     kickoff.setDate(kickoff.getDate() + 7);
     applyKickoffTime(kickoff); // next week may have its own slot (or the default)
   }

@@ -3,7 +3,11 @@
 
 Usage:
     ssh cs16 'grep -H "" /opt/cs16/logs/*/L*.log' | \
-        python3 parse_logs.py --date 2026-08-07 --from 14:25 --to 15:15
+        python3 parse_logs.py --date 2026-08-07
+
+The window defaults to that Friday's slot from data/sessions.json, padded
+either side (see PAD_*) so a map that started early or ran over still gets
+called. --from/--to override it.
 
 grep -H prefixes each line with its file path; the logs/<mod>/ dir names
 the game mode, so each map segment comes out tagged (gungame, deathmatch,
@@ -19,8 +23,13 @@ import json
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
+
+# the session schedule lives with the other tooling, not in the skill
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+import sessions  # noqa: E402
 
 SYD = ZoneInfo("Australia/Sydney")
 UTC = ZoneInfo("UTC")
@@ -35,6 +44,11 @@ PATH_RE = re.compile(r"^(?:.*?/)?logs/([^/]+)/[^:]*\.log:")
 MODES = {"gg": "gungame", "dm": "deathmatch", "vanilla": "classic",
          "aim": "aim", "kz": "kz", "zp": "zombie"}
 
+# The leaderboards count the slot exactly; a recap is a story, so it opens a
+# little early and stays on air for whatever ran over the end.
+PAD_BEFORE = timedelta(minutes=5)
+PAD_AFTER = timedelta(minutes=15)
+
 
 def parse_ts(s):
     return datetime.strptime(s, "%m/%d/%Y - %H:%M:%S").replace(tzinfo=UTC)
@@ -43,13 +57,24 @@ def parse_ts(s):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True, help="session date, YYYY-MM-DD (Sydney)")
-    ap.add_argument("--from", dest="start", default="14:25", help="window start HH:MM Sydney")
-    ap.add_argument("--to", dest="end", default="15:15", help="window end HH:MM Sydney")
+    ap.add_argument("--from", dest="start", default=None,
+                    help="window start HH:MM Sydney (default: the week's slot, padded)")
+    ap.add_argument("--to", dest="end", default=None,
+                    help="window end HH:MM Sydney (default: the week's slot, padded)")
     args = ap.parse_args()
 
     day = datetime.strptime(args.date, "%Y-%m-%d")
-    lo = datetime.combine(day, datetime.strptime(args.start, "%H:%M").time(), SYD).astimezone(UTC)
-    hi = datetime.combine(day, datetime.strptime(args.end, "%H:%M").time(), SYD).astimezone(UTC)
+    slot_lo, slot_hi = sessions.window(date.fromisoformat(args.date))
+
+    def edge(override, slot_time, pad):
+        at = datetime.combine(day, slot_time, SYD)
+        if override:
+            at = datetime.combine(day, datetime.strptime(override, "%H:%M").time(), SYD)
+            pad = timedelta(0)
+        return (at + pad).astimezone(UTC)
+
+    lo = edge(args.start, slot_lo, -PAD_BEFORE)
+    hi = edge(args.end, slot_hi, PAD_AFTER)
 
     # events across all files, sorted by time so map segments come out right
     # even though gg/dm files interleave on stdin

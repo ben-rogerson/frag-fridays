@@ -6,11 +6,21 @@ description: Generate the two Friday-session Slack posts (morning announcement, 
 # Friday Slack posts
 
 Generate both session-day Slack posts in one run, ready to copy-paste.
-Session default: **Friday 1:30pm Sydney time** - 30 minutes at the end of
-the half-day Friday, so it's the wind-down after work wraps, not a
-lunch-break squeeze. Pitch it that way (finish the week fragging), never as
-"sneak off and be back at your desk". An argument overrides the time, e.g.
-`/friday-posts 1pm`.
+The slot moves week to week, so never assume it - read it:
+
+```bash
+python3 scripts/sessions.py       # -> "2026-09-04 14:30-15:00 Sydney"
+```
+
+That's `data/sessions.json`, the one place the session time lives (the
+leaderboards, the recap and the site countdown all read it). If the week
+you're posting for isn't listed it falls back to the default - add an entry
+before writing the posts if the slot has moved. An argument still overrides
+for a one-off, e.g. `/friday-posts 1pm`.
+
+It's half an hour at the end of the half-day Friday, so it's the wind-down
+after work wraps, not a lunch-break squeeze. Pitch it that way (finish the
+week fragging), never as "sneak off and be back at your desk".
 
 ## Step 1: check what's actually running (no SSH needed)
 
@@ -43,7 +53,7 @@ unfurls/links it.
 
 **Post 1 - morning announcement (~9am).** Sets turnout. Mode name + a
 one-line pitch rewritten with banter (not the info.json tagline verbatim),
-day + time ("today 1:30pm"), the URL, and *Chrome on desktop for best
+day + time ("today 2.30pm" - whatever the schedule says), the URL, and *Chrome on desktop for best
 performance*. Short.
 
 No preload post - loading is fast now, don't ask people to prep.

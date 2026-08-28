@@ -22,9 +22,11 @@ ssh cs16 'grep -H "" /opt/cs16/logs/*/L*.log' | \
   python3 .claude/skills/friday-recap/parse_logs.py --date <YYYY-MM-DD>
 ```
 
-Defaults to a 2:25pm-3:15pm Sydney window (session + spillover). Override
-with `--from HH:MM --to HH:MM` (Sydney time) if the session ran at a
-different time. Always pass the session date; usually today.
+The window is that Friday's slot from `data/sessions.json`, padded either
+side for spillover - a later kickoff needs no flag, just make sure the week
+is in the schedule (`python3 scripts/sessions.py <date>` prints what it
+resolves to). `--from HH:MM --to HH:MM` (Sydney) still overrides. Always
+pass the session date; usually today.
 
 Output: JSON, one entry per map segment in play order, each with a `mode`
 field, players sorted by kills with K/D, `top_weapon`, `weapons_used`
