@@ -76,6 +76,7 @@ FRIDAY = 4  # datetime.weekday()
 # applies from, start, end). The slot has moved twice, and the window only
 # needs to bracket the actual play - warm-up before kickoff is practice.
 SLOT_ERAS = [
+    (date(2026, 8, 28), time(14, 30), time(15, 0)),  # 2:30pm slot
     (date(2026, 8, 21), time(14, 0), time(15, 0)),  # 2pm slot (late start, played 14:17-14:53)
     (date(2026, 8, 14), time(13, 30), time(14, 10)),  # 1:30pm slot
     (date.min, time(14, 31), time(14, 55)),  # 2pm slot, gungame half only

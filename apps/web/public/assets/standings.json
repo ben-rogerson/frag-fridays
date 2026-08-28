@@ -1,23 +1,23 @@
 {
- "generated": "2026-08-28T10:15:07+00:00",
+ "generated": "2026-08-28T10:29:32+00:00",
  "season": [
   {
    "name": "ZenBot",
    "sessions": 4,
-   "kills": 367,
-   "deaths": 217,
-   "kd": 1.69,
+   "kills": 296,
+   "deaths": 181,
+   "kd": 1.64,
    "plants": 0,
-   "time": 6337
+   "time": 5449
   },
   {
    "name": "Reversons",
    "sessions": 4,
-   "kills": 344,
-   "deaths": 103,
-   "kd": 3.34,
+   "kills": 272,
+   "deaths": 86,
+   "kd": 3.16,
    "plants": 1,
-   "time": 5429
+   "time": 4913
   },
   {
    "name": "Bot 1 (easy)",
@@ -36,15 +36,6 @@
    "kd": 0.96,
    "plants": 0,
    "time": 2545
-  },
-  {
-   "name": "Quan",
-   "sessions": 1,
-   "kills": 59,
-   "deaths": 112,
-   "kd": 0.53,
-   "plants": 0,
-   "time": 2594
   },
   {
    "name": "Cem",
@@ -72,6 +63,15 @@
    "kd": 1.24,
    "plants": 0,
    "time": 2029
+  },
+  {
+   "name": "Quan",
+   "sessions": 1,
+   "kills": 40,
+   "deaths": 77,
+   "kd": 0.52,
+   "plants": 0,
+   "time": 1706
   },
   {
    "name": "Khoa",
@@ -382,31 +382,31 @@
   {
    "date": "2026-08-28",
    "mvp": "Reversons",
-   "kills": 176,
+   "kills": 104,
    "players": [
     {
      "name": "Reversons",
-     "kills": 176,
-     "deaths": 59,
-     "kd": 2.98,
+     "kills": 104,
+     "deaths": 42,
+     "kd": 2.48,
      "plants": 0,
-     "time": 2630
+     "time": 2114
     },
     {
      "name": "ZenBot",
-     "kills": 168,
-     "deaths": 90,
-     "kd": 1.87,
+     "kills": 97,
+     "deaths": 54,
+     "kd": 1.8,
      "plants": 0,
-     "time": 2519
+     "time": 1631
     },
     {
      "name": "Quan",
-     "kills": 59,
-     "deaths": 112,
-     "kd": 0.53,
+     "kills": 40,
+     "deaths": 77,
+     "kd": 0.52,
      "plants": 0,
-     "time": 2594
+     "time": 1706
     },
     {
      "name": "HaiBot",
