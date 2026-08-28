@@ -24,11 +24,7 @@ const SEGMENTS = 24;
 // cheaper. Freeing a slot on leave, fixing the spray store and reworking the
 // standings columns all failed that test and were cut - real work, invisible
 // from a player's seat. Flat facts only, newest first, no roadmap language.
-//
-// Known issues stay listed until they are actually fixed: a player who knows
-// Escape kills the game reloads and keeps playing, one who doesn't thinks
-// the server dropped them.
-const NEWS: { label: string; items: string[]; known?: boolean }[] = [
+const NEWS: { label: string; items: string[] }[] = [
   {
     label: "28 aug",
     items: [
@@ -40,11 +36,6 @@ const NEWS: { label: string; items: string[]; known?: boolean }[] = [
   {
     label: "21 aug",
     items: ["bots fill the server to 10 - each human who joins bumps one"],
-  },
-  {
-    label: "known issues",
-    known: true,
-    items: ["pressing escape crashes the game - reload the page to get back in"],
   },
 ];
 
@@ -1700,10 +1691,7 @@ const App: FC = () => {
             </h2>
             <div className="panel__body news__body">
               {NEWS.map((entry) => (
-                <div
-                  className={`news__entry${entry.known ? " news__entry--known" : ""}`}
-                  key={entry.label}
-                >
+                <div className="news__entry" key={entry.label}>
                   <p className="card__ruleslabel">{entry.label}</p>
                   <ul className="card__rulelist news__list">
                     {entry.items.map((item) => (

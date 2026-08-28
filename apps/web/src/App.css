@@ -2186,12 +2186,3 @@ th.standings__num {
 .news__list {
   grid-template-columns: 1fr;
 }
-
-/* known issues carry the same weight as a fix - the marker just stops them
-   reading as another thing that got better. Alert red, not acid: acid is
-   reserved for live and powered things. */
-.news__entry--known .card__rulelist li::before {
-  content: "!";
-  color: var(--alert);
-  font-weight: 700;
-}

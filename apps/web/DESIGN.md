@@ -245,9 +245,7 @@ changed for players between Fridays. Reuses the mode card's rules
 vocabulary rather than inventing a device: a lowercase date micro-label
 (`card__ruleslabel`) over an acid-marked list (`card__rulelist`), one column
 instead of the rules grid because these are sentences, not specs. Bar note
-reads "worked on between fridays". Known issues are the last entry and swap
-the acid "»" for an Alert Red "!" - they carry the same weight as a fix but
-must not read as another thing that got better. Copy obeys the Straight Face
+reads "worked on between fridays". Copy obeys the Straight Face
 Rule: flat statements of what a player will notice, no roadmap language, no
 apology, and an issue stays listed until it is actually fixed. The bar for an
 entry is whether a player would have noticed the problem or notices the
