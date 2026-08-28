@@ -322,14 +322,92 @@ drop - the silence watchdog fires ~10s later and must not downgrade
 never honour) - and `persistSettings` skips a dead engine rather than
 re-entering the crashed heap with `host_writeconfig`.
 
-What dropped that player: the server engine segfaulted. `/opt/cs16/cores`
-holds three dumps from that morning (04:34, 04:45, 05:18 UTC), and one
-second after the 05:18:26 dump the log has `YaPB ... successfully loaded` +
-`16 player server started` - the container's supervisor respawns xashds in
-place, so `docker inspect` still reads `RestartCount=0` and only the cores
-and a fresh `player server started` line give it away. Every human is
-dropped at that instant, which is the drop the client then died on.
+What dropped that player: the server engine segfaulted - see "AMX Mod X's
+SV_DropClient detour" below. One second after the 05:18:26 core dump the log
+has `YaPB ... successfully loaded` + `16 player server started`: the
+container's supervisor respawns xashds in place, so `docker inspect` still
+reads `RestartCount=0` and only the cores and a fresh `player server
+started` line give it away. Every human is dropped at that instant, which is
+the drop the client then died on.
 
 Reproducing the wrapper (not the crash): join, then in devtools run
 `alert("Xash Error\n\nMem_FreeBlock: not allocated or double freed pool 0")`
 - that is byte-for-byte the call the engine makes.
+
+## AMX Mod X's SV_DropClient detour kills the server on client timeout
+
+Six of the eight cores in `/opt/cs16/cores` between 2026-08-19 and
+2026-08-28 are one bug, and it is the single worst thing on this stack: any
+player timing out takes the whole server down, everyone else with it.
+
+The engine prints its own symbolised backtrace before it dies (it is in
+`docker logs`, easy to miss among kill-feed lines - grep for
+`Crash: signal`):
+
+    Crash: signal 11 errno 0 with code 1 at 0x68520934
+     2: SV_DropClient_PreHook (meta_api.cpp:946) (amxmodx_mm_i386.so)
+     3: SV_DropClient        (meta_api.cpp:970) (amxmodx_mm_i386.so)
+     4: SV_DropTimedOutClient (sv_main.c:465) (./xash)
+     5: SV_CheckTimeouts      (sv_main.c:518) (./xash)
+     6: Host_ServerFrame      (sv_main.c:704) (./xash)
+
+AMXX detours the engine's drop function, located from its stock gamedata by
+symbol name (`"linux" "@SV_DropClient_"`). Xash3D FWGS exports exactly that
+name as an HLDS compatibility alias - the engine binary is not stripped - so
+the detour installs cleanly. It then reads its first argument as GoldSrc's
+`client_t`:
+
+    auto pPlayer = SV_DropClient_PreHook(cl->edict, ...);   // meta_api.cpp:970
+    #define GET_PLAYER_POINTER(e) (&g_players[ENTINDEX(e)]) // no bounds check
+
+Xash3D passes its own `sv_client_t`, laid out differently, so `cl->edict`
+reads an unrelated field, `ENTINDEX()` of that garbage returns a wild index,
+and `pPlayer->initialized` dereferences into nothing. In the cores the
+faulting instruction is `cmpb $0x0,0x1c(%edi)` with `edi` = fault address
+minus 0x1c, every time - `initialized` sits at offset 0x1c in `CPlayer`.
+
+It fires on the TIMEOUT path, which is the path every browser client takes
+when a tab is closed or left in the background past `sv_timeout` (600s).
+One player wandering off kills the server ten minutes later. The 05:18:26
+crash on 2026-08-28 is exactly 600s after a `websocket: close 1001 (going
+away)` at 05:08:26.
+
+The core dumps are all *secondary* crashes and misleading on their own: the
+first fault runs the engine's `Sys_Crash` handler, which tries a graceful
+`Sys_Quit -> SV_Shutdown -> SV_FinalMessage -> Netchan_TransmitBits`, and
+that function needs a 192KB stack frame (`memset(send_buf, 0, 0x30030)`)
+that the handler does not have. So the core says "SIGSEGV in memset" and the
+real cause is only in the saved signal context (`cr2`/`eip`) or in the log.
+
+**Fix (shipped 2026-08-28):** `addons/amxmodx/data/gamedata/custom/`
+`fragfridays-sv-dropclient.txt` in gg/dm/kz/aim overrides the signature with
+a symbol the engine does not export, so `GetMemSig()` fails and the detour
+is never installed. This is AMXX's own documented override mechanism and the
+hook is optional upstream. Cost: the `client_disconnected` forward loses its
+drop-reason string and `bDrop` flag - it still fires, from
+`C_ClientDisconnect`, and CPlayer cleanup still runs there.
+
+Verifying it, without waiting for a crash - read the engine's function entry
+in the live process and look for a detour jump:
+
+    ssh cs16 'PID=$(docker inspect -f "{{.State.Pid}}" dm-xash3d-1); \
+      python3 -c "f=open(\"/proc/$PID/mem\",\"rb\"); f.seek(0x0855a120); \
+      print(f.read(8).hex())"'
+
+`ff 25 ...` (an indirect jmp) means the detour is installed and the crash is
+live. `55 57 56 53 ...` (the real prologue) means it is gone. The address is
+`nm /tmp/xash | grep SV_DropClient_`; copy the binary out with
+`docker cp dm-xash3d-1:/xashds/xash /tmp/xash`. As a control, `Cvar_DirectSet`
+(same gamedata file, not overridden) should still read `ff 25 ...`.
+
+Reading a core without gdb (there is none on the box): parse the ELF notes
+directly - NT_PRSTATUS for signal and registers, NT_FILE for the module
+map - then walk the stack above the crashing frame for return addresses and
+symbolise with `addr2line -fCie /tmp/xash`. The engine binary keeps its
+symtab and DWARF, so this names functions. To find the ORIGINAL fault behind
+a crash-handler crash, scan every mapped segment for the saved sigcontext
+(`trapno==14`, `cs==0x23`, `ss==0x2b`) and read its `eip` and `cr2`.
+
+Still unexplained: two cores (2026-08-19 23:14, 2026-08-20 23:25 UTC, both
+outside session hours) have a different original fault - a read of address
+0x1c with `eip` in `runtime.cgocallback`. Twice in ten days, cause unknown.

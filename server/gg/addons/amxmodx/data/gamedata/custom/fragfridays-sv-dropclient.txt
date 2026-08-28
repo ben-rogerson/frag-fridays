@@ -1,0 +1,51 @@
+/**
+ * Disable AMX Mod X's SV_DropClient detour on this engine. It is a crash,
+ * not an optimisation: it killed the server three times in 45 minutes on
+ * 2026-08-28 and eight times since 2026-08-19 (cores in /opt/cs16/cores).
+ *
+ * AMXX locates the engine's drop function by symbol - stock gamedata says
+ * "linux" "@SV_DropClient_" - and Xash3D FWGS exports exactly that name as
+ * an HLDS compatibility alias, so the detour installs cleanly. But the
+ * detour then reads its first argument as GoldSrc's `client_t`:
+ *
+ *     auto pPlayer = SV_DropClient_PreHook(cl->edict, ...);   // meta_api.cpp
+ *     #define GET_PLAYER_POINTER(e) (&g_players[ENTINDEX(e)]) // no bounds check
+ *
+ * Xash3D passes its own `sv_client_t`, which is laid out differently, so
+ * `cl->edict` reads an unrelated field, ENTINDEX() of that garbage gives a
+ * wild index, and `pPlayer->initialized` dereferences into nothing:
+ *
+ *     SV_CheckTimeouts -> SV_DropTimedOutClient -> SV_DropClient
+ *       -> SV_DropClient_PreHook (meta_api.cpp:946)  SIGSEGV
+ *
+ * It fires on the TIMEOUT path, which is the one a browser client takes
+ * every time a tab is closed or left in the background past sv_timeout -
+ * so one player wandering off takes the whole server down ten minutes
+ * later, and everyone else with it.
+ *
+ * Overriding the symbol with a name the engine does not export makes
+ * GetMemSig() fail, so the detour is never installed (AMXX supports this -
+ * the hook is optional and absent on other platforms). Cost: the
+ * `client_disconnected` forward loses its drop-reason string and its
+ * bDrop flag; it still fires, from C_ClientDisconnect, and CPlayer cleanup
+ * still runs there. Nothing we ship reads either (frag_dm.sma only clears
+ * its respawn tasks).
+ *
+ * This "custom" directory is AMXX's own override mechanism - files here are
+ * parsed after the stock gamedata. See docs/troubleshooting.md.
+ */
+
+"Games"
+{
+	"#default"
+	{
+		"Signatures"
+		{
+			"SV_DropClient"
+			{
+				"library"   "engine"
+				"linux"     "@SV_DropClient_deliberately_not_hooked_see_gamedata_custom"
+			}
+		}
+	}
+}
