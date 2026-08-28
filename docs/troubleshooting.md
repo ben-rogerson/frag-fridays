@@ -445,9 +445,8 @@ symtab and DWARF, so this names functions. To find the ORIGINAL fault behind
 a crash-handler crash, scan every mapped segment for the saved sigcontext
 (`trapno==14`, `cs==0x23`, `ss==0x2b`) and read its `eip` and `cr2`.
 
-Still unexplained: two cores (2026-08-19 23:14, 2026-08-20 23:25 UTC, both
-outside session hours) have a different original fault - a read of address
-0x1c with `eip` in `runtime.cgocallback`. Twice in ten days, cause unknown.
+The other two cores (2026-08-19 23:14, 2026-08-20 23:25 UTC) are a separate
+bug with the same second stage - see "Mod swaps core-dump the engine" below.
 
 ## Reconnect must reload the page, never `retry` in-engine
 
@@ -465,3 +464,58 @@ reload (`apps/web/src/App.tsx`); the zombie-transport tiebreaker in
 `webrtc.ts` that existed to make the second click reload went with it.
 valve.zip comes from Cache Storage, so a reload costs an unpack, not a
 316MB download.
+
+## Mod swaps core-dump the engine (harmless, but that is where the cores come from)
+
+Two of the eight cores in `/opt/cs16/cores` are not a gameplay crash at all.
+Both happened the instant a `docker compose down` tore the gg container
+down - journald pins each to the second, with a replacement container up
+about a second later. `deploy.sh <mod>` snapshots console logs before a
+teardown and `swap.sh` / the MCP `swap_mod` path do not, which is why no
+snapshot exists for either moment.
+
+The engine prints its own crash block, and it survives *inside the core*
+even when no log does (the handler formats the text, prints it, then
+re-raises, so the buffer is in the dump):
+
+    Crash: signal 11 errno 0 with code 1 at 0x1c (nil)
+     0: Sys_Crash (crash_posix.c:59) (./xash)
+     1: 0x...34f (linux-gate.so.1)
+     2: runtime.cgocallback (asm_386.s:795) (./xash)
+
+What happens, recovered from core memory:
+
+1. SIGTERM arrives while the main thread is parked in the Go scheduler
+   (`stoplockedm -> notesleep -> futex`), a cgo callback having blocked.
+   `runtime.park_m`'s inlined `dropg()` has already set `m.curg = nil` -
+   `m0` is at 0x08b094a0 and `m0+0x64` reads 0 in both cores, against a
+   live goroutine pointer in any healthy core.
+2. The engine's `Posix_SigtermCallback` runs a full shutdown INLINE IN THE
+   SIGNAL HANDLER: `Sys_Quit -> Host_ShutdownWithReason -> SV_Shutdown ->
+   SV_FinalMessage -> Netchan_TransmitBits`.
+3. Sending that last "server shutting down" packet goes `NET_SendPacketEx
+   -> lib_net_sendto -> crosscall2`, re-entering Go.
+4. `runtime.cgocallback` sees a non-nil TLS `g` (it is `g0`) and takes the
+   `havem` fast path, which assumes a goroutine owns this m. None does, so
+   `m.curg` is nil and `mov 0x1c(%esi),%edi` (cgocallback+0x77, reading
+   `g.sched.sp`) faults on 0x1c.
+
+Calling a cgo callback from a signal handler is a Go reentrancy violation;
+no version of `cgocallback` survives it. Note the shared second stage with
+the AMXX crash above: both die in `SV_FinalMessage -> Netchan_TransmitBits`
+run from signal context, there by blowing a 192KB stack frame, here by
+re-entering Go. The engine should not do network shutdown from a signal
+handler at all.
+
+Deliberately NOT fixed. It only fires while a container is being destroyed
+during a swap, with players dropped regardless; the cost is a ~270MB core
+per swap and clients missing the final shutdown message. The real fix is
+upstream (have the handler set a flag and let the main loop shut down), and
+carrying an engine patch is not worth that. The tempting workaround - send
+`quit` over the cmdpipe and wait before `docker stop` - is untested and may
+just trade one shutdown crash for another: `quit` is blocked in
+`server/mcp/src/cmdpipe.js` precisely because `restart` was seen to segfault
+this build (2026-08-04).
+
+If cores ever fill the disk, they are safe to delete; `/opt/cs16/cores` is
+1777 and only catches dumps.
