@@ -536,8 +536,22 @@ later the silence watchdog fires and the lobby says "you were dropped from
 the server". The server is fine and still holds the slot; the fault is
 entirely local.
 
-`App.tsx` now swallows Escape in the capture phase, beating SDL's listener,
-and opens the lobby over the game instead - the cursor is already free
+Escape has to be blocked on TWO routes, and the keypress is only one of
+them. `launch.ts` swallows the keydown (window, capture, registered before
+the engine so SDL cannot get in first - a handler added later loses the race
+and the menu opens anyway) AND swallows `pointerlockchange` on document,
+because Escape releases the pointer lock and no page can stop it; SDL reads
+the lock dying as the window losing focus and opens the menu regardless of
+the key. `fullscreenchange` was already swallowed for the same reason on
+2026-08-07. Blocking only the key still crashed:
+`RuntimeError: remainder by zero` after Escape, 2026-08-28.
+
+The cost of hiding pointerlockchange is that `Browser.pointerLock` goes
+stale, so emscripten's canvas-click handler will not re-request the lock -
+closing the menu calls `requestPointerLock()` explicitly, from the keypress
+or click so the user gesture still counts.
+
+The lobby opens over the game instead - the cursor is already free
 because the browser released it, and Escape or Resume goes back. It
 deliberately does NOT call preventDefault: leaving the default alone is what
 keeps the browser's fullscreen and pointer-lock exit working on Escape (both

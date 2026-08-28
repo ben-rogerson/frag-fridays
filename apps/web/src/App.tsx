@@ -713,8 +713,11 @@ const App: FC = () => {
   const fadeRef = useRef<number | null>(null);
   const [name, setName] = useState(() => localStorage.getItem("ff-name") ?? "");
   const [nameNeeded, setNameNeeded] = useState(false);
-  // Escape opens this lobby as the in-game menu - see the keydown handler below
+  // Escape opens this lobby as the in-game menu - see interceptEscape in
+  // launch.ts. The ref mirrors the state so the engine-side callback can read
+  // it without being re-registered on every toggle.
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpenRef = useRef(false);
   const aliasRef = useRef<HTMLInputElement>(null);
   const [musicOver, setMusicOver] = useState(false);
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
@@ -802,8 +805,22 @@ const App: FC = () => {
 
   // a drop or a crash is not a moment to be hiding behind the pause menu
   useEffect(() => {
-    if (!playing) setMenuOpen(false);
+    if (!playing) {
+      menuOpenRef.current = false;
+      setMenuOpen(false);
+    }
   }, [playing]);
+
+  const toggleMenu = () => {
+    const next = !menuOpenRef.current;
+    menuOpenRef.current = next;
+    setMenuOpen(next);
+    // Going back to the game: take the pointer back ourselves. SDL never saw
+    // it released (we swallow pointerlockchange to keep the engine out of its
+    // own menu), so nothing else is going to ask for it. Called straight from
+    // the keypress or the click, while the user gesture still counts.
+    if (!next) canvasRef.current?.requestPointerLock?.();
+  };
   useEffect(() => {
     if (playing) return;
     let cancelled = false;
@@ -1021,7 +1038,7 @@ const App: FC = () => {
         // Escape opens this lobby over the game instead of the engine's own
         // menu, which this build cannot draw. Swallowed before SDL ever sees
         // it - see interceptEscape in launch.ts.
-        () => setMenuOpen((open) => !open),
+        () => toggleMenu(),
       );
       zipRef.current = null;
       // a drop during launch must not be clobbered by the launch resolving
@@ -1466,7 +1483,7 @@ const App: FC = () => {
                         <p className="status">
                           still in the game - the round is running without you
                         </p>
-                        <button className="join" onClick={() => setMenuOpen(false)}>
+                        <button className="join" onClick={toggleMenu}>
                           resume
                         </button>
                       </>

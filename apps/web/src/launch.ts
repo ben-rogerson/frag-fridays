@@ -186,6 +186,29 @@ function captureEngineFatals(onFatal: (message: string) => void) {
 // Deliberately no preventDefault: leaving the default alone keeps the
 // browser's fullscreen and pointer-lock exit on Escape, both handled above
 // the page and uncancellable by it anyway.
+// The other half of the same problem. Escape does two things no page can
+// cancel: it exits fullscreen (already hidden from SDL - see the
+// fullscreenchange handler in App.tsx, 2026-08-07) and it releases the
+// pointer lock. SDL reads the lock dying as the window losing focus and the
+// engine opens its menu, which is the crash again - confirmed 2026-08-28,
+// "the game engine crashed - RuntimeError: remainder by zero" after Escape,
+// with the keydown already being swallowed.
+//
+// Emscripten registers its own on document in the BUBBLE phase
+// (`document.addEventListener("pointerlockchange", pointerLockChange, false)`
+// in raw.js) and SDL registers through JSEvents, so a document listener added
+// here - capture, before either exists - runs first and stops both.
+//
+// Cost: `Browser.pointerLock` goes stale, so emscripten's canvas-click
+// handler will not re-request the lock. Closing the menu asks for it back
+// explicitly (see toggleMenu in App.tsx).
+function swallowPointerLockChange() {
+  const swallow = (e: Event) => e.stopImmediatePropagation();
+  for (const type of ["pointerlockchange", "webkitpointerlockchange", "mozpointerlockchange"]) {
+    document.addEventListener(type, swallow, true);
+  }
+}
+
 function interceptEscape(onEscape: () => void) {
   window.addEventListener(
     "keydown",
@@ -308,6 +331,7 @@ export async function launchGame(
   disableMicCapture(); // must run before the engine probes for audio capture
   captureEngineFatals(onFatal); // ...and before it can Sys_Error
   interceptEscape(onEscape); // ...and before SDL claims the keyboard
+  swallowPointerLockChange(); // ...and before it can watch the pointer lock
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],
