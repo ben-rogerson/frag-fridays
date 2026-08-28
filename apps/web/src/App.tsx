@@ -1007,13 +1007,17 @@ const App: FC = () => {
     }
   };
 
-  // in-engine `retry` when only the game link dropped; full reload when the
-  // WebRTC transport is gone OR a previous retry went unanswered - a zombie
-  // transport (sleep, network switch) still reports healthy, and the engine
-  // can't rebuild it mid-flight, so the second click has to reload
+  // Always a full reload. The in-engine `retry` looked cheaper - it kept the
+  // unpacked filesystem - but it does not work after a drop: this wasm build's
+  // render loop dies on the disconnect (the UI_DrawString crash in backlog
+  // item 2), so `retry` lands on a black screen with an engine that never
+  // reaches the wire. Seen live 2026-08-28: the server logged no connect
+  // attempt at all from a player clicking reconnect, the silence watchdog
+  // re-fired ~10s later, and they looped between black screen and drop
+  // screen. A reload rebuilds the engine, and valve.zip comes from Cache
+  // Storage, so the cost is an unpack and not a 316MB download.
   const reconnect = () => {
-    if (xashRef.current?.retryConnect()) setStage({ id: "playing" });
-    else location.reload();
+    location.reload();
   };
 
   const progress = stageProgress(stage);

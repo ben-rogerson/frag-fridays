@@ -418,6 +418,25 @@ live. `55 57 56 53 ...` (the real prologue) means it is gone. The address is
 `docker cp dm-xash3d-1:/xashds/xash /tmp/xash`. As a control, `Cvar_DirectSet`
 (same gamedata file, not overridden) should still read `ff 25 ...`.
 
+**Verified end to end 2026-08-28 08:00 UTC**, with `sv_timeout` temporarily
+at 30: a player joined at 07:56:46, backgrounded the tab at ~07:58:40 (which
+freezes the wasm game loop, so the client goes silent while the WebRTC
+transport stays up), and the engine dropped them at 07:59:10 - exactly 30s
+after the last packet. Container start time unchanged, `RestartCount=0`,
+zero `Crash: signal` lines. Before the fix this sequence was fatal every
+time.
+
+Identifying a timeout drop takes care, and cost me a false green first: the
+engine does NOT print "timed out" to the console log (`SV_BroadcastPrintf`
+goes to clients), so there is no string to grep. Distinguish by what is
+absent - a transport teardown logs a `component=server` line
+(`websocket: close 1001 (going away)`), so a `disconnected` line with no
+`component=server` event near it came from inside the engine, and a drop
+landing exactly `sv_timeout` seconds after the client went quiet is
+`SV_CheckTimeouts`. Closing the tab is the WRONG trigger for this test - it
+tears the transport down and never reaches the timeout path. Background the
+tab instead.
+
 Reading a core without gdb (there is none on the box): parse the ELF notes
 directly - NT_PRSTATUS for signal and registers, NT_FILE for the module
 map - then walk the stack above the crashing frame for return addresses and
@@ -429,3 +448,20 @@ a crash-handler crash, scan every mapped segment for the saved sigcontext
 Still unexplained: two cores (2026-08-19 23:14, 2026-08-20 23:25 UTC, both
 outside session hours) have a different original fault - a read of address
 0x1c with `eip` in `runtime.cgocallback`. Twice in ten days, cause unknown.
+
+## Reconnect must reload the page, never `retry` in-engine
+
+The drop overlay's button used to prefer `Cmd_ExecuteString('retry')` and
+only fall back to `location.reload()` when the WebRTC transport looked dead.
+It kept the unpacked filesystem, so it seemed the cheaper recovery. It does
+not work: this wasm build's render loop dies on the disconnect itself (the
+`UI_DrawString` crash in backlog item 2), so `retry` lands on a black screen
+with an engine that never reaches the wire.
+
+Seen live 2026-08-28: a player clicking reconnect produced NO connect
+attempt in the server log at all, the silence watchdog re-fired ~10s later,
+and they looped between black screen and drop screen. Changed to always
+reload (`apps/web/src/App.tsx`); the zombie-transport tiebreaker in
+`webrtc.ts` that existed to make the second click reload went with it.
+valve.zip comes from Cache Storage, so a reload costs an unpack, not a
+316MB download.

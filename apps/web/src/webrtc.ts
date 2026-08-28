@@ -44,7 +44,6 @@ export class Xash3DWebRTC extends Xash3D {
   private silenceTimer?: number
   private droppedFired = false
   private sawTraffic = false
-  private retryPending = false
 
   // Server traffic is continuous while connected, so this much silence after
   // packets have started flowing means we were dropped at the game level.
@@ -201,8 +200,6 @@ export class Xash3DWebRTC extends Xash3D {
   // armed by the first incoming packet, re-armed by every one after
   private bumpSilence() {
     if (this.droppedFired) return
-    // any packet back proves the transport delivers - retry is trustworthy
-    this.retryPending = false
     this.sawTraffic = true
     this.armSilence()
   }
@@ -223,32 +220,5 @@ export class Xash3DWebRTC extends Xash3D {
     this.droppedFired = true
     clearTimeout(this.silenceTimer)
     this.onDrop?.(kind)
-  }
-
-  // Reconnect in-engine after a game-level drop. Returns false when the
-  // transport is dead - a full page reload is the only way back then.
-  //
-  // "Dead" can't be read off the connection state alone: after a laptop
-  // sleep or network switch the channel still reports open and the peer
-  // connected while delivering nothing (a zombie), so an in-engine retry
-  // just vanishes, the silence watchdog re-fires, and every further click
-  // would loop the same doomed retry forever. One unanswered retry is the
-  // tiebreaker: retryPending stays set until any packet comes back, so if
-  // the drop screen returns with it still set, stop trusting the transport.
-  retryConnect(): boolean {
-    if (
-      this.retryPending ||
-      this.channel?.readyState !== 'open' ||
-      this.peer?.connectionState !== 'connected'
-    ) {
-      return false
-    }
-    this.retryPending = true
-    this.droppedFired = false
-    // arm the watchdog directly (not via bumpSilence, which would clear
-    // retryPending without any proof the server answered)
-    this.armSilence()
-    this.Cmd_ExecuteString('retry')
-    return true
   }
 }
