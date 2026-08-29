@@ -184,6 +184,18 @@ const sessionDateLabel = (iso: string) =>
     .toLowerCase();
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+// server browser timeleft cell. Round timer first, map time in brackets - but
+// only mention whichever of the two the server is actually running, so we never
+// print a bare "-" next to a real clock.
+const timeleft = ({ roundTimeLeft, mapTimeLeft }: { roundTimeLeft: number; mapTimeLeft: number }) => {
+  const round = roundTimeLeft >= 0 ? mmss(roundTimeLeft) : null;
+  const map = mapTimeLeft > 0 ? mmss(mapTimeLeft) : null;
+  if (round && map) return `${round} (${map} total)`;
+  if (round) return round;
+  if (map) return `${map} total`;
+  return "-";
+};
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1611,16 +1623,12 @@ const App: FC = () => {
                           {serverStatus.bots > 0 ? `+${serverStatus.bots} bots` : ""} /{" "}
                           {serverStatus.maxplayers}
                         </td>
-                        <td>
-                          {serverStatus.roundTimeLeft >= 0 ? mmss(serverStatus.roundTimeLeft) : "-"}{" "}
-                          ({serverStatus.mapTimeLeft > 0 ? mmss(serverStatus.mapTimeLeft) : "-"}{" "}
-                          total)
-                        </td>
+                        <td>{timeleft(serverStatus)}</td>
                         <td className="nowrap">{ping !== null ? `${ping} ms` : "-"}</td>
                       </tr>
                     ) : (
                       <tr>
-                        <td className="servers__scanning" colSpan={6}>
+                        <td className="servers__scanning" colSpan={5}>
                           scanning for servers…
                         </td>
                       </tr>
