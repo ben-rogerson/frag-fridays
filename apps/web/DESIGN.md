@@ -239,6 +239,20 @@ Real 1.6-era map screenshots (160x120, the classic server-browser thumb size) bu
 ### Scrollbar
 The overlay's scrollbar is period widget chrome: a 15px sunken track (#0a1226, bevel-dark left edge) with a raised chrome-navy thumb (horizontal #33497f → #1d2f5c gradient, bevel borders) and bevelled arrow buttons at each end (slate-blue SVG triangles). Firefox falls back to flat `scrollbar-color` - the standard property must never be set for Chromium, which drops all `::-webkit-scrollbar` styling when it is present.
 
+### Your Settings
+A panel in the main column, under the mode card. Two halves. The top half is
+the saved overrides as chips in the grammar of a chosen filter - ticked,
+accent-lit, tabular value beside an uppercase micro-label - because that is
+what each one is: a shipped default the player opted out of. Clicking a chip
+drops the setting, so hover states the consequence (chip and value go alert
+red, value struck through) rather than just brightening. The bottom half is
+the dials that write them: sunken tracks with raised accent slugs for the
+ranges, segmented accent chips for the choices - and for crosshair colour the chip holds a swatch instead of a word, the accent border doing the "chosen" work the fill does elsewhere. A readout only appears on a
+range - the picked chip already reads as the value - and it stays muted while
+the setting matches what the server ships, going accent the moment the player
+owns it. Empty state states the fact flatly: "nothing changed yet - you play
+on the settings the server ships".
+
 ### Server News
 A full-width panel between the front grid and the footer, logging what
 changed for players between Fridays. Reuses the mode card's rules

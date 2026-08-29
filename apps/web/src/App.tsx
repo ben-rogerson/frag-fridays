@@ -1,5 +1,15 @@
 import { FC, Fragment, useEffect, useRef, useState } from "react";
-import { downloadValveZip, launchGame, leaveServer, persistSettings } from "./launch";
+import {
+  clearSavedSettings,
+  downloadValveZip,
+  launchGame,
+  leaveServer,
+  persistSettings,
+  removeSavedSetting,
+  savedSettings,
+  setSavedCvar,
+} from "./launch";
+import type { SavedSetting } from "./launch";
 import { Xash3DWebRTC } from "./webrtc";
 import "@fontsource/black-ops-one";
 import "./App.css";
@@ -25,6 +35,12 @@ const SEGMENTS = 24;
 // standings columns all failed that test and were cut - real work, invisible
 // from a player's seat. Flat facts only, newest first, no roadmap language.
 const NEWS: { label: string; items: string[] }[] = [
+  {
+    label: "29 aug",
+    items: [
+      "your settings are now listed on this page - sensitivity, hand and the rest, with anything you changed in-game shown as a chip you can drop",
+    ],
+  },
   {
     label: "28 aug",
     items: [
@@ -685,6 +701,254 @@ function stageLabel(stage: Stage): string {
       return stage.message;
   }
 }
+
+/* --- your settings ------------------------------------------------------ */
+
+// The engine's cfg files die with the page, so the client saves a diff of
+// everything the player changed and replays it on the next boot (launch.ts).
+// That diff was invisible and permanent: a sensitivity poked into the console
+// once came back every session with no way to drop it again. This panel is
+// that diff made visible - one chip per override, deselect to drop it - plus
+// controls for the handful of settings worth changing outside the game.
+// `quote` is for values with spaces (an rgb triplet): the console needs them
+// quoted, everything in here compares and displays them bare.
+type ControlBase = { cvar: string; label: string; def: string; quote?: boolean };
+type Control = ControlBase &
+  (
+    | { kind: "range"; min: number; max: number; step: number; percent?: boolean }
+    | { kind: "choice"; swatch?: boolean; options: { value: string; label: string }[] }
+  );
+
+// `def` must match what server/config/userconfig.cfg ships: a control moved
+// back to it drops the override instead of pinning today's default forever.
+const CONTROLS: Control[] = [
+  {
+    cvar: "sensitivity",
+    label: "mouse sensitivity",
+    def: "2.0",
+    kind: "range",
+    min: 0.5,
+    max: 4,
+    step: 0.1,
+  },
+  {
+    cvar: "cl_righthand",
+    label: "gun hand",
+    def: "1",
+    kind: "choice",
+    options: [
+      { value: "0", label: "left" },
+      { value: "1", label: "right" },
+    ],
+  },
+  { cvar: "xhair_size", label: "crosshair size", def: "2", kind: "range", min: 1, max: 6, step: 1 },
+  {
+    // the code-drawn crosshair cs16-client actually uses; the stock sprite
+    // fallback (cl_crosshair_color) only draws if xhair is unavailable, which
+    // it never is in this build, so one cvar covers it
+    cvar: "xhair_color",
+    label: "crosshair colour",
+    def: "50 250 50 255",
+    quote: true,
+    kind: "choice",
+    swatch: true,
+    options: [
+      { value: "50 250 50 255", label: "green" },
+      { value: "0 220 255 255", label: "cyan" },
+      { value: "255 230 0 255", label: "yellow" },
+      { value: "255 40 40 255", label: "red" },
+      { value: "255 255 255 255", label: "white" },
+    ],
+  },
+  { cvar: "brightness", label: "brightness", def: "1", kind: "range", min: 0, max: 3, step: 0.1 },
+  {
+    // scoped aim (awp, scout) relative to the hip sensitivity above
+    cvar: "zoom_sensitivity_ratio",
+    label: "zoom sensitivity",
+    def: "1.0",
+    kind: "range",
+    min: 0.5,
+    max: 2,
+    step: 0.05,
+  },
+  {
+    cvar: "volume",
+    label: "game volume",
+    def: "0.8",
+    kind: "range",
+    min: 0,
+    max: 1,
+    step: 0.05,
+    percent: true,
+  },
+];
+
+const CONTROL_BY_CVAR = new Map(CONTROLS.map((c) => [c.cvar, c]));
+
+// host_writeconfig quotes its values and writes floats long-hand
+// (sensitivity "3.500000"), so everything on the way out gets unwrapped and
+// everything on the way in is written plain - the console takes either.
+const unquote = (v: string) => v.replace(/^"([\s\S]*)"$/, "$1").trim();
+const tidy = (n: number) => String(Math.round(n * 100) / 100);
+const controlNum = (c: Control, value: string) => {
+  const n = parseFloat(unquote(value));
+  return Number.isNaN(n) ? parseFloat(c.def) : n;
+};
+
+const showValue = (c: Control, value: string): string => {
+  const v = unquote(value);
+  if (c.kind === "choice") return c.options.find((o) => o.value === v)?.label ?? v;
+  const n = parseFloat(v);
+  if (Number.isNaN(n)) return v;
+  return c.percent ? `${Math.round(n * 100)}%` : tidy(n);
+};
+
+// Chip text for one saved line. Settings this panel knows get their friendly
+// name; anything else (a bind changed in-game, a cvar typed into the console)
+// still shows up as itself rather than being hidden from the player.
+const describe = (s: SavedSetting): { label: string; value: string } => {
+  if (s.key.startsWith("bind ")) {
+    const cmd = s.value.match(/^("?)(\S+?)\1\s+([\s\S]*)$/);
+    const key = s.key.slice(5).toLowerCase();
+    return { label: `bind ${key}`, value: unquote(cmd ? cmd[3] : s.value) };
+  }
+  if (s.key.startsWith("unbind ")) {
+    return { label: "unbound key", value: s.key.slice(7).toLowerCase() };
+  }
+  const c = CONTROL_BY_CVAR.get(s.cvar);
+  if (!c) return { label: s.cvar, value: unquote(s.value) };
+  return { label: c.label, value: showValue(c, s.value) };
+};
+
+const SettingsPanel: FC = () => {
+  const [saved, setSaved] = useState<SavedSetting[]>(savedSettings);
+  const reread = () => setSaved(savedSettings());
+  // a cvar line keys on its own name, so this is the whole lookup
+  const savedValue = (c: Control) => saved.find((s) => s.key === c.cvar)?.value;
+
+  const set = (c: Control, value: string) => {
+    const same = c.kind === "choice" ? value === c.def : controlNum(c, value) === parseFloat(c.def);
+    setSavedCvar(c.cvar, same ? null : c.quote ? `"${value}"` : value);
+    reread();
+  };
+
+  return (
+    <section id="settings" className="panel front__settings" aria-label="your settings">
+      <h2 className="panel__bar">
+        your settings
+        <span className="panel__barnote">saved in this browser - applied every time you join</span>
+      </h2>
+      <div className="panel__body tweaks">
+        <div>
+          <p className="card__ruleslabel tweaks__savedlabel">
+            <span>your changes, applied on join</span>
+            {saved.length > 0 && (
+              <button
+                type="button"
+                className="tweaks__clear"
+                onClick={() => {
+                  clearSavedSettings();
+                  reread();
+                }}
+              >
+                clear all
+              </button>
+            )}
+          </p>
+          {saved.length > 0 ? (
+            <ul className="chips">
+              {saved.map((s) => {
+                const d = describe(s);
+                return (
+                  <li key={s.key}>
+                    <button
+                      type="button"
+                      className="chip chip--set"
+                      title={s.line}
+                      aria-label={`remove ${d.label} ${d.value}`}
+                      onClick={() => {
+                        removeSavedSetting(s.key);
+                        reread();
+                      }}
+                    >
+                      <span className="chip__tick" aria-hidden="true">
+                        ✓
+                      </span>
+                      <span className="chip__label">{d.label}</span>
+                      <span className="chip__value">{d.value}</span>
+                      <span className="chip__x" aria-hidden="true">
+                        ×
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="chips__none">
+              nothing changed yet - you play on the settings the server ships
+            </p>
+          )}
+        </div>
+
+        <div className="tweaks__grid">
+          {CONTROLS.map((c) => {
+            const raw = savedValue(c);
+            const value = raw ?? c.def;
+            return (
+              <div className={`tweak${raw ? " tweak--set" : ""}`} key={c.cvar}>
+                <p className="tweak__head">
+                  <span className="tweak__label">{c.label}</span>
+                  {/* a slider needs its number spelled out; the picked chip
+                      below already reads as the value for a choice */}
+                  {c.kind === "range" && <span className="tweak__value">{showValue(c, value)}</span>}
+                </p>
+                {c.kind === "range" ? (
+                  <input
+                    type="range"
+                    className="tweak__range"
+                    min={c.min}
+                    max={c.max}
+                    step={c.step}
+                    value={controlNum(c, value)}
+                    aria-label={c.label}
+                    onChange={(e) => set(c, e.target.value)}
+                  />
+                ) : (
+                  <span className="tweak__choices" role="group" aria-label={c.label}>
+                    {c.options.map((o) => {
+                      const on = unquote(value) === o.value;
+                      return (
+                        <button
+                          type="button"
+                          key={o.value}
+                          className={`chip chip--pick${on ? " chip--on" : ""}`}
+                          aria-pressed={on}
+                          title={c.swatch ? o.label : undefined}
+                          aria-label={c.swatch ? o.label : undefined}
+                          onClick={() => set(c, o.value)}
+                        >
+                          {c.swatch ? (
+                            <span
+                              className="chip__swatch"
+                              style={{ background: `rgb(${o.value.split(" ").slice(0, 3).join(",")})` }}
+                            />
+                          ) : (
+                            o.label
+                          )}
+                        </button>
+                      );
+                    })}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const App: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1475,6 +1739,8 @@ const App: FC = () => {
                 )}
               </div>
             </section>
+
+            <SettingsPanel />
 
             {/* the league table only exists once standings.json has answered -
                 the page never invents results */}
