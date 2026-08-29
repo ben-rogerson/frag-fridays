@@ -77,6 +77,11 @@ rsync -tvz "$SERVER_DIR/config/userconfig.cfg" "$HOST:$REMOTE_ROOT/cs/cstrike/us
 log "installing update-clientcfg.sh"
 rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientcfg.sh"
 
+# cron-driven sim watchdog (heals a precache-leak death, recycles an idle sim).
+# The crontab entry is installed by hand once - see the header of the script.
+log "installing sim-watchdog.sh"
+rsync -tpvz "$SERVER_DIR/sim-watchdog.sh" "$HOST:$REMOTE_ROOT/sim-watchdog.sh"
+
 # vanilla's mapcycle (mounted by the root compose; gg/dm/kz ship theirs in
 # their mod dirs)
 if [[ -d "$SERVER_DIR/vanilla" ]]; then

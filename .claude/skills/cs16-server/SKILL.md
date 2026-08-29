@@ -114,6 +114,12 @@ render in-browser).
 
 ## Session day
 
+A cron watchdog on the box (`/opt/cs16/sim-watchdog.sh`, source
+`server/sim-watchdog.sh`) restarts the game container by itself when the sim
+has killed itself (MAX_MODELS precache leak) or has been up >8h with nobody
+connected - so an unexplained young container is probably it, not a sibling
+session. Check `/opt/cs16/logs/sim-watchdog.log`.
+
 Follow `docs/runbook.md`: bring up the mod, `docker ps` check, three Slack
 messages (morning / midday "open the URL now to preload ~300MB" / final call
 with F1-F2 + `/guns` instructions) - generate the text with the

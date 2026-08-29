@@ -84,7 +84,19 @@ Say so in the announcement.
   same file. Do it after adding next week's entry if the slot has moved.
 - `/friday-recap` for the Slack results post.
 
-## 5. Remote control from the phone (MCP)
+## 5. The sim watchdog runs itself
+
+`/opt/cs16/sim-watchdog.sh` runs on cron every 5 min (source:
+`server/sim-watchdog.sh`, rsynced by deploy.sh). It restarts the game
+container in two cases: the sim killed itself (the MAX_MODELS precache leak
+- players hang on the splash and nothing else looks wrong), or the sim has
+been up more than 8h with nobody connected. Neither can fire on a server
+with humans on it mid-session, so it needs no attention on session day -
+but if you find the container younger than you expected, check
+`/opt/cs16/logs/sim-watchdog.log` before assuming someone else restarted it.
+Full rationale in [troubleshooting.md](troubleshooting.md).
+
+## 6. Remote control from the phone (MCP)
 
 The box runs a small MCP server (`server/mcp/`, container `mcp-mcp-1`, port
 27017) wired into claude.ai as a custom connector, so the server can be

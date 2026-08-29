@@ -289,9 +289,24 @@ only server-side trace of a connect attempt is a
 Diagnosis: `pnpm run logs gg | grep -E "Host_Error|killed"` - a
 `Server was killed` line with no later `Spawn Server` means the sim is
 dead. Fix: `docker restart <container>` (docker logs survive a restart).
-Prevention idea (not built): a healthcheck on status.json staleness, or a
-pre-session restart, since uptime measured in days plus map churn is what
-arms this.
+
+Handled since 2026-08-29 by `server/sim-watchdog.sh`, cron every 5 min on
+the box (`/opt/cs16/sim-watchdog.sh`, rsynced by deploy.sh; the crontab
+entry is installed by hand once - see the script header). It does exactly
+the diagnosis above, by log marker: a `Server was killed due to an error`
+line NEWER than the last `Spawn Server` / `player server started` means the
+sim is gone, and it restarts the container. It also recycles a sim that has
+been up more than 8h with zero humans connected, which is what stops the
+leak arming mid-session (it took ~11h of uptime to blow the cap on
+2026-08-28).
+
+Note what it deliberately does NOT do: compare status.json across a
+sampling window. That was the previous watchdog (removed 2026-08-14, commit
+024e6fb) and it cannot tell a dead sim from a paused one - the sim also
+freezes when every connected client goes quiet at once, so it mass-kicked
+idlers ~5 min after each session wound down. Both of the new triggers are
+safe by construction: a paused-but-alive sim still has its `Spawn Server`
+after any older kill line, and the age-out only fires on an empty server.
 
 ## Engine crashes surface as a native `alert()` that freezes the tab
 
