@@ -500,3 +500,40 @@ aborting loudly on any mismatch rather than corrupting pdata. Server-side
 writes also bypass the client's one-team-change-per-round limit that
 blocks F1/F2 mid-round. Soak-tested in a throwaway with all nine bots
 forced onto T: moved bots respawn, fight and score as their new team.
+
+## Branded loading screen: cstrike/gfx/shell/conback.tga (2026-08-29)
+
+The screen players stare at while a map loads is the engine's console
+background, not anything the page controls. Xash resolves it in
+`Con_LoadSimpleConback`, which picks its basename off `host.allow_console`:
+console allowed -> `conback`, otherwise -> `loading`. It then tries
+`gfx/shell/<name>.{dds,bmp,tga}`, `cached/<name>640`, `cached/<name>`, and
+finally falls back to Quake-format `gfx/conback.lmp`.
+
+We take the `conback` branch, and permanently: the GameUI menu is
+deliberately not preloaded (the Escape crash, see `apps/web/src/launch.ts`),
+and a missing menu is exactly what turns `host.allow_console` on. Nothing
+matched under `cstrike/`, no `cached/` dir exists, so every player was
+getting stock `valve/gfx/conback.lmp` - the Half-Life orange one.
+
+The replacement lives at `server/custom/gfx/shell/conback.tga`, riding the
+existing `server/custom/` -> `cs/cstrike/` overlay that `deploy.sh` installs
+and `update-clientcfg.sh` bundles into valve.zip. Art is the stock CS 1.6
+splash - stitched from the game's own `resource/background/800_*_loading.tga`
+tiles, the same wallpaper the web page is themed from - with a broadcast
+lower-third strap over it.
+
+Two constraints on any future replacement:
+
+- **Author it 1512x982.** The engine stretches the texture to the canvas
+  with no letterboxing, and `#canvas` is `100vw/100vh` while `play()` calls
+  `enterFullscreen()` - so the target is a fullscreen MacBook Pro display:
+  1512x982 logical on the 14", 1728x1117 on the 16". Both are ~1.54:1, so
+  neither 4:3 nor 16:9 fits; 16:9 was tried first and visibly squashed.
+  Uncompressed 24-bit TGA, ~4.5MB raw (noise against a 318MB zip).
+- **Keep the left ~22% quiet.** The console is open over this image while
+  the map loads, and its text runs top-to-bottom down that column. The strap
+  starts at x=355 for that reason.
+
+No `loading.tga` is shipped: that branch is unreachable while the menu stays
+out, and shipping art for it would only rot.
