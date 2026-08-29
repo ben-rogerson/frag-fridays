@@ -12,9 +12,6 @@
 // players are nagged too, not skipped: the engine's one-team-change-per-round
 // limit rejects F1/F2 ("Only 1 team change is allowed"), so a round restart
 // is their only way back in.
-//
-// Not installed on kz: /restart there means "reset my own run", and a round
-// restart would wipe every player's timer.
 
 #include <amxmodx>
 

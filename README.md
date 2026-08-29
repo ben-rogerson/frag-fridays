@@ -26,14 +26,14 @@ who already know the game. None of that is true here, so:
   with a progress bar (cached after the first visit), name entry, who's on
   the server right now, and the current mode. The engine boots straight into
   the game.
-- **Five modes, one URL.** Classic, GunGame, Deathmatch, Aim Prac and
-  KZ/Climb. Each is its own Docker image with its own plugins, maps, bots and
+- **Four modes, one URL.** Classic, GunGame, Deathmatch and Aim Prac. Each
+  is its own Docker image with its own plugins, maps, bots and
   round pacing. Swapping the whole server takes one command and the address
   never changes.
 - **Custom game modes.** Deathmatch is a plugin I wrote, because the usual
   one (CSDM) sig-scans the original game DLL and this stack reimplements it.
   The rest is AMX Mod X tuning: GunGame weapon ladders, per-map weapon
-  restrictions, gravity, KZ checkpoints, round timers pitched at a 30-minute
+  restrictions, gravity, round timers pitched at a 30-minute
   session rather than a whole evening.
 - **Never an empty server.** YaPB bots hold the slots and step out one at a
   time as humans arrive, prefixed `[BOT]` and tuned to be beatable.
@@ -64,7 +64,7 @@ change goes through `pnpm run deploy`.
 
 ```sh
 pnpm run deploy            # sync files only, no restart
-pnpm run deploy <mod>      # gg | dm | kz | aim | vanilla - swaps the running mode
+pnpm run deploy <mod>      # gg | dm | aim | vanilla - swaps the running mode
 pnpm run status            # what's running on 27016
 pnpm run logs              # tail the live server
 pnpm run rc "<cmd>"        # live server console

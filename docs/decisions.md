@@ -370,6 +370,8 @@ bot fights, guns visibly vanish on schedule.
 
 ## KZ mod: three classic jump maps, script-only timer (2026-08-03)
 
+**Superseded 2026-08-30 - the mod was removed, see the entry at the end.**
+
 New `server/kz/` mod (fourth in the family, internal port 27048): jump/climb
 maps with checkpoints and a run timer. Maps picked for fame + variety:
 `kz_longjumps2` (the longjump trainer), `kz_cargo` (classic climb),
@@ -537,3 +539,23 @@ Two constraints on any future replacement:
 
 No `loading.tga` is shipped: that branch is unreachable while the menu stays
 out, and shipping art for it would only rot.
+
+## KZ mod removed (2026-08-30)
+
+The jump/climb mode is gone: `server/kz/`, its three maps and `kz.sma`, the
+kz-only client assets (`waterworld09` sky, the summercliff2 wavs,
+`kz_cargo/fork.mdl`), the mode's card and ice-cyan signal colour on the web
+page, and every kz branch in the scripts, the MCP tools and the recap
+parser. Four modes remain: classic, gg, dm, aim.
+
+Nothing here is load-bearing for the others - kz was its own image, its own
+mapcycle and its own port. Two knock-on effects worth knowing:
+
+- The valve.zip keep-list is the union of the remaining mapcycles, so the
+  next `pnpm run clientcfg` drops the kz maps and their assets from the
+  client payload (a smaller download - the point of the trim).
+- The box still holds `/opt/cs16/kz/`, `logs/kz/`, `mods/kz/`, the kz
+  `.bsp`s in `cs/cstrike/maps/` and the `kz-xash3d` image. `deploy.sh` no
+  longer touches any of them; clean them off by hand if the disk matters.
+
+The 2026-08-03 entry above stays as the record of how it was built.

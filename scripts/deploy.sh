@@ -13,14 +13,14 @@
 #
 # Mod layout on the box:
 #   vanilla        -> /opt/cs16/docker-compose.yml, profile "vanilla" (bind-mounts mods/)
-#   gg/dm/zp/kz/aim -> /opt/cs16/<mod>/docker-compose.yml, own image built from addons/
+#   gg/dm/zp/aim   -> /opt/cs16/<mod>/docker-compose.yml, own image built from addons/
 set -euo pipefail
 
 HOST="${CS16_HOST:-cs16}"
 REMOTE_ROOT="${CS16_REMOTE_ROOT:-/opt/cs16}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER_DIR="$REPO_ROOT/server"
-DIR_MODS=(gg dm zp kz aim)
+DIR_MODS=(gg dm zp aim)
 MOD="${1:-}"
 
 log() { printf '\033[1;36m[deploy]\033[0m %s\n' "$*"; }
@@ -82,7 +82,7 @@ rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientc
 log "installing sim-watchdog.sh"
 rsync -tpvz "$SERVER_DIR/sim-watchdog.sh" "$HOST:$REMOTE_ROOT/sim-watchdog.sh"
 
-# vanilla's mapcycle (mounted by the root compose; gg/dm/kz ship theirs in
+# vanilla's mapcycle (mounted by the root compose; gg/dm/aim ship theirs in
 # their mod dirs)
 if [[ -d "$SERVER_DIR/vanilla" ]]; then
   rsync -rlptvz --delete "$SERVER_DIR/vanilla/" "$HOST:$REMOTE_ROOT/vanilla/"
@@ -115,8 +115,8 @@ fi
 # logs/<mod> receives HL kill logs; chown so the container's xashds (1000)
 # can write through the bind mount. cores/ catches segfault dumps (host
 # kernel.core_pattern points at /cores; 1777 so any container uid can write).
-ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm,kz}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,kz,aim,vanilla} $REMOTE_ROOT/cores \
-  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,kz,aim,vanilla} && chmod 1777 $REMOTE_ROOT/cores"
+ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,aim,vanilla} $REMOTE_ROOT/cores \
+  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,aim,vanilla} && chmod 1777 $REMOTE_ROOT/cores"
 
 # --- mcp control plane -------------------------------------------------------
 # Always-on, own compose project, publishes 27017 only - never part of the
@@ -137,7 +137,7 @@ fi
 
 if [[ -z "$MOD" ]]; then
   log "files synced. No mod named, so nothing was restarted."
-  log "to swap/restart a mod: pnpm run deploy <vanilla|gg|dm|zp|kz|aim>"
+  log "to swap/restart a mod: pnpm run deploy <vanilla|gg|dm|zp|aim>"
   exit 0
 fi
 

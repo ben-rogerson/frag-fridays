@@ -42,7 +42,7 @@ MAP_RE = re.compile(rf'{TS}: Started map "(.+?)"')
 PATH_RE = re.compile(r"^(?:.*?/)?logs/([^/]+)/[^:]*\.log:")
 
 MODES = {"gg": "gungame", "dm": "deathmatch", "vanilla": "classic",
-         "aim": "aim", "kz": "kz", "zp": "zombie"}
+         "aim": "aim", "zp": "zombie"}
 
 # The leaderboards count the slot exactly; a recap is a story, so it opens a
 # little early and stays on air for whatever ran over the end.

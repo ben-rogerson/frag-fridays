@@ -55,8 +55,6 @@ stat line means different things in different modes:
   rifle duels. Call the gunfights; `top_weapon` is the whole story.
 - **zombie** (`zp`): humans vs the infection. Kills are survival stats -
   frame it as who held out, not who dominated.
-- **kz** (`kz`): climb maps, no combat. A kz segment with kills is people
-  mucking about - usually skip it.
 - `mode` null (old un-prefixed input): write it neutral, or infer from
   the map name and weapon spread.
 

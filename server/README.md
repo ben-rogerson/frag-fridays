@@ -12,7 +12,6 @@ gets hand-edited on the server.
 | `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile vanilla` runs stock CS 1.6 (service bind-mounts `mods/`, which is currently empty). The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
 | `gg/` | `/opt/cs16/gg/` | GunGame (working) - Dockerfile compiles `addons/` plugin source at build time, appends to `plugins.ini` |
 | `dm/` | `/opt/cs16/dm/` | Deathmatch (working) - our `frag_dm.sma` compiled at build time; CSDM itself is dead on this stack (see docs/troubleshooting.md) |
-| `kz/` | `/opt/cs16/kz/` | KZ / jump maps (working) - our `kz.sma` (checkpoints, run timer via the maps' counter buttons); no YaPB on purpose |
 | `zp/` | `/opt/cs16/zp/` | Zombie Plague - abandoned, kept as the Dockerfile template the others were copied from |
 | `config/userconfig.cfg` | `/opt/cs16/cs/cstrike/userconfig.cfg` | Shared client config, ships to every player inside `valve.zip` |
 | `maps/` | `/opt/cs16/cs/cstrike/maps/` (additive) | Custom map `.bsp`/`.txt` files; containers also mount the box path as `cstrike/custom/maps` |

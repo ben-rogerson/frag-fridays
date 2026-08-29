@@ -1,4 +1,4 @@
-// Node port of scripts/rc.sh's write side. The cmdpipe.amxx plugin (gg/dm/kz
+// Node port of scripts/rc.sh's write side. The cmdpipe.amxx plugin (gg/dm
 // images only) polls cmdpipe/cmd.txt every second and executes the lines when
 // the serial on line 1 changes. The DIRECTORY is what's bind-mounted into the
 // game container, so replacing the file via same-dir rename is safe (new
@@ -9,7 +9,7 @@ import { randomBytes } from 'node:crypto'
 const DIR = '/opt/cs16/cmdpipe'
 
 // mods whose images bake in cmdpipe.amxx; vanilla/zp can't hear the pipe
-export const CMDPIPE_MODS = new Set(['gg', 'dm', 'kz'])
+export const CMDPIPE_MODS = new Set(['gg', 'dm'])
 
 // the plugin's line buffer is 192 bytes - refuse anything close to it
 const MAX_CMD_BYTES = 190

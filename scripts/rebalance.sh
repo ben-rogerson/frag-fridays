@@ -2,8 +2,7 @@
 # Force a team rebalance on the LIVE server: evens the T/CT headcount, bots
 # moved first, then the lowest-frag humans. Players stay connected; moved
 # players respawn instantly on their new side. Requires the teambalance
-# plugin (baked into gg/dm images only - kz has no teams worth evening,
-# vanilla has no cmdpipe).
+# plugin (baked into gg/dm images only - vanilla has no cmdpipe).
 #
 # Usage: scripts/rebalance.sh
 set -euo pipefail

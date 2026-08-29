@@ -48,7 +48,7 @@ AVAIL_KB="$(df --output=avail -k "$ROOT" | tail -1 | tr -d ' ')"
 # The server itself always plays from the full cs/ tree on disk - only the
 # client payload is trimmed.
 # the || true guards set -o pipefail: not every mod has a mapcycle.txt
-KEEP_MAPS="$({ cat "$ROOT"/{gg,dm,zp,kz,aim,vanilla}/mapcycle.txt 2>/dev/null || true; } | tr -d '\r' | grep -v '^\s*$' | sort -u)"
+KEEP_MAPS="$({ cat "$ROOT"/{gg,dm,zp,aim,vanilla}/mapcycle.txt 2>/dev/null || true; } | tr -d '\r' | grep -v '^\s*$' | sort -u)"
 [[ -n "$KEEP_MAPS" ]] || die "no mod mapcycle.txt found - refusing to trim every map from the client payload"
 
 list_files() {

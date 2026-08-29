@@ -26,7 +26,6 @@
   --mode-classic: #dce81e;
   --mode-gungame: #ff9d1e;
   --mode-dm: #ff4d5e;
-  --mode-kz: #3fe0e8;
   --mode-aim: #a86bff;
 }
 
@@ -84,19 +83,6 @@
   --accent-rgb: 255 77 94;
   --accent-hot-rgb: 255 125 138;
   --accent-edge-dark-rgb: 138 23 34;
-}
-
-/* KZ / Climb: ice cyan - cliff air */
-.overlay[data-mode="kz"],
-.pause[data-mode="kz"] {
-  --accent: var(--mode-kz);
-  --accent-hot: #7ff3f9;
-  --accent-deep: #1cb4bd;
-  --accent-edge-light: #c2f9fc;
-  --accent-edge-dark: #0b5f65;
-  --accent-rgb: 63 224 232;
-  --accent-hot-rgb: 127 243 249;
-  --accent-edge-dark-rgb: 11 95 101;
 }
 
 /* Aim Prac: signal violet - tracer glow against the knife horde */
@@ -1262,10 +1248,6 @@
 
 .rotation__item[data-mode="dm"] {
   --row-accent: var(--mode-dm);
-}
-
-.rotation__item[data-mode="kz"] {
-  --row-accent: var(--mode-kz);
 }
 
 .rotation__item[data-mode="aim"] {

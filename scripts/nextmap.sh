@@ -2,7 +2,7 @@
 # Advance the LIVE server to the next map in the running mod's mapcycle
 # (wraps around). Uses changelevel so players stay connected. Announces a
 # 5-second centre-screen warning (amx_csay) before the change.
-# Requires the cmdpipe plugin (gg/dm/kz only).
+# Requires the cmdpipe plugin (gg/dm/aim only).
 #
 # Usage: scripts/nextmap.sh
 set -euo pipefail

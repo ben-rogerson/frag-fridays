@@ -19,7 +19,6 @@ colors:
   mode-classic: "#dce81e"
   mode-gungame: "#ff9d1e"
   mode-dm: "#ff4d5e"
-  mode-kz: "#3fe0e8"
 typography:
   display:
     fontFamily: "'Black Ops One', 'Arial Narrow', sans-serif"
@@ -93,7 +92,7 @@ Density is high and type is small on purpose - Tahoma/Verdana at 11-13px is the 
 
 **Key Characteristics:**
 - Deep navy wallpaper ground with animated scanline streaks and a sweeping radar arc in the live mode's signal colour
-- Every game mode broadcasts in its own signal colour: classic acid yellow, GunGame ember orange, Deathmatch kill-feed crimson, KZ ice cyan - the whole accent role remaps per week
+- Every game mode broadcasts in its own signal colour: classic acid yellow, GunGame ember orange, Deathmatch kill-feed crimson, Aim Prac violet - the whole accent role remaps per week
 - Bevelled 1px-border panels with uppercase title bars - raised chrome vs sunken wells
 - One acid-yellow action per screen; hyperlink blue for everything navigational
 - Tahoma/Verdana body at 11-13px; Black Ops One reserved for the masthead
@@ -112,7 +111,6 @@ The CS 1.6 splash wallpaper reduced to a working palette: layered navies for gro
   - classic - **Acid Scanline Yellow** (`--mode-classic`, #dce81e): the wallpaper's streak colour, the baseline until the live mode is known
   - gungame - **Ember Orange** (`--mode-gungame`, #ff9d1e): weapon heat, climbing the ladder
   - dm - **Kill-Feed Crimson** (`--mode-dm`, #ff4d5e)
-  - kz - **Ice Cyan** (`--mode-kz`, #3fe0e8): cliff air
 - **Hot Accent** (`--acid-hot` at baseline, #f4ff3d): the top edge of accent gradients, hover/focus outlines. Never used as a fill on its own.
 
 ### Secondary

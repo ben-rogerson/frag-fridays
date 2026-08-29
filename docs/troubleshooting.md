@@ -424,7 +424,7 @@ that the handler does not have. So the core says "SIGSEGV in memset" and the
 real cause is only in the saved signal context (`cr2`/`eip`) or in the log.
 
 **Fix (shipped 2026-08-28):** `addons/amxmodx/data/gamedata/common.games/`
-`custom/fragfridays-sv-dropclient.txt` in gg/dm/kz/aim overrides the
+`custom/fragfridays-sv-dropclient.txt` in gg/dm/aim overrides the
 signature with a symbol the engine does not export, so `GetMemSig()` fails
 and the detour is never installed. This is AMXX's own override mechanism and
 the hook is optional upstream.
@@ -439,7 +439,7 @@ Cost, stated by AMXX itself at every map start: `client_disconnected and
 client_remove forwards have been disabled - check your gamedata files.`
 They are disabled outright, not downgraded. The legacy `client_disconnect`
 forward still fires from `C_ClientDisconnect`, so our plugins use that
-(`frag_dm.sma`, `kz.sma`); it misses clients that abort mid-connect, which
+(`frag_dm.sma`); it misses clients that abort mid-connect, which
 never have tasks queued. Three stock plugins we load - `admincmd`,
 `adminhelp`, `multilingual` - reference `client_disconnected` for per-player
 state resets and silently lose them; the state they leak is a language
@@ -715,7 +715,8 @@ or not-yet-loaded brush model when client-side prediction ran.
 
 **Not the maps.** Every BSP in `server/maps/` validates - planenums in range,
 clipnode children in range, model headnodes sane. (The `-1` headnodes on the
-kz maps are `CONTENTS_EMPTY`, which is normal for non-solid brush entities.)
+now-removed kz maps were `CONTENTS_EMPTY`, which is normal for non-solid
+brush entities.)
 This is engine state, not map data.
 
 **No fix on our side.** The missing planenum guard is upstream. The one lever

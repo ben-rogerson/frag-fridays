@@ -86,8 +86,8 @@ laptop".
 - Real server specs (1 vCPU / 2GB / Sydney) shown as a self-deprecating flex.
 - Crest SVG artwork in `apps/web/src/App.tsx`.
 - Sourced 1.6-era map screenshots (160x120) for every map in the mod
-  mapcycles, bundled in `apps/web/src/assets/maps/` (kz_summercliff2 has no
-  shot and falls back to a "no map image" tile).
+  mapcycles, bundled in `apps/web/src/assets/maps/`; a map with no shot
+  falls back to a "no map image" tile.
 - No testimonials, pricing, or marketing claims exist; do not invent any.
 
 ## Product Principles

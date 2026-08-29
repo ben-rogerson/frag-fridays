@@ -397,7 +397,7 @@ function sessionClock(): SessionClock {
 // --- map imagery --------------------------------------------------------
 // Sourced 1.6-era screenshots (160x120, the classic server-browser thumb
 // size), bundled at build time and keyed by lowercase map name. Maps with
-// no shot on hand (kz_summercliff2) get the flat "no map image" tile.
+// no shot on hand get the flat "no map image" tile.
 const MAP_SHOTS = import.meta.glob("./assets/maps/*.jpg", {
   eager: true,
   import: "default",
@@ -464,13 +464,6 @@ const AimEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M34 6L12 28l6 6L36 12z" />
     <path d="M8 24l14 14" />
-  </svg>
-);
-
-const KzEmblem: ModeEmblem = () => (
-  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <path d="M2 35l12-17 7 10 8-12 9 19" />
-    <path d="M29 14V4M29 4h7v5h-7" />
   </svg>
 );
 
@@ -574,20 +567,6 @@ const MODES: ModeEntry[] = [
       "awp_india",
       "cs_deagle5",
     ],
-  },
-  {
-    key: "kz",
-    match: /kz|climb/i,
-    name: "KZ / Climb",
-    blurb: "checkpoint climbs against the clock",
-    rules: [
-      "/cp saves a checkpoint, /tp returns to it",
-      "press the start button, race to the stop button",
-      "deaths cost nothing - you respawn on your checkpoint",
-      "no bots, no guns, no excuses",
-    ],
-    emblem: KzEmblem,
-    pool: ["kz_giantbean_b15", "kz_summercliff2", "kz_cellblock"],
   },
 ];
 
