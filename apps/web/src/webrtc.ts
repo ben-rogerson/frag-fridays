@@ -24,8 +24,10 @@ import { Packet, Xash3D, Xash3DOptions, Net } from 'xash3d-fwgs'
 
 // 'transport' = the WebRTC session itself died (server restart, network
 // gone); 'silence' = transport still up but the game server stopped talking
-// (kicked, timed out, sv shutdown)
-export type DropKind = 'transport' | 'silence'
+// (kicked, timed out, sv shutdown); 'quit' = neither, the engine stopped
+// first because the player closed it (`exit` in the console) - see
+// engineQuiet below
+export type DropKind = 'transport' | 'silence' | 'quit'
 
 export class Xash3DWebRTC extends Xash3D {
   // fires once when the connection to the server is lost, however detected
@@ -44,11 +46,19 @@ export class Xash3DWebRTC extends Xash3D {
   private silenceTimer?: number
   private droppedFired = false
   private sawTraffic = false
+  private lastSend = 0
 
   // Server traffic is continuous while connected, so this much silence after
   // packets have started flowing means we were dropped at the game level.
   // Generous enough to ride out map-change hitches.
   private static readonly SILENCE_MS = 10_000
+
+  // Our outgoing traffic is continuous too: every frame the engine writes
+  // usercmds at cl_cmdrate, and each one lands in sendto below. A gap this
+  // long means the ENGINE stopped, not the connection - the engine cannot go
+  // a whole second without a frame and still be running, and our own timers
+  // only ever get to run between its frames.
+  private static readonly ENGINE_QUIET_MS = 1_000
 
   constructor(opts?: Xash3DOptions) {
     super(opts)
@@ -193,8 +203,28 @@ export class Xash3DWebRTC extends Xash3D {
   }
 
   sendto(packet: Packet) {
+    this.lastSend = performance.now()
     if (!this.channel) return
     this.channel.send(packet.data as Int8Array<ArrayBuffer>)
+  }
+
+  // True once the engine has stopped feeding us packets to send.
+  //
+  // `exit` (or `quit`) in the game console closes the engine SILENTLY: it
+  // prints nothing on the way out, throws its way out of the frame it was in,
+  // and leaves every flag we can see untouched - `exited` stays false, the
+  // WebRTC session stays up, `live` stays true (all measured, 2026-08-29).
+  // The one thing that does change is this: the frames stop, so the usercmds
+  // stop. That is what tells a deliberate quit apart from a drop, where the
+  // engine is alive and still sending into a server that has gone quiet.
+  //
+  // Read it as "the engine is no longer talking to the server", which a local
+  // Host_Error also satisfies - rare, and it ends the session just as surely,
+  // so it gets the same card. What it can never be is a hitch: our timers only
+  // run between the engine's frames, so a map load that blocks the thread for
+  // ten seconds still leaves a fresh `lastSend` behind when we get to look.
+  get engineQuiet(): boolean {
+    return this.lastSend > 0 && performance.now() - this.lastSend > Xash3DWebRTC.ENGINE_QUIET_MS
   }
 
   // True only while a real connection exists: the server has sent us at least
@@ -220,7 +250,10 @@ export class Xash3DWebRTC extends Xash3D {
     // skips one firing and the visibilitychange handler re-arms
     this.silenceTimer = window.setTimeout(() => {
       if (document.hidden) return
-      this.fireDrop('silence')
+      // the server only went quiet because we did: the player closed the
+      // engine, so this is a leave, not a drop, and the page must not offer
+      // to reconnect a session nobody lost
+      this.fireDrop(this.engineQuiet ? 'quit' : 'silence')
     }, Xash3DWebRTC.SILENCE_MS)
   }
 

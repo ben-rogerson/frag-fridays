@@ -185,7 +185,7 @@ function reportFatal(source: string, text: string, stack: string) {
   console.groupEnd();
 }
 
-function captureEngineFatals(onFatal: (message: string) => void) {
+function captureEngineFatals(onFatal: (message: string) => void, onEnded: () => void) {
   const fatal = (detail: string) => {
     engineDead = true;
     onFatal(detail.slice(0, 120) || "the engine stopped");
@@ -193,7 +193,17 @@ function captureEngineFatals(onFatal: (message: string) => void) {
 
   window.alert = (message?: unknown) => {
     const text = String(message ?? "");
-    reportFatal("Sys_Error alert", text, "");
+    // A fatal raised INSIDE one of our own console pokes is not a crash the
+    // player caused or saw: the engine was already gone and Mem_Free tripped
+    // on the way in (see the note above persistSettings). Keep the full
+    // report - it is still the only record of what died - but tell the app
+    // the session ended rather than showing a crash card for our own poke.
+    reportFatal(poking ? "console poke on a dead engine" : "Sys_Error alert", text, "");
+    if (poking) {
+      engineDead = true;
+      onEnded();
+      return;
+    }
     // "Xash Error\n\nMem_FreeBlock: not allocated or double freed pool 0"
     fatal(text.split("\n").filter((l) => l.trim()).pop() ?? "");
   };
@@ -353,10 +363,23 @@ export function setSavedCvar(cvar: string, value: string | null) {
 // persistSettings refuses to run without it.
 let baseline: Record<string, Map<string, string>> | null = null;
 
+// True only while one of OUR console commands is in flight. The engine's
+// fatal path runs inline, so an alert that arrives with this set was raised
+// by the poke itself - see the alert shadow in captureEngineFatals.
+let poking = false;
+function poke(x: Xash3DWebRTC, cmd: string) {
+  poking = true;
+  try {
+    x.Cmd_ExecuteString(cmd);
+  } finally {
+    poking = false;
+  }
+}
+
 function readCfgFiles(x: Xash3DWebRTC): Record<string, string> {
   // Cmd_ExecuteString runs the command immediately (it's not queued), so
   // the files are fresh by the time we read them
-  x.Cmd_ExecuteString("host_writeconfig");
+  poke(x, "host_writeconfig");
   const out: Record<string, string> = {};
   for (const name of SETTINGS_FILES) {
     try {
@@ -390,13 +413,21 @@ function readCfgFiles(x: Xash3DWebRTC): Record<string, string> {
 // commands in launchGame stay ungated - they run on a freshly booted engine,
 // before any traffic can exist, and the pool is certainly alive there.
 //
+// `x.live` alone is not enough for a player who QUITS. Typing `exit` closes
+// the engine without a word and leaves the connection looking healthy for the
+// ten seconds the silence watchdog needs, so a persist tick inside that window
+// pokes a console whose pool has just been freed: measured 2026-08-29, a quit
+// at t+320s produced this exact abort at t+335s - the next 30s tick - and the
+// player, who had just deliberately left, got a crash card. `x.engineQuiet`
+// closes that window: no usercmds for a second means no engine to talk to.
+//
 // Cost: settings changed since the last 30s snapshot are lost on a drop. There
 // is no snapshot-on-the-way-out either - `host_writeconfig` is itself a
 // console command, so by the time a drop is known it is already unsafe.
 export function persistSettings(x: Xash3DWebRTC) {
   // a dead engine still answers ccall, and host_writeconfig on it re-enters
   // the crashed heap - the snapshot is lost either way, so skip it
-  if (!x.em?.FS || x.exited || engineDead || !x.live || !baseline) return;
+  if (!x.em?.FS || x.exited || engineDead || !x.live || x.engineQuiet || !baseline) return;
   const out: Record<string, string> = {};
   for (const [name, text] of Object.entries(readCfgFiles(x))) {
     const base = baseline[name] ?? new Map<string, string>();
@@ -426,9 +457,9 @@ export function persistSettings(x: Xash3DWebRTC) {
 export function leaveServer(x: Xash3DWebRTC) {
   // nothing to hand back once the server is already gone, and the console is
   // no longer safe to poke - see the note above persistSettings
-  if (!x.em || x.exited || engineDead || !x.live) return;
+  if (!x.em || x.exited || engineDead || !x.live || x.engineQuiet) return;
   try {
-    x.Cmd_ExecuteString("disconnect");
+    poke(x, "disconnect");
   } catch {
     /* engine already gone - the timeout will reap the slot */
   }
@@ -493,7 +524,10 @@ export async function launchGame(
   onFatal: (message: string) => void,
 ): Promise<Xash3DWebRTC> {
   disableMicCapture(); // must run before the engine probes for audio capture
-  captureEngineFatals(onFatal); // ...and before it can Sys_Error
+  // ...and before it can Sys_Error. A fatal our own poke raised means the
+  // engine had already closed under us, which only a `quit`/`exit` does
+  // quietly - the same ending the silence watchdog reports as 'quit'.
+  captureEngineFatals(onFatal, () => onDrop("quit"));
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],

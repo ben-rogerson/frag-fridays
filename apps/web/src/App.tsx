@@ -11,6 +11,7 @@ import {
 } from "./launch";
 import type { SavedSetting } from "./launch";
 import { Xash3DWebRTC } from "./webrtc";
+import type { DropKind } from "./webrtc";
 import "@fontsource/black-ops-one";
 import "./App.css";
 
@@ -20,7 +21,8 @@ type Stage =
   | { id: "engine" }
   | { id: "unpacking"; done: number; total: number }
   | { id: "playing" }
-  | { id: "dropped"; kind: "transport" | "silence" }
+  // 'quit' is a leave, not a loss - see engineQuiet in webrtc.ts
+  | { id: "dropped"; kind: DropKind }
   | { id: "crashed"; message: string }
   | { id: "error"; message: string };
 
@@ -38,6 +40,7 @@ const NEWS: { label: string; items: string[] }[] = [
   {
     label: "29 aug",
     items: [
+      "quitting with exit in the game console no longer reports a crash - the page says you left, with a rejoin button",
       "your settings are now listed on this page - sensitivity, hand and the rest, with anything you changed in-game shown as a chip you can drop",
     ],
   },
@@ -671,6 +674,7 @@ function stageLabel(stage: Stage): string {
     case "playing":
       return "";
     case "dropped":
+      if (stage.kind === "quit") return "you left the game";
       return stage.kind === "transport"
         ? "connection to the server was lost"
         : "you were dropped from the server";
@@ -1684,9 +1688,16 @@ const App: FC = () => {
                       </>
                     ) : stage.id === "dropped" ? (
                       <>
-                        <p className="status status--error">{stageLabel(stage)}</p>
+                        {/* kill-feed red is for things that went wrong; leaving
+                            on purpose is not one of them */}
+                        <p className={stage.kind === "quit" ? "status" : "status status--error"}>
+                          {stageLabel(stage)}
+                        </p>
+                        {/* same button either way (the engine is gone, so it is
+                            a fresh boot), but nobody who typed `exit` lost a
+                            connection - they are going back in, not recovering */}
                         <button className="join" onClick={reconnect}>
-                          reconnect
+                          {stage.kind === "quit" ? "rejoin" : "reconnect"}
                         </button>
                       </>
                     ) : stage.id === "crashed" ? (
