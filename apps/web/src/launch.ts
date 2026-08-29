@@ -129,6 +129,34 @@ let engineDead = false;
 // set once main() is running, so the error listener below cannot mistake a
 // React or download failure for an engine fault
 let engineRunning = false;
+// The lobby only ever shows the crash's last line, trimmed to fit a status
+// strip, and a crash is the one moment where the rest of the text is the
+// whole diagnosis: the engine's Mem_Free carries its own `__FILE__:__LINE__`
+// ("free at ../engine/common/cmd.c:604"), which is what tells us WHICH free
+// site died. Dump everything we have to the console the instant we show the
+// crash card, and park a copy on `window.__ffCrash` so it can be pulled out
+// of a session that has already scrolled its console.
+function reportFatal(source: string, text: string, stack: string) {
+  const detail = {
+    source,
+    text,
+    stack: stack || new Error("engine fatal").stack || "",
+    // where the player was when it died - a crash while connecting is a
+    // different bug from a crash mid-game
+    engineRunning,
+    url: location.href,
+    userAgent: navigator.userAgent,
+    at: new Date().toISOString(),
+  };
+  (window as unknown as { __ffCrash?: unknown }).__ffCrash = detail;
+  // one group, so the whole thing copies out of devtools in one go
+  console.group("[engine fatal]");
+  console.error(text);
+  for (const [k, v] of Object.entries(detail)) {
+    if (k !== "text") console.error(`${k}:`, v);
+  }
+  console.groupEnd();
+}
 
 function captureEngineFatals(onFatal: (message: string) => void) {
   const fatal = (detail: string) => {
@@ -138,7 +166,7 @@ function captureEngineFatals(onFatal: (message: string) => void) {
 
   window.alert = (message?: unknown) => {
     const text = String(message ?? "");
-    console.error("[engine fatal]", text);
+    reportFatal("Sys_Error alert", text, "");
     // "Xash Error\n\nMem_FreeBlock: not allocated or double freed pool 0"
     fatal(text.split("\n").filter((l) => l.trim()).pop() ?? "");
   };
@@ -163,7 +191,7 @@ function captureEngineFatals(onFatal: (message: string) => void) {
         stack.includes("wasm://") ||
         /RuntimeError/.test(text);
       if (!fromEngine) return;
-      console.error("[engine fatal]", text, stack);
+      reportFatal("wasm trap", text, stack);
       fatal(text);
     },
     true,
@@ -225,6 +253,85 @@ function cfgMap(text: string): Map<string, string> {
   return map;
 }
 
+// The saved diff is also the model behind the lobby's settings panel: every
+// line in it is a deliberate override of a shipped default, which is exactly
+// what that panel lists. Editing only touches localStorage - the panel lives
+// in the lobby overlay, which is gone by the time there is an engine to talk
+// to, and the next boot replays whatever survived (see launchGame below).
+export type SavedSetting = { key: string; line: string; cvar: string; value: string };
+
+// Where a panel-written cvar goes. Same bucket the engine archives its own
+// cvars to, so a value set in the panel and a value set in-game are the same
+// kind of thing, and the next persistSettings diff carries it forward.
+const CVAR_FILE = "config.cfg";
+
+// cfgKey collapses every `unbind "K"` line onto one key - the unbind form has
+// no second token, so it falls through to the cvar branch. Harmless for
+// diffing, but the panel would show one chip for all of them and delete the
+// lot at once, so unbinds get keyed by their key name here.
+function settingKey(line: string): string | null {
+  const unbind = line.trim().match(/^unbind\s+("?)(\S+?)\1\s*$/i);
+  return unbind ? "unbind " + unbind[2].toUpperCase() : cfgKey(line);
+}
+
+function loadSaved(): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null");
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {}; /* corrupt snapshot - shipped defaults it is */
+  }
+}
+
+function storeSaved(files: Record<string, string>) {
+  for (const [name, text] of Object.entries(files)) if (!text.trim()) delete files[name];
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(files));
+}
+
+// Every override currently saved, one entry per setting. The engine writes
+// each cvar into exactly one cfg file, so a later file wins only if it really
+// does re-set the same key.
+export function savedSettings(): SavedSetting[] {
+  const out = new Map<string, SavedSetting>();
+  for (const text of Object.values(loadSaved())) {
+    for (const raw of text.split("\n")) {
+      const line = raw.trim();
+      const key = settingKey(line);
+      if (!key) continue;
+      const [, head, rest] = line.match(/^(\S+)\s*(.*)$/)!;
+      out.set(key, { key, line, cvar: head.toLowerCase(), value: rest.trim() });
+    }
+  }
+  return [...out.values()];
+}
+
+export function removeSavedSetting(key: string) {
+  const files = loadSaved();
+  for (const [name, text] of Object.entries(files)) {
+    files[name] = text
+      .split("\n")
+      .filter((line) => settingKey(line) !== key)
+      .join("\n");
+  }
+  storeSaved(files);
+}
+
+export function clearSavedSettings() {
+  localStorage.removeItem(SETTINGS_KEY);
+}
+
+// Set one cvar, or clear the override when value is null. Clearing drops the
+// line rather than writing a default back: the panel never sees the engine,
+// so "default" can only mean whatever userconfig.cfg ships on the next boot.
+export function setSavedCvar(cvar: string, value: string | null) {
+  removeSavedSetting(cvar.toLowerCase());
+  if (value === null) return;
+  const files = loadSaved();
+  const line = `${cvar} ${value}`;
+  files[CVAR_FILE] = files[CVAR_FILE] ? `${files[CVAR_FILE]}\n${line}` : line;
+  storeSaved(files);
+}
+
 // Shipped defaults as of this boot, captured after main() (userconfig.cfg
 // has applied by then) and before the saved diff replays. Set by launchGame;
 // persistSettings refuses to run without it.
@@ -245,10 +352,35 @@ function readCfgFiles(x: Xash3DWebRTC): Record<string, string> {
   return out;
 }
 
+// Every console command we send lands in `Cmd_ExecuteString`, which tokenizes
+// into the engine's shared argv and frees the previous tokens out of the cmd
+// memory pool. That pool does not outlive the connection: once the client host
+// tears down - a drop, or a connect that never completes because the server
+// sim is dead - the next command frees tokens whose pool is already gone and
+// the engine aborts with
+//
+//   Mem_FreeBlock: not allocated or double freed (free at ../engine/common/cmd.c:604)
+//
+// which is a native alert(), i.e. the crash card and the end of the session.
+// Nothing was poking that console except us: `persistSettings` on its 30s
+// timer and `leaveServer` on pagehide. A player who could not connect sat on
+// the splash until the first persist tick killed the tab (reported 2026-08-29,
+// while the gg sim was dead from the MAX_MODELS leak - no packet ever arrived,
+// so the silence watchdog never even armed and the drop card never showed);
+// the same tick is the likeliest trigger for the post-drop crash of
+// 2026-08-28. We cannot fix the engine's pool handling, so we stop talking to
+// a console that no longer has a connection behind it: both entry points below
+// require `x.live` (server traffic seen, no drop fired). The boot-time
+// commands in launchGame stay ungated - they run on a freshly booted engine,
+// before any traffic can exist, and the pool is certainly alive there.
+//
+// Cost: settings changed since the last 30s snapshot are lost on a drop. There
+// is no snapshot-on-the-way-out either - `host_writeconfig` is itself a
+// console command, so by the time a drop is known it is already unsafe.
 export function persistSettings(x: Xash3DWebRTC) {
   // a dead engine still answers ccall, and host_writeconfig on it re-enters
   // the crashed heap - the snapshot is lost either way, so skip it
-  if (!x.em?.FS || x.exited || engineDead || !baseline) return;
+  if (!x.em?.FS || x.exited || engineDead || !x.live || !baseline) return;
   const out: Record<string, string> = {};
   for (const [name, text] of Object.entries(readCfgFiles(x))) {
     const base = baseline[name] ?? new Map<string, string>();
@@ -276,7 +408,9 @@ export function persistSettings(x: Xash3DWebRTC) {
 // disconnect over the still-open data channel before the page tears it down;
 // a hard kill (crash, force-quit) still falls back to the timeout.
 export function leaveServer(x: Xash3DWebRTC) {
-  if (!x.em || x.exited || engineDead) return;
+  // nothing to hand back once the server is already gone, and the console is
+  // no longer safe to poke - see the note above persistSettings
+  if (!x.em || x.exited || engineDead || !x.live) return;
   try {
     x.Cmd_ExecuteString("disconnect");
   } catch {

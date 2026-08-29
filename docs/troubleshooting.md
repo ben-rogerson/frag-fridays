@@ -322,6 +322,35 @@ drop - the silence watchdog fires ~10s later and must not downgrade
 never honour) - and `persistSettings` skips a dead engine rather than
 re-entering the crashed heap with `host_writeconfig`.
 
+### We were the ones triggering it (2026-08-29)
+
+A second report - "couldn't connect" against a gg sim that was dead from the
+MAX_MODELS leak - carried a longer version of the same message:
+
+    Mem_FreeBlock: not allocated or double freed (free at ../engine/common/cmd.c:604)
+
+The `free at` suffix is the engine's own `Mem_Free` file/line, and cmd.c is
+`Cmd_ExecuteString` freeing the previous argv tokens out of the cmd memory
+pool. That pool dies with the connection. So the crash needs two things: a
+connection that is gone, and *somebody still sending console commands*. The
+somebody was us - `persistSettings` fires `host_writeconfig` on a 30s timer
+and `leaveServer` fires `disconnect` on pagehide, and neither checked whether
+a connection still existed. On a dead sim no packet ever arrives, so the
+silence watchdog never even arms and no drop card shows; the player just sits
+on the splash until the first persist tick kills the tab.
+
+Fix: `Xash3DWebRTC` exposes `live` (server traffic seen, no drop fired) and
+both entry points require it. The boot-time commands in `launchGame` stay
+ungated - freshly booted engine, pool certainly alive. Cost: settings changed
+since the last 30s snapshot are lost on a drop, and there is no
+snapshot-on-the-way-out because `host_writeconfig` is itself a console
+command.
+
+The full crash text now goes to the console as a `[engine fatal]` group (text,
+stack, whether the engine was running, URL, UA, timestamp) and is parked on
+`window.__ffCrash` - the lobby card only shows the trimmed last line, and the
+`free at ...` suffix is the part that identifies the free site.
+
 What dropped that player: the server engine segfaulted - see "AMX Mod X's
 SV_DropClient detour" below. One second after the 05:18:26 core dump the log
 has `YaPB ... successfully loaded` + `16 player server started`: the

@@ -197,6 +197,15 @@ export class Xash3DWebRTC extends Xash3D {
     this.channel.send(packet.data as Int8Array<ArrayBuffer>)
   }
 
+  // True only while a real connection exists: the server has sent us at least
+  // one packet and the drop watchdog has not fired. Anything that talks to the
+  // engine's console must check this first - see the note above
+  // persistSettings in launch.ts: poking a console whose connection is gone is
+  // what kills the tab.
+  get live(): boolean {
+    return this.sawTraffic && !this.droppedFired
+  }
+
   // armed by the first incoming packet, re-armed by every one after
   private bumpSilence() {
     if (this.droppedFired) return
