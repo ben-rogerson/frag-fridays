@@ -978,10 +978,8 @@ const App: FC = () => {
   // the one that swallowed pointerlockchange broke mouse look outright. This
   // handler swallows nothing - see the effect below.
   const [paused, setPaused] = useState(false);
-  // Escape also exits fullscreen, and no page can cancel that. Remember
-  // whether we were fullscreen when the menu opened so Resume can put it
-  // back - the click is a user gesture, so the request is allowed.
-  const wasFullscreenRef = useRef(false);
+  // true for as long as the menu owns the cursor - see the release effect
+  const holdCursorRef = useRef(false);
 
   useEffect(() => {
     const t = window.setInterval(() => setClock(sessionClock()), 1000);
@@ -1054,18 +1052,49 @@ const App: FC = () => {
     if (!playing) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.repeat) return;
-      setPaused((open) => {
-        if (!open) wasFullscreenRef.current = Boolean(document.fullscreenElement);
-        return !open;
-      });
+      setPaused((open) => !open);
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [playing]);
 
+  // Escape frees the cursor, but not for long: the engine asks for it
+  // straight back. emscripten's _emscripten_request_pointerlock queues a
+  // DEFERRED requestPointerLock when it cannot lock on the spot
+  // (JSEvents.deferredCalls) and runs the queue inside the next user event,
+  // so moving to the menu and clicking a button re-captured the mouse - the
+  // pointer vanished and the click landed in the game. Hold the cursor for
+  // as long as the menu is up by handing the lock straight back whenever
+  // something takes it. This still swallows nothing: no preventDefault, no
+  // stopPropagation, the engine sees every event it saw before (the attempt
+  // that swallowed pointerlockchange is the one that broke mouse look).
+  useEffect(() => {
+    if (!paused) return;
+    holdCursorRef.current = true;
+    const release = () => {
+      if (holdCursorRef.current && document.pointerLockElement) document.exitPointerLock?.();
+    };
+    release(); // in case the menu opened with the lock still held
+    document.addEventListener("pointerlockchange", release);
+    return () => {
+      holdCursorRef.current = false;
+      document.removeEventListener("pointerlockchange", release);
+    };
+  }, [paused]);
+
   const resume = () => {
+    // drop the hold first: the effect's cleanup has not run yet at this point,
+    // and its listener would bounce the lock we are about to ask for
+    holdCursorRef.current = false;
     setPaused(false);
-    if (wasFullscreenRef.current && !document.fullscreenElement) enterFullscreen();
+    // Escape always drops the page out of fullscreen and no page can cancel
+    // that, so Resume always puts it back - this is the game's fullscreen
+    // view, not a state to be restored only if it happened to be on. The
+    // click is the user gesture that makes the request legal, which is also
+    // why closing the menu with a second Escape cannot do it: a keypress the
+    // page did not act on is not a gesture the browser accepts, so that path
+    // stays windowed until the fullscreen button.
+    if (!document.fullscreenElement) enterFullscreen();
     // SDL enters relative mouse mode when the lock is GRANTED, so asking for
     // it here is the same thing a click on the canvas does - it can only give
     // the engine back the mouse, never take it away.
