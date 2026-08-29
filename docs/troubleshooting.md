@@ -569,40 +569,79 @@ this build (2026-08-04).
 If cores ever fill the disk, they are safe to delete; `/opt/cs16/cores` is
 1777 and only catches dumps.
 
-## Escape crashes the client - three attempts, all reverted
+## Escape used to crash the client - fixed by deleting the menu
 
-Pressing Escape in-game kills the render loop: it opens the engine's menu,
-which this wasm build cannot draw, and the attempt throws `RuntimeError:
-remainder by zero` in `UI_DrawString` (backlog item 2). The tab freezes, the
-client goes silent and the drop watchdog reports a disconnect.
+Pressing Escape in-game killed the render loop: `CL_Escape_f` ->
+`UI_SetActiveMenu(true)` -> the GameUI menu drew itself, and drawing it threw
+`RuntimeError: remainder by zero`. The tab froze, the client went silent, and
+the drop watchdog blamed the network ~10s later.
 
-The page now REPORTS this honestly - "the game engine crashed - RuntimeError:
-remainder by zero", with a reload button - but does not prevent it. Three
-attempts on 2026-08-28, all reverted, in the order they failed:
+**Root cause.** Chrome's wasm frames map cleanly onto cs16-client's
+`menu_emscripten_wasm32.wasm` because that module keeps its name section
+(`wasm-objdump -d`, offsets are file offsets):
 
-1. **Swallow the keydown** in a React effect when play starts. No effect:
-   capture-phase listeners on one target fire in registration order, and
-   SDL's was registered first, during engine init.
-2. **Swallow it before init**, so ours registers first. The keypress stopped
-   reaching SDL and the crash still happened - Escape also releases the
-   pointer lock, which no page can cancel, and SDL reads the lock dying as
-   the window losing focus and opens the menu anyway. (`fullscreenchange`
-   was already hidden from SDL for this reason on 2026-08-07 - that fix
-   stays, it works.)
-3. **Swallow `pointerlockchange` too.** This broke mouse look outright,
-   because hiding the event hid the lock being GRANTED as well and SDL
-   enters relative mouse mode on exactly that. Narrowing it to only hide
-   the release did not stop the crash either, so the trigger is a fourth
-   route - `blur`, `visibilitychange` or something else SDL watches.
+```
+UI_DrawString                 func[1938] @ 0x5d330, trap at 0x5d39f
+EngFuncs::DrawConsoleString   func[1982]
+CMenuPicButton::Draw          func[866]
+CMenuItemsHolder::Draw        func[832]
+CMenuBaseWindow::Draw         func[721]
+CMenuFramework::Draw          func[792]
+CMenuBaseWindow::DrawAnimation   func[722]
+CMenuFramework::DrawAnimation    func[804]
+CWindowStack::Update          func[2057]
+UI_UpdateMenu                 func[1945]
+```
 
-Do not attempt a fourth fix against a live session. The repo has a repro
-harness for precisely this (see the drop-watchdog notes: Playwright with
-`channel: 'chrome'` joins the real server headless): instrument which events
-SDL actually has registered - `getEventListeners(document)` in devtools, or
-wrap `addEventListener` before the engine boots and log every registration -
-and find the real route before writing another swallow. Blocking events the
-engine needs is worse than the crash: a crash costs one reload, a broken
-mouse costs the session.
+0x5d39f is a bare `i32.rem_s` - `h % charH` in UI_DrawString's vertical
+justify, with `charH` (the menu font height) zero. The menu has no usable
+font in this build, so EVERY path that draws it dies: Escape, and the
+engine's own yes/no message box after a disconnect (backlog item 2 - which
+is why `retry` used to land on a black screen).
+
+**The fix** is in `ENGINE_LIBRARIES` in `apps/web/src/launch.ts`: the GameUI
+menu is left out of the engine's dynamic libraries, so it never loads. That
+is a supported state - `cl_scrn.c` calls `UI_LoadProgs` and comments the
+failure "there is non fatal for us", and every `UI_*` entry point then
+short-circuits on a null `gameui.hInstance`. `UI_SetActiveMenu(true)` becomes
+a no-op, so Escape does nothing at all. No event listeners, no
+`preventDefault`, nothing anywhere near the mouse.
+
+Verified 2026-08-29 against the live server: ~90 Escape presses across team
+select and in-game, no crash, `window.__ffCrash` null, engine still live.
+`host_gameuiloaded` does not exist afterwards, which is the proof the menu
+never loaded.
+
+Two things changed with it:
+
+- The engine turns its console on when the menu is missing
+  (`host.allow_console`), so `~` now opens the console mid-game where it used
+  to do nothing. Escape closes it again (in game, `Con_ToggleConsole_f` ->
+  `UI_SetActiveMenu(false)` -> `Key_SetKeyDest(key_game)`). While NOT
+  connected, closing it routes through `UI_SetActiveMenu(true)` instead, which
+  is the no-op - so a console opened before the connect completes stays up
+  until the engine reaches `ca_active` and closes it itself.
+- A slow connect now shows the engine's boot log on the canvas instead of
+  black. The lobby overlay covers most of it; it clears the moment the world
+  loads.
+
+With the engine inert on Escape, the page took the key over: `App.tsx`
+renders a "match menu" (Resume / Leave server) on Escape. It is an OBSERVER -
+a capture-phase `keydown` on `window` that reads the key and does nothing
+else. No `preventDefault`, no `stopPropagation`, nothing touching pointer
+lock. Leave server runs `leaveServer()` then reloads, so the slot is handed
+back immediately instead of being held for `sv_timeout` (verified in the
+server log 2026-08-29: `"esctestesctest" disconnected` the moment the button
+was pressed). Escape still exits fullscreen - no page can cancel that - so
+Resume re-enters it if the menu was opened from fullscreen.
+
+**Do not** reinstate a page-side Escape swallower. Three were tried on
+2026-08-28 and all are in the history for a reason: swallowing the keydown in
+a React effect (loses the listener-order race to SDL), swallowing it before
+init (Escape still releases the pointer lock, which SDL reads as focus loss),
+and swallowing `pointerlockchange` too (broke mouse look outright, because it
+hid the lock being GRANTED as well). Blocking events the engine needs is
+worse than the crash was.
 
 ## A reload used to leave a ghost holding a slot (and the bomb)
 
@@ -627,3 +666,70 @@ line (`websocket: close 1001`) is logged by the Go layer inside the
 prebuilt image and names no player, and every browser client shares one
 auth id (`ID_7dea362b...`, the hash of an absent steamid), so there is
 nothing to dedupe on.
+
+## Client prediction can trap on a stale brush model (`memory access out of bounds`)
+
+Reported 2026-08-29, one occurrence, cause of the trigger unknown:
+
+```
+Uncaught RuntimeError: memory access out of bounds
+    at xash-CAtKZwSO.wasm:0xcd722    PM_RecursiveHullCheck +0xd4
+    at xash-CAtKZwSO.wasm:0xce4d5    (hull trace wrapper)
+    at xash-CAtKZwSO.wasm:0xce63c    (hull trace wrapper)
+    at xash-CAtKZwSO.wasm:0x121680   pmove->PM_TestPlayerPosition
+    at 001ddf92:0x617dd              PM_CheckStuck +0x27  (call_indirect)
+    at 001ddf92:0x6377f              PM_PlayerMove
+    at 001ddf92:0x63ddd              PM_Move
+    at 001ddf92:0x35ad6              HUD_PlayerMove
+    at xash-CAtKZwSO.wasm:0x120988   CL_RunUsercmd +0x537 (call_indirect)
+    at xash-CAtKZwSO.wasm:0x1204e3   CL_RunUsercmd +0x92  (msec>50 self-split)
+```
+
+**How to read a stack like this.** The engine wasm ships NO name section, so
+its frames are bare `func[N]` - the module named `001ddf92` in the Chrome
+stack is a side module, here `client_emscripten_wasm32`, which DOES keep its
+names. Dump both and map file offsets to functions:
+
+```
+wasm-objdump -d server/web/assets/xash-*.wasm                    > xash.dis
+wasm-objdump -d server/web/assets/client_emscripten_wasm32-*.wasm > client.dis
+# then find the last `NNNNNN func[K]:` header at or before each offset;
+# caller frames land on the `call`/`call_indirect`, the top frame on the trap
+```
+
+Unnamed engine functions are identified by shape. `func[559]` is
+`PM_RecursiveHullCheck` beyond doubt: it carries the BSP2-vs-BSP29 clipnode
+stride branch (12-byte nodes with i32 children vs 8-byte with i16), the
+`bad node number` `Host_Error`, `plane = hull->planes + node->planenum * 20`,
+and then `if (plane->type < 3) t1 = p1[type] - dist; else DotProduct(...)`.
+`func[1389]` is `CL_RunUsercmd` - the two frames are its own `msec > 50`
+split recursion. `PM_CheckStuck` on the client side is confirmed by
+`GOT.mem.rgStuckLast` in its prologue.
+
+**The trap** is `i32.load8_u [plane+16]`, i.e. `plane->type`, through a
+`hull->planes + planenum` that is out of range. The engine bounds-checks the
+CLIPNODE number (that is the `Host_Error` immediately above) but never the
+PLANE number, so a hull whose `clipnodes` pointer is stale walks straight off
+the end of linear memory. In practice: `pmove->physents[i].model` was a freed
+or not-yet-loaded brush model when client-side prediction ran.
+
+**Not the maps.** Every BSP in `server/maps/` validates - planenums in range,
+clipnode children in range, model headnodes sane. (The `-1` headnodes on the
+kz maps are `CONTENTS_EMPTY`, which is normal for non-solid brush entities.)
+This is engine state, not map data.
+
+**No fix on our side.** The missing planenum guard is upstream. The one lever
+that removes the code path entirely is `cl_predict 0` in `userconfig.cfg`,
+which stops `CL_RunUsercmd` running at all - do NOT ship that by default, it
+makes movement rubber-band over the WebRTC link. Emergency use only, and only
+if this turns out to be frequent.
+
+**What was missing at diagnosis time** was any record of what the player was
+doing. That is now fixed: `launch.ts` passes `print`/`printErr` into the
+engine module and keeps the last 300 lines of engine stdout, which
+`reportFatal` dumps with the crash and parks on `window.__ffCrash.log`. Those
+lines were previously going nowhere - the xash3d-fwgs wrapper installs its own
+`print` for `waitLog` and forwards to `module.print`, which we never supplied.
+Next occurrence, the tail says whether it was a join, a changelevel or
+mid-round, which separates "spawn-window race" from "precache/model-index rot"
+(see the MAX_MODELS leak above).

@@ -25,7 +25,9 @@ stalls (seen repeatedly while testing item 5): whenever the engine tries
 to draw its yes/no message box (e.g. after a disconnect), the WASM build
 crashes with `RuntimeError: remainder by zero` in `UI_DrawString` and the
 render loop dies at the splash - upstream Xash3D-FWGS bug, not ours; the
-fix for players is always just refresh.
+fix for players is always just refresh. **Fixed 2026-08-29** by dropping the
+GameUI menu from the engine's dynamic libraries, so nothing ever draws that
+menu - see "Escape used to crash the client" in troubleshooting.md.
 
 ## 3. Verify Deathmatch (frag_dm) in-browser - done (2026-08-03)
 

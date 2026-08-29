@@ -2,7 +2,6 @@ import JSZip from "jszip";
 import filesystemURL from "xash3d-fwgs/filesystem_stdio.wasm?url";
 import xashURL from "xash3d-fwgs/xash.wasm?url";
 import gles3URL from "xash3d-fwgs/libref_gles3compat.wasm?url";
-import menuURL from "cs16-client/cl_dll/menu_emscripten_wasm32.wasm?url";
 import clientURL from "cs16-client/cl_dll/client_emscripten_wasm32.wasm?url";
 import serverURL from "cs16-client/dlls/cs_emscripten_wasm32.wasm?url";
 import extrasURL from "cs16-client/extras.pk3?url";
@@ -129,6 +128,27 @@ let engineDead = false;
 // set once main() is running, so the error listener below cannot mistake a
 // React or download failure for an engine fault
 let engineRunning = false;
+
+// The engine's stdout is where it says what it was doing: the map it is
+// loading, the precache list, "Spawn Server", connection state. The
+// xash3d-fwgs wrapper installs its own `print`/`printErr` (for waitLog) and
+// forwards to `module.print` - which we never supplied, so every one of those
+// lines was going nowhere. Keep the tail of it, because a wasm trap tells you
+// WHERE the engine died and never WHEN: the 2026-08-29 prediction trap
+// (PM_RecursiveHullCheck reading plane->type through an out-of-range
+// hull->planes, off HUD_PlayerMove <- CL_RunUsercmd) could not be pinned to a
+// join, a map change or mid-round, because nobody could remember. The log tail
+// would have said. 300 lines covers a map load with room to spare.
+const ENGINE_LOG_LINES = 300;
+const engineLog: string[] = [];
+function noteEngineLine(line: string) {
+  // relative ms, not wall clock: what matters is the gap between the last
+  // engine output and the trap, and the absolute time is already on `at`
+  engineLog.push(`${Math.round(performance.now())} ${line}`);
+  if (engineLog.length > ENGINE_LOG_LINES) engineLog.shift();
+  // still forward it - devtools is where anyone watching a live session looks
+  console.log(line);
+}
 // The lobby only ever shows the crash's last line, trimmed to fit a status
 // strip, and a crash is the one moment where the rest of the text is the
 // whole diagnosis: the engine's Mem_Free carries its own `__FILE__:__LINE__`
@@ -144,6 +164,11 @@ function reportFatal(source: string, text: string, stack: string) {
     // where the player was when it died - a crash while connecting is a
     // different bug from a crash mid-game
     engineRunning,
+    // what the engine was doing on the way in - see noteEngineLine
+    log: engineLog.join("\n"),
+    // a trap in a hidden tab is a frozen-rAF story, not a game one
+    hidden: document.hidden,
+    sinceLoad: Math.round(performance.now()),
     url: location.href,
     userAgent: navigator.userAgent,
     at: new Date().toISOString(),
@@ -153,8 +178,10 @@ function reportFatal(source: string, text: string, stack: string) {
   console.group("[engine fatal]");
   console.error(text);
   for (const [k, v] of Object.entries(detail)) {
-    if (k !== "text") console.error(`${k}:`, v);
+    if (k !== "text" && k !== "log") console.error(`${k}:`, v);
   }
+  // last, and on its own, so the tail reads in order under everything else
+  console.error("engine log (last %d lines):\n%s", ENGINE_LOG_LINES, detail.log);
   console.groupEnd();
 }
 
@@ -198,22 +225,11 @@ function captureEngineFatals(onFatal: (message: string) => void) {
   );
 }
 
-// Escape must never reach the engine: this build cannot draw its own menus,
-// and the attempt throws RuntimeError: remainder by zero in UI_DrawString and
-// takes the render loop with it (backlog item 2). The tab freezes, the client
-// goes silent, and the drop watchdog reports a disconnect ~10s later.
-//
-// Registered BEFORE the engine initialises, and that ordering is the whole
-// point: capture-phase listeners on one target fire in registration order, so
-// a handler added later (say, when play starts) loses the race to SDL's own
-// and the menu opens anyway - exactly what happened on the first attempt at
-// this fix (2026-08-28). Registered first on window+capture it beats SDL
-// wherever SDL listens, since capture runs window -> document -> canvas
-// before any bubble handler.
-//
-// Deliberately no preventDefault: leaving the default alone keeps the
-// browser's fullscreen and pointer-lock exit on Escape, both handled above
-// the page and uncancellable by it anyway.
+// Escape used to kill the client, and the fix is not in this file - see
+// ENGINE_LIBRARIES below. Three attempts on 2026-08-28 tried to stop the
+// keypress in the page; all failed and one broke mouse look, because the
+// route into the menu was never the keyboard alone.
+
 export type LaunchStatus =
   | { phase: "engine" }
   | { phase: "unpacking"; done: number; total: number };
@@ -418,6 +434,56 @@ export function leaveServer(x: Xash3DWebRTC) {
   }
 }
 
+// The engine's dynamic libraries, and the one that is deliberately absent.
+//
+// THE ESCAPE CRASH. Pressing Escape in-game ran CL_Escape_f -> UI_SetActiveMenu
+// -> the GameUI menu drew itself, and drawing it trapped:
+//
+//   RuntimeError: remainder by zero
+//     UI_DrawString <- EngFuncs::DrawConsoleString <- CMenuPicButton::Draw
+//     <- CMenuItemsHolder::Draw <- CMenuBaseWindow::Draw <- CMenuFramework::Draw
+//     <- ...::DrawAnimation <- CWindowStack::Update <- UI_UpdateMenu
+//
+// Resolved from the wasm stack offsets against cs16-client's
+// menu_emscripten_wasm32.wasm (it keeps its name section):
+// `wasm-objdump -d`, function 1938 at 0x5d330, and the trap is the `i32.rem_s`
+// at 0x5d39f - `h % charH` in UI_DrawString's vertical justify, with charH
+// (the menu font height) zero. The menu has no usable font in this build, so
+// every path that draws it dies: Escape, and the engine's own yes/no message
+// box after a disconnect (which is why `retry` used to land on a black screen).
+//
+// Rather than fight the keypress in the page - three attempts, all reverted,
+// one of which broke mouse look - remove the menu the keypress reaches for.
+// The engine is built for this: cl_scrn.c calls UI_LoadProgs and treats
+// failure as "non fatal for us", and every UI_* entry point then short-
+// circuits on a null gameui.hInstance. UI_SetActiveMenu(true) becomes a
+// no-op, so Escape does nothing at all - no listeners, no preventDefault,
+// nothing near the mouse.
+//
+// The engine finds the menu only if the loader preloaded it, so leaving it
+// out of this list IS the removal: dlopen of a library that was never
+// preloaded returns 0 (emscripten catches the read and sets dlerror), and
+// valve.zip carries no cl_dlls/ to fall back on. This list has to be spelled
+// out because xash3d.js hardcodes the menu into the array it builds; passing
+// `module.dynamicLibraries` replaces that array wholesale (its own spread of
+// `opts.module` comes last). Keep it in sync with xash3d.js's ordering if the
+// package is upgraded - only the absence of cl_dlls/menu_emscripten_wasm32.wasm
+// is load-bearing.
+//
+// Trade-off: no engine menu at all. Nothing is lost - the page IS the menu,
+// team select is the client dll's text menu (`_vgui_menus 0`), and the only
+// thing the GameUI ever did here was crash. The engine turns its console on
+// when the menu is missing (host.allow_console), which Escape closes again.
+const ENGINE_LIBRARIES = [
+  "filesystem_stdio.wasm", // DEFAULT_FILESYSTEM_LIBRARY
+  // "cl_dlls/menu_emscripten_wasm32.wasm" - DELIBERATELY ABSENT, see above
+  "dlls/hl_emscripten_wasm32.wasm", // DEFAULT_SERVER_LIBRARY
+  "cl_dlls/client_emscripten_wasm32.wasm", // DEFAULT_CLIENT_LIBRARY
+  "dlls/cs_emscripten_wasm32.wasm",
+  "/rodir/filesystem_stdio.wasm",
+  "libref_webgl2.wasm", // pushed by the package's initRender for gles3compat
+];
+
 export async function launchGame(
   canvas: HTMLCanvasElement,
   zipBytes: Uint8Array,
@@ -434,7 +500,6 @@ export async function launchGame(
     libraries: {
       filesystem: filesystemURL,
       xash: xashURL,
-      menu: menuURL,
       server: serverURL,
       client: clientURL,
       render: {
@@ -445,6 +510,14 @@ export async function launchGame(
     filesMap: {
       "dlls/cs_emscripten_wasm32.wasm": serverURL,
       "/rodir/filesystem_stdio.wasm": filesystemURL,
+    },
+    // the list above is what the package would build FROM; this is what it
+    // actually loads, minus the GameUI menu - see ENGINE_LIBRARIES.
+    // print/printErr feed the crash report's log tail - see noteEngineLine
+    module: {
+      dynamicLibraries: ENGINE_LIBRARIES,
+      print: noteEngineLine,
+      printErr: noteEngineLine,
     },
   });
 
