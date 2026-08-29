@@ -715,14 +715,15 @@ const CONTROLS: Control[] = [
     label: "gun hand",
     def: "1",
     kind: "choice",
-    // The labels follow what the player SEES, not what the cvar is called:
-    // cl_righthand 1 puts the gun on the left in this build. `def` still has
-    // to be the value userconfig.cfg ships (1), so left reads as the shipped
-    // default - if the gun is actually on the right on a fresh join, this
-    // pair is the wrong way round and the values swap back.
+    // Measured 2026-08-29, not assumed: joined with no cl_righthand override
+    // saved (the chips listed only cl_cmdrate, cl_dlmax and sensitivity), so
+    // the engine ran the shipped `cl_righthand 1` from userconfig.cfg - and
+    // the viewmodel drew on the RIGHT. 1 is right-handed. Leave it: this
+    // order puts left first AND leaves right (the shipped default, def "1")
+    // as the selected chip.
     options: [
-      { value: "1", label: "left" },
-      { value: "0", label: "right" },
+      { value: "0", label: "left" },
+      { value: "1", label: "right" },
     ],
   },
   { cvar: "xhair_size", label: "crosshair size", def: "2", kind: "range", min: 1, max: 6, step: 1 },
