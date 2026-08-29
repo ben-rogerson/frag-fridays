@@ -61,7 +61,8 @@
 }
 
 /* GunGame: ember orange - weapon heat, climbing the ladder */
-.overlay[data-mode="gungame"] {
+.overlay[data-mode="gungame"],
+.pause[data-mode="gungame"] {
   --accent: var(--mode-gungame);
   --accent-hot: #ffbb3d;
   --accent-deep: #d97f0b;
@@ -73,7 +74,8 @@
 }
 
 /* Deathmatch: kill-feed crimson */
-.overlay[data-mode="dm"] {
+.overlay[data-mode="dm"],
+.pause[data-mode="dm"] {
   --accent: var(--mode-dm);
   --accent-hot: #ff7d8a;
   --accent-deep: #d32f3f;
@@ -85,7 +87,8 @@
 }
 
 /* KZ / Climb: ice cyan - cliff air */
-.overlay[data-mode="kz"] {
+.overlay[data-mode="kz"],
+.pause[data-mode="kz"] {
   --accent: var(--mode-kz);
   --accent-hot: #7ff3f9;
   --accent-deep: #1cb4bd;
@@ -97,7 +100,8 @@
 }
 
 /* Aim Prac: signal violet - tracer glow against the knife horde */
-.overlay[data-mode="aim"] {
+.overlay[data-mode="aim"],
+.pause[data-mode="aim"] {
   --accent: var(--mode-aim);
   --accent-hot: #c49aff;
   --accent-deep: #8746f0;
@@ -1895,36 +1899,6 @@ th.standings__num {
   color: var(--text-mute);
 }
 
-.sound {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: none;
-  font: inherit;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text);
-  background: linear-gradient(180deg, #2c4278 0%, #1d2f5c 100%);
-  border: 1px solid var(--bevel-light);
-  border-bottom-color: var(--bevel-dark);
-  border-right-color: var(--bevel-dark);
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  transition: filter 0.15s;
-}
-
-.sound:hover,
-.sound:focus-visible {
-  filter: brightness(1.2);
-  outline: none;
-}
-
-.sound:focus-visible {
-  outline: 2px solid var(--accent-hot);
-  outline-offset: 1px;
-}
-
 .player {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -1937,7 +1911,6 @@ th.standings__num {
   width: 100%;
   height: 100%;
   border: 0;
-  pointer-events: none;
 }
 
 .player--dead {
@@ -2168,6 +2141,84 @@ th.standings__num {
 .fs:focus-visible {
   filter: brightness(1.3);
   outline: none;
+}
+
+/* Escape menu, over the live canvas. Sits above .fs so the fullscreen button
+   cannot be clicked through the scrim, and outside .overlay because that is
+   hidden while playing. */
+.pause {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 10, 22, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.pause__card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  min-width: min(21rem, 82vw);
+  padding: 1.6rem 1.8rem;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.pause__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pause__note {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  color: var(--text-mute);
+}
+
+.pause__resume {
+  padding: 0.65rem 1.6rem;
+}
+
+.pause__leave {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--panel-hi);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  padding: 0.6rem 1.6rem;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.pause__leave:hover,
+.pause__leave:focus-visible {
+  filter: brightness(1.35);
+  outline: none;
+}
+
+.pause__hint {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 
 .fs:focus-visible {

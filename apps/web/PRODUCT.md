@@ -49,8 +49,9 @@ laptop".
   every 5s).
 - YouTube embeds only work via the Cloudflare Worker shim relay
   (`frag-friday-bg` on workers.dev); direct embeds fail from the IP-literal
-  http origin. Sound requires a user gesture; the widget-relay mute/unmute
-  plumbing in `App.tsx` handles this.
+  http origin. The player keeps YouTube's own controls (unmute, next track,
+  fullscreen) - autoplay is muted because browsers allow no other kind, and
+  the widget relay now carries only the dead-embed `onError` fallback.
 - Served from a plain http IP-literal origin (`http://149.28.172.74:27016`) -
   no HTTPS, so no clipboard API, no service workers, and browser gesture rules
   apply strictly.
@@ -71,9 +72,11 @@ laptop".
   period chrome, real data stated flatly. No invented one-liners, no
   workplace references (Simply Wall St must not appear on the page).
 - **Crest artwork**: the supplied crest SVG above the title must be kept.
-- **The frag-movie video with audio must be present** (currently the
-  ANNIHILATION 2 YouTube embed with drum & bass audio) - as background
-  artwork or otherwise; placement and treatment are a design decision.
+- **The frag-movie video with audio must be present** (currently a YouTube
+  playlist of CS 1.6 frag movies, autoplaying muted and looping, on a
+  random track each load) - as
+  background artwork or otherwise; placement and treatment are a design
+  decision.
 
 ## Evidence on Hand
 

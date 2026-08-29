@@ -55,17 +55,18 @@ const NEWS: { label: string; items: string[] }[] = [
   },
 ];
 
-// Background: Counter Strike 1.6 ANNIHILATION 2 HQ (7:36). Random start so
-// the music differs each load; capped at 400s to leave a stretch before the
-// loop wraps to 0.
+// Background: a plain YouTube playlist of CS 1.6 frag movies, autoplaying
+// muted (the only autoplay browsers allow) and looping, starting on a
+// random track each load (the shim picks it - see there). YouTube's own
+// controls are left on, so players unmute, skip to the next video or go
+// fullscreen through the player itself - the page adds no chrome of its own.
 //
 // The embed goes through a relay page (apps/web/shim, a Cloudflare Worker):
 // YouTube refuses embeds from IP-literal http origins like the game server
 // (widget onError 150), but accepts them from the shim's workers.dev domain.
-// The shim relays widget postMessage traffic both ways, so the sound toggle
-// and error fallback below work exactly as if the player were embedded here.
-const VIDEO_ID = "Y6gcmbioqiE";
-const VIDEO_MAX_START = 400;
+// The shim relays widget postMessage traffic both ways, so the error
+// fallback below sees onError exactly as if the player were embedded here.
+const PLAYLIST_ID = "PLvwKS1s3ePT9xTAxDVGON6RAutiBm4hoZ";
 const VIDEO_SHIM = "https://frag-friday-bg.floral-math-a059.workers.dev";
 
 const mb = (bytes: number) => Math.round(bytes / 1048576);
@@ -602,28 +603,6 @@ const CrestLogo: FC = () => (
 );
 
 // icons drawn inline, one 2px stroke family
-const SpeakerIcon: FC<{ muted: boolean }> = ({ muted }) => (
-  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
-    <path
-      d="M4 9v6h4l5 4V5L8 9H4z"
-      fill="currentColor"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    {muted ? (
-      <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    ) : (
-      <path
-        d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    )}
-  </svg>
-);
-
 const FullscreenIcon: FC<{ active: boolean }> = ({ active }) => (
   <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
     {active ? (
@@ -736,9 +715,14 @@ const CONTROLS: Control[] = [
     label: "gun hand",
     def: "1",
     kind: "choice",
+    // The labels follow what the player SEES, not what the cvar is called:
+    // cl_righthand 1 puts the gun on the left in this build. `def` still has
+    // to be the value userconfig.cfg ships (1), so left reads as the shipped
+    // default - if the gun is actually on the right on a fresh join, this
+    // pair is the wrong way round and the values swap back.
     options: [
-      { value: "0", label: "left" },
-      { value: "1", label: "right" },
+      { value: "1", label: "left" },
+      { value: "0", label: "right" },
     ],
   },
   { cvar: "xhair_size", label: "crosshair size", def: "2", kind: "range", min: 1, max: 6, step: 1 },
@@ -962,20 +946,10 @@ const App: FC = () => {
     total: null,
     rate: null,
   });
-  const [videoStart] = useState(() => Math.floor(Math.random() * VIDEO_MAX_START));
   const [videoDead, setVideoDead] = useState(false);
-  // Sound starts muted and only unmutes via the sound toggle (which is a
-  // user gesture, so the browser allows it). The icon reflects the PLAYER's
-  // actual muted state (reported via infoDelivery), not our wish - otherwise
-  // it shows sound-on while the browser still has it muted, and the first
-  // toggle press mutes instead of unmuting.
-  const [playerMuted, setPlayerMuted] = useState(true);
-  const playerMutedRef = useRef(true);
-  const fadeRef = useRef<number | null>(null);
   const [name, setName] = useState(() => localStorage.getItem("ff-name") ?? "");
   const [nameNeeded, setNameNeeded] = useState(false);
   const aliasRef = useRef<HTMLInputElement>(null);
-  const [musicOver, setMusicOver] = useState(false);
   const [modeInfo, setModeInfo] = useState<ModeInfo | null>(null);
   // which roster row is unfolded in "more game modes"; one at a time so the
   // card stays a card, not a scroll
@@ -996,6 +970,17 @@ const App: FC = () => {
   const [wentLive, setWentLive] = useState(false);
   const prevClockIdRef = useRef(clock.id);
   const [fullscreen, setFullscreen] = useState(false);
+  // Escape menu. Only possible because the engine no longer reacts to Escape
+  // at all (the GameUI menu is not loaded - see ENGINE_LIBRARIES in
+  // launch.ts). Before that, Escape opened a menu the build could not draw
+  // and the render loop died; three attempts to SWALLOW the key failed, and
+  // the one that swallowed pointerlockchange broke mouse look outright. This
+  // handler swallows nothing - see the effect below.
+  const [paused, setPaused] = useState(false);
+  // Escape also exits fullscreen, and no page can cancel that. Remember
+  // whether we were fullscreen when the menu opened so Resume can put it
+  // back - the click is a user gesture, so the request is allowed.
+  const wasFullscreenRef = useRef(false);
 
   useEffect(() => {
     const t = window.setInterval(() => setClock(sessionClock()), 1000);
@@ -1058,6 +1043,48 @@ const App: FC = () => {
   // the same poll so a mod swap updates the match panel on an already-open
   // page. Parse failures (mid-write reads, plugin absent) just skip the tick.
   const playing = stage.id === "playing";
+
+  // Capture phase on window so nothing can stop the event before we see it -
+  // but we only READ it. No preventDefault (the browser still exits
+  // fullscreen and pointer lock, which is what frees the cursor for the
+  // buttons), no stopPropagation, no interference with SDL. The engine gets
+  // the keypress exactly as it does today and does nothing with it.
+  useEffect(() => {
+    if (!playing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.repeat) return;
+      setPaused((open) => {
+        if (!open) wasFullscreenRef.current = Boolean(document.fullscreenElement);
+        return !open;
+      });
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [playing]);
+
+  const resume = () => {
+    setPaused(false);
+    if (wasFullscreenRef.current && !document.fullscreenElement) enterFullscreen();
+    // SDL enters relative mouse mode when the lock is GRANTED, so asking for
+    // it here is the same thing a click on the canvas does - it can only give
+    // the engine back the mouse, never take it away.
+    try {
+      canvasRef.current?.requestPointerLock?.();
+    } catch {
+      /* refused (mid fullscreen transition) - a click on the canvas relocks */
+    }
+  };
+
+  // Hand the slot back before the reload, same as the pagehide path, so the
+  // server frees it now instead of holding it for sv_timeout (600s). The
+  // reload is what returns the lobby: the engine has no "back to menu" left
+  // and valve.zip comes off Cache Storage, so it costs an unpack.
+  const leaveMatch = () => {
+    const x = xashRef.current;
+    if (x) leaveServer(x);
+    location.reload();
+  };
+
   useEffect(() => {
     if (playing) return;
     let cancelled = false;
@@ -1110,7 +1137,8 @@ const App: FC = () => {
   // YouTube refuses embeds from some origins (error 150/153 - e.g. IP-literal
   // http origins since late 2025). Detect via the widget API and drop the
   // iframe so players get the offline notice instead of YouTube's error box.
-  // The widget only reports errors after a 'listening' handshake.
+  // The widget only reports errors after a 'listening' handshake. Errors are
+  // all we listen for now - playback itself is the player's own business.
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       if (typeof e.data !== "string") return;
@@ -1118,10 +1146,6 @@ const App: FC = () => {
       try {
         const d = JSON.parse(e.data);
         if (d.event === "onError" || d.info?.playerErrorCode) setVideoDead(true);
-        if (d.info && typeof d.info.muted === "boolean") {
-          playerMutedRef.current = d.info.muted;
-          setPlayerMuted(d.info.muted);
-        }
       } catch {
         /* not a widget message */
       }
@@ -1136,73 +1160,8 @@ const App: FC = () => {
     return () => {
       window.removeEventListener("message", onMsg);
       clearInterval(handshake);
-      stopFade();
     };
   }, []);
-
-  const ytCommand = (func: string, args: unknown[] = []) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args }),
-      "*",
-    );
-  };
-
-  const stopFade = () => {
-    if (fadeRef.current !== null) {
-      clearInterval(fadeRef.current);
-      fadeRef.current = null;
-    }
-  };
-
-  // unmute at volume 0 and ramp to 65 over ~0.6s; no-op while already
-  // fading or already audible
-  const startSound = () => {
-    if (fadeRef.current !== null || !playerMutedRef.current) return;
-    // mark unmuted straight away so clicks arriving before the widget's
-    // muted:false report can't restart the fade; a muted:true report will
-    // correct this if the browser actually refused the unmute
-    playerMutedRef.current = false;
-    ytCommand("setVolume", [0]);
-    ytCommand("unMute");
-    ytCommand("playVideo");
-    let volume = 0;
-    fadeRef.current = window.setInterval(() => {
-      volume = Math.min(65, volume + 8);
-      ytCommand("setVolume", [volume]);
-      if (volume >= 65) stopFade();
-    }, 65);
-  };
-
-  // let the track ride for 15s once in-game, then ramp down and drop the iframe
-  const endMusicSoon = () => {
-    window.setTimeout(() => {
-      stopFade();
-      if (playerMutedRef.current) {
-        setMusicOver(true);
-        return;
-      }
-      let volume = 65;
-      fadeRef.current = window.setInterval(() => {
-        volume = Math.max(0, volume - 8);
-        ytCommand("setVolume", [volume]);
-        if (volume <= 0) {
-          stopFade();
-          ytCommand("mute");
-          setMusicOver(true);
-        }
-      }, 65);
-    }, 15000);
-  };
-
-  const toggleSound = () => {
-    if (playerMuted) {
-      // unmuting needs a user gesture, which this click is
-      startSound();
-    } else {
-      stopFade();
-      ytCommand("mute");
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -1276,8 +1235,6 @@ const App: FC = () => {
       zipRef.current = null;
       // a drop during launch must not be clobbered by the launch resolving
       setStage((s) => (s.id === "dropped" || s.id === "crashed" ? s : { id: "playing" }));
-      // music rides into the game briefly, then fades out
-      endMusicSoon();
       // snapshot in-game settings every 30s, plus when the tab hides or the
       // page unloads, so they survive reloads. play() runs once, so these
       // never stack.
@@ -1864,28 +1821,18 @@ const App: FC = () => {
             <aside className="front__aside">
               <section id="demos" className="panel" aria-label="now streaming">
                 <h2 className="panel__bar panel__bar--player">
-                  <span className="panel__file">annihilation_2.wmv</span>
-                  {!videoDead && (
-                    <button
-                      className="sound"
-                      onClick={toggleSound}
-                      aria-label={playerMuted ? "Play music" : "Mute music"}
-                    >
-                      <SpeakerIcon muted={playerMuted} />
-                      {playerMuted ? "sound off" : "sound on"}
-                    </button>
-                  )}
+                  <span className="panel__file">frag_movies.m3u</span>
                 </h2>
-                {!videoDead && (stage.id !== "playing" || !musicOver) ? (
+                {!videoDead && stage.id !== "playing" ? (
                   <div className="player">
                     <iframe
                       ref={iframeRef}
                       className="player__vid"
-                      src={`${VIDEO_SHIM}/?v=${VIDEO_ID}&start=${videoStart}`}
-                      allow="autoplay; encrypted-media"
+                      src={`${VIDEO_SHIM}/?list=${PLAYLIST_ID}`}
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
                       referrerPolicy="strict-origin-when-cross-origin"
-                      tabIndex={-1}
-                      title="frag movie"
+                      title="frag movies"
                     />
                   </div>
                 ) : (
@@ -1991,6 +1938,29 @@ const App: FC = () => {
       >
         <FullscreenIcon active={fullscreen} />
       </button>
+      {playing && paused && (
+        <div
+          className="pause"
+          data-mode={themeMode}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Match menu"
+        >
+          <div className="pause__card">
+            <p className="pause__title">match menu</p>
+            <p className="pause__note">
+              the round is still running - you are still in the server
+            </p>
+            <button className="join pause__resume" onClick={resume} autoFocus>
+              resume
+            </button>
+            <button className="pause__leave" onClick={leaveMatch}>
+              leave server
+            </button>
+            <p className="pause__hint">esc closes this too</p>
+          </div>
+        </div>
+      )}
     </>
   );
 };
