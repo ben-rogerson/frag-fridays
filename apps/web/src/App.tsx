@@ -40,6 +40,7 @@ const NEWS: { label: string; items: string[] }[] = [
   {
     label: "29 aug",
     items: [
+      "esc opens a match menu instead of doing nothing - resume, or leave the server, with the round still running behind it",
       "quitting with exit in the game console no longer reports a crash - the page says you left, with a rejoin button",
       "your settings are now listed on this page - sensitivity, hand and the rest, with anything you changed in-game shown as a chip you can drop",
     ],
