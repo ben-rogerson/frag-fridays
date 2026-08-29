@@ -300,10 +300,29 @@ function settingKey(line: string): string | null {
   return unbind ? "unbind " + unbind[2].toUpperCase() : cfgKey(line);
 }
 
+// Net cvars the ENGINE owns, not the player. The baseline is snapshotted
+// straight after main(); these two only get their final value later, when the
+// netchan comes up on connect - userconfig.cfg asks for cl_cmdrate 105 and
+// cl_dlmax 1024, the engine writes back 100 and 1400. The next persist tick
+// diffed that against the baseline and saved it as if the player had typed it,
+// so every session opened the panel with two chips nobody had set (and replayed
+// them forever). Nothing in the panel edits these, so drop them on both sides:
+// out of new snapshots, and out of snapshots already sitting in localStorage.
+const ENGINE_OWNED = new Set(["cl_cmdrate", "cl_dlmax"]);
+
 function loadSaved(): Record<string, string> {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null");
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, string>).map(([name, text]) => [
+        name,
+        text
+          .split("\n")
+          .filter((line) => !ENGINE_OWNED.has(settingKey(line) ?? ""))
+          .join("\n"),
+      ]),
+    );
   } catch {
     return {}; /* corrupt snapshot - shipped defaults it is */
   }
@@ -435,7 +454,7 @@ export function persistSettings(x: Xash3DWebRTC) {
     const lines: string[] = [];
     for (const [key, line] of live) {
       // the lobby name field is authoritative, never the snapshot
-      if (key === "name") continue;
+      if (key === "name" || ENGINE_OWNED.has(key)) continue;
       if (base.get(key) !== line) lines.push(line);
     }
     // a key bound at boot but unbound since must be actively unbound on replay
@@ -606,18 +625,13 @@ export async function launchGame(
   );
   // v1 full archives pinned stale shipped defaults - drop them for good
   localStorage.removeItem(LEGACY_SETTINGS_KEY);
-  const saved = localStorage.getItem(SETTINGS_KEY);
-  if (saved) {
-    try {
-      for (const text of Object.values(JSON.parse(saved) as Record<string, string>)) {
-        for (const line of text.split("\n")) {
-          const cmd = line.trim();
-          if (!cmd || cmd.startsWith("//") || cmd.startsWith("name ")) continue;
-          x.Cmd_ExecuteString(cmd);
-        }
-      }
-    } catch {
-      /* corrupt snapshot - shipped defaults it is */
+  // via loadSaved, so a snapshot written before ENGINE_OWNED existed replays
+  // without its cl_cmdrate / cl_dlmax lines
+  for (const text of Object.values(loadSaved())) {
+    for (const line of text.split("\n")) {
+      const cmd = line.trim();
+      if (!cmd || cmd.startsWith("//") || cmd.startsWith("name ")) continue;
+      x.Cmd_ExecuteString(cmd);
     }
   }
   if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
