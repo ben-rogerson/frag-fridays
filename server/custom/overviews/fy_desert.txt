@@ -1,0 +1,11 @@
+global
+{
+ZOOM 0.99
+ORIGIN 0.00 0.00 -1294.26
+ROTATED 1
+}
+layer
+{
+IMAGE "overviews/fy_desert.bmp"
+HEIGHT -1294.26
+}

@@ -9,10 +9,16 @@
 // a bare 404 (indistinguishable from an unknown path). Rotate by editing
 // /opt/cs16/mcp.env and `docker compose up -d` in /opt/cs16/mcp, then update
 // the connector URL.
+//
+// The same process also serves /admin-api/* (admin.js) - the back end for the
+// web client's secret admin route. That one is our own fetch(), so its token
+// travels in a header instead of the path. Both are proxied from
+// ff.benrogerson.dev by the front-door Worker.
 import { createHash, timingSafeEqual } from 'node:crypto'
 import express from 'express'
 import { McpServer } from '@modelcontextprotocol/server'
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
+import { adminEnabled, adminRouter } from './admin.js'
 import { registerTools } from './tools.js'
 
 const SECRET = process.env.MCP_SECRET
@@ -28,6 +34,11 @@ registerTools(server)
 const app = express()
 app.disable('x-powered-by')
 app.use(express.json({ limit: '1mb' }))
+
+// the war-room panel (apps/web/src/Admin.tsx). Absent ADMIN_TOKEN the routes
+// are simply not mounted, so an unconfigured box 404s instead of 401ing.
+if (adminEnabled()) app.use('/admin-api', adminRouter())
+else console.log('[mcp] ADMIN_TOKEN not set - admin panel API is disabled')
 
 app.post('/mcp/:secret', async (req, res) => {
   if (!secretOk(req.params.secret)) return res.status(404).end()
@@ -45,4 +56,6 @@ app.all('/mcp/:secret', (req, res) => {
 
 app.use((req, res) => res.status(404).end())
 
-app.listen(PORT, () => console.log(`[mcp] listening on :${PORT}`))
+app.listen(PORT, () =>
+  console.log(`[mcp] listening on :${PORT}${adminEnabled() ? ' (mcp + admin-api)' : ' (mcp only)'}`),
+)

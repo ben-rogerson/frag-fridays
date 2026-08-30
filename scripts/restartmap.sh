@@ -2,7 +2,7 @@
 # Restart the current map on the LIVE server (changelevel to itself - full
 # reload: entities, timer, scores; players stay connected). Announces a
 # 5-second centre-screen warning (amx_csay) before the reload.
-# Requires the cmdpipe plugin (gg/dm/aim only).
+# Requires the cmdpipe plugin (gg/dm/aim/css/fy/awp only).
 #
 # Usage: scripts/restartmap.sh
 set -euo pipefail

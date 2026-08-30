@@ -22,6 +22,12 @@ const ORIGIN = 'http://149-28-172-74.sslip.io:27016'
 // Cache-Control: no-store, so the zone cache stays out of the way.
 const MCP_ORIGIN = 'http://149-28-172-74.sslip.io:27017'
 
+// The same box process also answers /admin-api/* - the back end for the
+// client's secret admin route (/#/warroom). Its token travels in the
+// x-ff-admin header (our own fetch can set one), so unlike /mcp/ nothing
+// secret lands in the request logs.
+const isControlPlane = (path) => path.startsWith('/mcp/') || path.startsWith('/admin-api/')
+
 export default {
   fetch(request) {
     const url = new URL(request.url)
@@ -31,7 +37,7 @@ export default {
       url.hostname = 'ff.benrogerson.dev'
       return Response.redirect(url.toString(), 301)
     }
-    const origin = url.pathname.startsWith('/mcp/') ? MCP_ORIGIN : ORIGIN
+    const origin = isControlPlane(url.pathname) ? MCP_ORIGIN : ORIGIN
     return fetch(origin + url.pathname + url.search, request)
   },
 }

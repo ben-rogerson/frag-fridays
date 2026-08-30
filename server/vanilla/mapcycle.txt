@@ -8,5 +8,5 @@ de_aztec
 de_cbble
 de_nuke
 de_train
-awp_india
+cs_prospeedball
 cs_deagle5

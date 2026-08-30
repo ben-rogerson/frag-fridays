@@ -1,0 +1,44 @@
+services:
+  xash3d:
+    build: .
+    restart: unless-stopped
+    platform: linux/386
+    # boot map comes from the shuffled mapcycle - entrypoint.sh randomises the
+    # rotation order on every container start and strips any +map given here
+    command: ["+maxplayers 16"]
+    environment:
+      PORT: 27118
+      IP: 149.28.172.74
+    volumes:
+      - "../valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Fridays loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "../web/index.html:/xashds/public/index.html:ro"
+      - "../web/assets:/xashds/public/assets:ro"
+      # mode blurb shown on the loading screen
+      - "./info.json:/xashds/public/info.json:ro"
+      - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
+      # studio models load SERVER-side for collision (unlike wads/sounds, which
+      # are render-only) - de_bank_csgo, fy_desert and css_dust2_go all carry
+      # their own props, so the models tree has to reach the container too.
+      - "../cs/cstrike/models:/xashds/cstrike/custom/models:ro"
+      # de_bank_csgo's env_sprites are precached SERVER-side and loaded from
+      # disk ("Could not load model sprites/... from disk" without this), same
+      # rule as studio models. Stock sprites are already in the image; only the
+      # custom ones live in the game tree.
+      - "../cs/cstrike/sprites:/xashds/cstrike/custom/sprites:ro"
+      # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
+      - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"
+      # HL kill logs (log on + mp_logfile in server.cfg) - persisted for the recap
+      - "../logs/awp:/xashds/cstrike/logs"
+      # segfault forensics: host kernel.core_pattern=/cores/core.%e.%t
+      - "../cores:/cores"
+    ulimits:
+      core:
+        soft: -1
+        hard: -1
+    ports:
+      - "27016:27016"
+      - "27118:27118"
+      - "27118:27118/udp"

@@ -60,7 +60,7 @@ public plugin_init()
 	g_protectTime = register_cvar("dm_protect_time", "1.5");
 	g_refill      = register_cvar("dm_refill", "1");
 	g_groundTime  = register_cvar("dm_ground_time", "3.0");
-	// one-weapon maps (cs_deagle5, awp_india): a game_player_equip hands out
+	// one-weapon maps (cs_deagle5): a game_player_equip hands out
 	// the map's gun and info_map_parameters says "buying 3" - but this
 	// stack's DLL ignores that, so bots (yb_botbuy 1) and humans can still
 	// buy. Set dm_only to the weapon shortname ("deagle", "awp") per map via

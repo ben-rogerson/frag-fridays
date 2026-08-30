@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Announce a message to all players on the LIVE server as a green
 # centre-screen HUD message (amx_csay, stock adminchat plugin).
-# Requires the cmdpipe plugin (gg/dm/aim only).
+# Requires the cmdpipe plugin (gg/dm/aim/css/fy/awp only).
 #
 # Usage: scripts/announce.sh "message to show"
 set -euo pipefail

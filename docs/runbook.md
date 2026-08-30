@@ -113,7 +113,9 @@ no auth. The secret is line 1 of `/opt/cs16/mcp.env` (password manager copy).
 **Rotate the secret** (it rides the URL, so it lands in Cloudflare logs):
 
 ```bash
-ssh cs16 'umask 177 && printf "MCP_SECRET=%s\n" "$(openssl rand -hex 32)" > /opt/cs16/mcp.env'
+# mcp.env holds TWO secrets (MCP_SECRET and ADMIN_TOKEN) - rewrite the one line,
+# never the file, or the war room's token goes with it
+ssh cs16 'umask 177 && sed -i "s|^MCP_SECRET=.*|MCP_SECRET=$(openssl rand -hex 32)|" /opt/cs16/mcp.env'
 ssh cs16 'cd /opt/cs16/mcp && docker compose up -d'   # picks up the new env
 # then update the connector URL in claude.ai
 ```
@@ -124,3 +126,49 @@ part of the mod swap - `pnpm run deploy` re-syncs and rebuilds it
 appear on 27016 in the `docker ps` check. Logs:
 `ssh cs16 'docker logs --tail 100 mcp-mcp-1'` - every tool call is logged
 with its arguments, which is the audit trail for remote commands.
+
+## 7. The war room (browser admin panel)
+
+The same control plane also answers `/admin-api/*`, which is the back end for
+a hidden route in the web client: **https://ff.benrogerson.dev/#/warroom**.
+It is the phone-friendly way to run a session without claude.ai or SSH -
+kick someone, change map, dial the bots up or down, put a message on
+everyone's screen, swap the mode.
+
+**Getting in:** paste the admin token (line 2 of `/opt/cs16/mcp.env`,
+password manager copy). It is kept in that browser's localStorage until you
+hit LOCK, so on your own phone it is a one-time thing. Ten wrong tokens from
+one IP locks that IP out for 15 minutes.
+
+**What each panel does:**
+
+| Panel | Action | Costs players? |
+|---|---|---|
+| On the server | Kick a human by name (engine `kick`) | that player only |
+| Bots | `yb_quota` - the TOTAL headcount YaPB fills to, plus a clear-all | no |
+| Announce | `amx_csay green` centre-screen message | no |
+| Map | `changelevel` to any map in the live rotation | no, stays connected |
+| Mode | Full mod swap - `docker compose` down/build/up | DROPS EVERYONE, 1-2 min |
+| Console | Any console command through the pipe, team rebalance, container restart | restart DROPS EVERYONE |
+
+Everything except mode and restart runs through the cmdpipe. Every mod hears
+it except **zp**, whose plugin mount is the abandoned template - on that one
+the panel says so and disables those controls. Mode swap and restart drive
+docker directly and always work.
+
+The two destructive buttons arm on the first tap and fire on the second, and
+both hand off to a background job (a swap outlives Cloudflare's ~100s request
+limit) - the banner at the top reports it when it lands. Bots cannot be
+kicked individually: YaPB's quota refills the slot within half a second, so
+the quota is the only control that sticks.
+
+**Deploying a change to it:** the panel is part of the web client
+(`apps/web/src/Admin.tsx`) and the API is part of the MCP container
+(`server/mcp/src/admin.js`), so `pnpm run deploy <mod>` ships both - it
+rebuilds the client into `server/web/` and re-`up`s the mcp compose project.
+The Worker route (`/admin-api/*` → 27017) is separate: `npx wrangler deploy`
+from `apps/web/proxy/` after changing it.
+
+**If `/admin-api` 404s:** `ADMIN_TOKEN` is missing from `/opt/cs16/mcp.env` -
+the routes are only mounted when it is set (`docker logs mcp-mcp-1` says so
+at boot). Add the line and `docker compose up -d` in `/opt/cs16/mcp`.

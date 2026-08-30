@@ -3,7 +3,7 @@
 # A swap rebuilds + restarts the container - it DROPS all players; they
 # rejoin at the same URL once it's back. Don't do this mid-session.
 #
-# Usage: scripts/swap.sh <vanilla|gg|dm|aim>
+# Usage: scripts/swap.sh <vanilla|gg|dm|aim|css|fy|awp>
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HOST="${CS16_HOST:-cs16}"
@@ -14,15 +14,18 @@ case "$mod" in
   gg)      label="GunGame" ;;
   dm)      label="Deathmatch" ;;
   aim)     label="Aim Prac" ;;
-  *) echo "usage: scripts/swap.sh <vanilla|gg|dm|aim>" >&2; exit 1 ;;
+  css)     label="Source Maps" ;;
+  fy)      label="Fight Yard" ;;
+  awp)     label="Sniper" ;;
+  *) echo "usage: scripts/swap.sh <vanilla|gg|dm|aim|css|fy|awp>" >&2; exit 1 ;;
 esac
 
-# Heads-up to connected players. Only gg/dm/aim have cmdpipe - if vanilla
+# Heads-up to connected players. Only the mod-dir builds have cmdpipe - if vanilla
 # (or nothing) is running there's no console, so skip rather than fail the swap.
 name=$(ssh "$HOST" 'docker ps --filter publish=27016 --format "{{.Names}}"' | head -n1 || true)
 running="${name%%-*}"
 case "$running" in
-  gg|dm|aim)
+  gg|dm|aim|css|fy|awp)
     scripts/rc.sh "amx_csay green Switching server to $label - you will be dropped, rejoin the same URL in a couple of minutes" >/dev/null || true
     sleep 8
     ;;

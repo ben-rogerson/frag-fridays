@@ -685,3 +685,97 @@ swallower, which still has to keep SDL from seeing the event (the console
 font trap above). A player who leaves fullscreen with Escape and does not
 open the menu stays windowed until the next Resume click - a keypress the
 page did not act on is not a gesture the browser will take a request from.
+
+## The war room: an admin panel behind a hash route (2026-08-30)
+
+Running a session from the laptop works and running it from claude.ai works,
+but both are slow at the moment that matters - someone is being a pest, the
+map is wrong, the bot count is wrong, and the fix is twenty seconds away on
+a phone that is already open on the game page. So the client grew a hidden
+control panel: `/#/warroom` (`apps/web/src/Admin.tsx`), backed by
+`/admin-api/*` on the existing MCP container.
+
+Choices worth recording:
+
+- **Hash route, not a second page.** The composes mount only `index.html`
+  and `assets/` over the image's stock client, so a second HTML entry would
+  never reach the box. `main.tsx` branches on the hash and dynamic-imports
+  the panel, which also keeps it out of the player bundle (10 kB chunk that
+  players never fetch). The hash is concealment, not security.
+- **Header token, not a secret in the URL.** The MCP endpoint puts its
+  secret in the path because claude.ai connectors cannot set headers; this
+  is our own `fetch()`, so `ADMIN_TOKEN` rides `x-ff-admin` and stays out of
+  Cloudflare's request logs. Same env file, separate secret: leaking one
+  does not hand over the other. Ten misses per IP buys a 15-minute lockout.
+- **One doing-layer, two surfaces.** The tools and the panel now share
+  `server/mcp/src/actions.js`. Both call the same `swapMod`, so the panel
+  cannot invent a swap that skips the "exactly one container on 27016"
+  check, and a fix to either lands in both.
+- **Slow actions are jobs, not requests.** A mod swap takes 1-2 minutes and
+  Cloudflare gives up at ~100s, so `/mode` and `/restart` return 202 and the
+  panel watches a `job` field in `/state`. One at a time - two swaps racing
+  for 27016 is exactly the failure the port check exists to catch.
+- **Bots are a quota, not a headcount.** YaPB runs `yb_quota_mode fill`, so
+  adding or kicking a bot by hand is undone within half a second. The panel
+  therefore offers "fill to N" and a clear-all (`yb_quota 0` + `yb kickall`)
+  and shows no kick button on bot rows - a control that visibly does nothing
+  is worse than no control.
+- **Names are refused, not escaped.** Kicks and announcements become console
+  arguments, and GoldSrc chains on `;` and tokenises on quotes. Anything
+  carrying those characters is rejected with a message rather than escaped
+  and hoped for; that name gets kicked over SSH.
+- **Two taps for anything that drops players.** Swap and restart arm on the
+  first tap ("Drop everyone?") and disarm after five seconds. Not a native
+  `confirm()`: a modal dialog freezes the page the game engine is served
+  next to.
+
+## Three map-pool modes: Source Maps, Fight Yard, Sniper (2026-08-30)
+
+Three new mods, all dm clones (`server/{css,fy,awp}/`, internal ports 27078 /
+27098 / 27118). Same `frag_dm.amxx`, same YaPB setup, same entrypoint shuffle -
+what differs is the rotation and one line of `amxx.cfg` baseline:
+
+- `css` **Source Maps** - the CS:S/CS:GO remakes (`css_dust2_go`,
+  `css_mirage_go`, `css_cache`, `de_bank_csgo`, `css_bycastor`, `css_deagle`).
+  dm's baseline unchanged; four of the six carry real bombsites so
+  `mp_roundtime 5` still bites.
+- `fy` **Fight Yard** - the `fy_` pool, old and new. `mp_roundtime 1` is the
+  MODE baseline, not a per-map override, because every map is a small
+  no-objective yard.
+- `awp` **Sniper** - `dm_only "awp"` promoted from a per-map override to the
+  mode baseline. frag_dm hands out the AWP on spawn and strips anything else
+  on deploy; that is what stops bots (`yb_botbuy 1`) buying past the rule,
+  which the map's own `info_map_parameters` cannot do on this DLL.
+
+Per-map overrides stay the exception, and only where the BSP demands it:
+`css_deagle` (game_player_equip deagle -> `dm_only "deagle"`), `css_bycastor`
+(32 floor AWPs -> `dm_map_guns 1`), `fy_houses` (an armoury_entity for every
+weapon -> `dm_map_guns 1`).
+
+Four things worth recording:
+
+- **Models and sprites load SERVER-side.** The wads-are-client-only rule from
+  the 2026-08-02 entry does not extend to studio models or `env_sprite`.
+  de_bank_csgo logged `Could not load model sprites/2dprops/tube.spr from
+  disk` until the compose grew a `cs/cstrike/sprites` mount alongside the
+  `models` one. Wads and sounds still never need to reach a container.
+- **Bake the graph, don't let YaPB analyse.** graph-master had 16 of 18;
+  fy_nuketown and awp_sunburn 404 on yapb.jeefo.net, so YaPB ran its own
+  analysis (~5s) at every map start - fine once, but it happens on every
+  fresh container. Generated both in a throwaway, `docker cp`'d the `.graph`
+  out, committed them. All 15 maps now load a baked graph, zero analysis.
+- **The mod is `css/`, not `src/`.** `/opt/cs16/src/` already existed on the
+  box holding downloaded mod archives, and `deploy.sh` rsyncs `--delete` into
+  every name in `DIR_MODS` - the first deploy under the name `src` wiped it.
+  Renamed to `css/`, which also matches how `fy` and `awp` are named after
+  their map prefix. Any future mod dir must be checked against the box's
+  existing `/opt/cs16` layout before it goes in `DIR_MODS`.
+- **`update-clientcfg.sh` had a latent hole.** Its keep-list globbed
+  `{gg,dm,zp,aim,vanilla}` and its restart `case` had no `aim-*` arm, so a
+  clientcfg run with aim live would have died on "not a known mod". Both now
+  cover every mod dir.
+
+Client payload cost: ~60MB of new BSPs plus ~15MB of models/sounds/sprites
+(de_bank_csgo alone is 19MB of BSP and 28MB installed). The maps are trimmed
+by mapcycle, but `models/`, `sprites/` and `sound/` ship to everyone
+regardless - worth remembering before the next big map goes in.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tail logs for a mod's container on the VPS.
-# Usage: scripts/logs.sh [vanilla|gg|dm|aim]   (defaults to gg)
+# Usage: scripts/logs.sh [vanilla|gg|dm|aim|css|fy|awp]   (defaults to gg)
 set -euo pipefail
 
 HOST="${CS16_HOST:-cs16}"
