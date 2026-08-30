@@ -1,4 +1,5 @@
-// Frag Fridays team balance - on-demand team evening via the cmdpipe.
+// Frag Fridays team balance - on-demand team evening and side swapping via
+// the cmdpipe.
 //
 // The F1/F2 join binds send humans to whichever key they pressed, and
 // yb_kick_after_player_connect frees a bot slot without caring which team
@@ -6,6 +7,10 @@
 // mp_autoteambalance is deliberately off (see the Dockerfile note), so this
 // registers ff_rebalance: a server command (pnpm run rebalance, or the
 // rebalance_teams MCP tool) that evens the T/CT headcount immediately.
+//
+// ff_swapteams is the other half: every player changes sides at once, which
+// is what a session wants after a one-sided map rather than an even one.
+// The war room's Teams panel drives both.
 //
 // Policy: while the sides differ by 2+, move one player from the larger
 // team - bots first, then the human with the fewest frags (least invested
@@ -39,8 +44,9 @@
 
 public plugin_init()
 {
-	register_plugin("Frag Fridays Team Balance", "0.2.0", "frag-friday");
+	register_plugin("Frag Fridays Team Balance", "0.3.0", "frag-friday");
 	register_srvcmd("ff_rebalance", "cmd_rebalance");
+	register_srvcmd("ff_swapteams", "cmd_swapteams");
 }
 
 count_teams(&tCount, &ctCount)
@@ -140,5 +146,42 @@ public cmd_rebalance()
 	}
 	server_print("[rebalance] %s - T %d v CT %d (moved %d)",
 		moved ? "done" : "teams already even", t, ct, moved);
+	return PLUGIN_HANDLED;
+}
+
+// Flip every side at once. The player list is snapshotted before the first
+// write because transfer() slays the mover, and a slain player is still on
+// the list - what must not happen is reading a team back after it changed
+// and swapping the same player twice.
+public cmd_swapteams()
+{
+	new players[32], num;
+	get_players(players, num);
+
+	new CsTeams:was[32];
+	for (new i = 0; i < num; i++)
+		was[i] = cs_get_user_team(players[i]);
+
+	new moved = 0;
+	for (new i = 0; i < num; i++)
+	{
+		if (was[i] != CS_TEAM_T && was[i] != CS_TEAM_CT)
+			continue; // spectators and the unassigned stay put
+		if (!transfer(players[i], was[i] == CS_TEAM_T ? CS_TEAM_CT : CS_TEAM_T))
+			break; // transfer() said the offsets moved - stop before corrupting more
+		moved++;
+	}
+
+	new t, ct;
+	count_teams(t, ct);
+
+	if (moved)
+	{
+		set_hudmessage(0, 255, 0, -1.0, 0.35, 0, 0.0, 6.0, 0.5, 0.15);
+		show_hudmessage(0, "Teams swapped: %d player%s changed sides (now %d v %d)",
+			moved, moved == 1 ? "" : "s", t, ct);
+	}
+	server_print("[swapteams] %s - T %d v CT %d (swapped %d)",
+		moved ? "done" : "nobody to swap", t, ct, moved);
 	return PLUGIN_HANDLED;
 }

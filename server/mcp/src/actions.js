@@ -17,6 +17,9 @@ const ROOT = '/opt/cs16'
 const MOD_DIRS = ['gg', 'dm', 'zp', 'aim', 'css', 'fy', 'awp']
 
 export const MODS = ['vanilla', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
+// mods whose image bakes teambalance.amxx in (ff_rebalance / ff_swapteams).
+// The dm clones inherit it; vanilla, zp and aim do not have the plugin.
+const TEAM_MODS = new Set(['gg', 'dm', 'css', 'fy', 'awp'])
 
 export class ActionError extends Error {
   constructor(message, status = 409) {
@@ -122,20 +125,29 @@ export async function runCommands(commands, { wait = 3500, lines = 25 } = {}) {
   return { serial, container, mod, output: await tailContainerLogs(container, ['--since', since], lines) }
 }
 
-export async function rebalanceTeams() {
+// ff_rebalance / ff_swapteams both answer on the console with one [tag] line;
+// hand it back so the caller can show what the plugin actually did rather
+// than "sent".
+async function teamCommand(command, tag) {
   const { mod } = await requireGame()
-  if (mod !== 'gg' && mod !== 'dm')
+  if (!TEAM_MODS.has(mod))
     throw new ActionError(
-      `Running mod is "${mod}" - the teambalance plugin is baked into gg and dm only.`,
+      `Running mod is "${mod}" - the teambalance plugin is baked into ${[...TEAM_MODS].join('/')} only.`,
       409,
     )
-  const res = await runCommands(['ff_rebalance'])
-  const line = res.output
-    .split('\n')
-    .filter((l) => l.includes('[rebalance]'))
-    .pop()
-  return { ...res, result: line ?? null }
+  const res = await runCommands([command])
+  // the console line comes back wrapped in the container's structured log -
+  // timestamp, ANSI codes, an escaped closing quote. Keep the plugin's own
+  // sentence and nothing else: this string goes straight into the panel feed.
+  const said = res.output.match(new RegExp(`\\[${tag}\\][^"\\\\\\n]*`, 'g'))
+  return { ...res, result: said?.at(-1) ?? null }
 }
+
+export const rebalanceTeams = () => teamCommand('ff_rebalance', 'rebalance')
+
+// Everyone changes sides at once - the fix for a map that ran one-sided,
+// where evening the headcount is not the problem.
+export const swapTeams = () => teamCommand('ff_swapteams', 'swapteams')
 
 export async function tailLogs(lines) {
   const { container } = await requireGame()

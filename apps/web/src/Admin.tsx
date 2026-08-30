@@ -62,6 +62,10 @@ const MOD_LABEL: Record<string, string> = {
   awp: "Sniper",
 };
 
+// mods whose image bakes teambalance.amxx in - the Teams panel is dead
+// weight anywhere else (mirrors TEAM_MODS in server/mcp/src/actions.js)
+const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
+
 class AuthError extends Error {}
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -261,6 +265,7 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
   const humans = status?.players.filter((p) => !p.bot) ?? [];
   const bots = status?.players.filter((p) => p.bot) ?? [];
   const busy = Boolean(pending) || jobRunning;
+  const teams = Boolean(state && TEAM_MODS.includes(state.mod));
 
   return (
     <div className="war">
@@ -343,6 +348,29 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               </li>
             ))}
           </ul>
+        </Panel>
+
+        <Panel title="Teams" note={!state ? "offline" : teams ? "sides and headcount" : "not in this mode"}>
+          <div className="war__row war__row--split">
+            <button
+              type="button"
+              className="war__btn"
+              disabled={busy || !pipe || !teams}
+              onClick={() => act("rebalance", "/rebalance", {}, "Rebalanced teams")}
+            >
+              {pending === "rebalance" ? "..." : "Rebalance"}
+            </button>
+            <Arm
+              label="Swap sides"
+              armed="Swap everyone?"
+              disabled={busy || !pipe || !teams}
+              onFire={() => act("swapteams", "/swapteams", {}, "Swapped sides")}
+            />
+          </div>
+          <p className="war__hint">
+            Rebalance evens the headcount; swap flips every player to the other side. Both keep
+            frags, and both respawn everyone where they stand - not mid-round if you can help it.
+          </p>
         </Panel>
 
         <Panel title="Bots" note="yapb fills to a total headcount">
@@ -500,22 +528,12 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               {pending === "command" ? "..." : "Run"}
             </button>
           </form>
-          <div className="war__row war__row--split">
-            <button
-              type="button"
-              className="war__btn"
-              disabled={busy || !pipe || (state?.mod !== "gg" && state?.mod !== "dm")}
-              onClick={() => act("rebalance", "/rebalance", {}, "Rebalanced teams")}
-            >
-              {pending === "rebalance" ? "..." : "Rebalance teams"}
-            </button>
-            <Arm
-              label="Restart server"
-              armed="Drop everyone?"
-              disabled={busy}
-              onFire={() => act("restart", "/restart", {}, "Restarting the server")}
-            />
-          </div>
+          <Arm
+            label="Restart server"
+            armed="Drop everyone?"
+            disabled={busy}
+            onFire={() => act("restart", "/restart", {}, "Restarting the server")}
+          />
           <p className="war__hint">
             restart/quit/exit are refused by the pipe - they segfault this engine build.
           </p>

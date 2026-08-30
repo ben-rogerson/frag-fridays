@@ -23,6 +23,7 @@ import {
   runCommands,
   serverState,
   swapMod,
+  swapTeams,
 } from './actions.js'
 
 const TOKEN = process.env.ADMIN_TOKEN
@@ -227,6 +228,14 @@ export function adminRouter() {
     log('rebalance')
     const { serial, result } = await rebalanceTeams()
     return ok(result ?? `rebalance sent (#${serial})`)
+  }))
+
+  // Sides flip, scores stay. Everyone is slain to respawn on the new side,
+  // so this is a mid-round interruption - the panel arms the button.
+  router.post('/swapteams', handle(async () => {
+    log('swapteams')
+    const { serial, result } = await swapTeams()
+    return ok(result ?? `swap sent (#${serial})`)
   }))
 
   // The escape hatch: cmdpipe.js still blocks the engine-killers, so the worst
