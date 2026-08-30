@@ -137,9 +137,6 @@ type Standings = {
     players?: WeekPlayer[];
     note?: string;
   }[];
-  // warm-up frags since the last session; kickoff resets the table
-  practice?: WeekPlayer[];
-  practiceSince?: string | null;
 };
 
 // "2h 05m" / "47m" - server time is hours-coarse, minutes are enough
@@ -159,8 +156,8 @@ const MEDALS = ["\u{1F947}", "\u{1F948}", "\u{1F949}"];
 const rankLabel = (i: number) =>
   i < 3 ? <span className="standings__medal">{MEDALS[i]}</span> : String(i + 1);
 
-// the one table body shared by the weekly and practice tables
-const PlayerRows: FC<{ players: WeekPlayer[]; medals: boolean }> = ({ players, medals }) => (
+// the one table body shared by the weekly tables
+const PlayerRows: FC<{ players: WeekPlayer[] }> = ({ players }) => (
   <>
     <thead>
       <tr>
@@ -175,7 +172,7 @@ const PlayerRows: FC<{ players: WeekPlayer[]; medals: boolean }> = ({ players, m
     <tbody>
       {players.map((p, i) => (
         <tr key={p.name}>
-          <td className="standings__num standings__rank">{medals ? rankLabel(i) : i + 1}</td>
+          <td className="standings__num standings__rank">{rankLabel(i)}</td>
           <td className="standings__player">{p.name}</td>
           <td className="standings__num">
             {p.kills} / {p.deaths}
@@ -2055,7 +2052,7 @@ const App: FC = () => {
                               </summary>
                               {hasTable && (
                                 <table className="standings standings--week">
-                                  <PlayerRows players={w.players!} medals />
+                                  <PlayerRows players={w.players!} />
                                 </table>
                               )}
                               {w.mvp && w.note && <p className="standings__foot">{w.note}</p>}
@@ -2067,27 +2064,6 @@ const App: FC = () => {
                     <p className="standings__none">
                       no ranked results yet - the table publishes after the first friday session
                     </p>
-                  )}
-                  {/* warm-up frags since the last session. Practice period
-                      only - the section sits out while the strip reads LIVE,
-                      and kickoff resets the table */}
-                  {clock.id !== "live" && standings.practice && standings.practice.length > 0 && (
-                    <>
-                      <h3 className="card__subbar">
-                        practice standings
-                        <span className="card__subnote">
-                          warm-up frags
-                          {standings.practiceSince
-                            ? ` since ${sessionDateLabel(standings.practiceSince)}`
-                            : ""}{" "}
-                          - reset at kickoff
-                        </span>
-                      </h3>
-                      {/* warm-up frags earn no medals */}
-                      <table className="standings standings--practice">
-                        <PlayerRows players={standings.practice} medals={false} />
-                      </table>
-                    </>
                   )}
                 </div>
               </section>

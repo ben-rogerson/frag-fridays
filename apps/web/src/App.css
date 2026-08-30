@@ -984,10 +984,6 @@
   .standings--season td:nth-child(8),
   .standings--week th:nth-child(5),
   .standings--week td:nth-child(5),
-  .standings--practice th:nth-child(5),
-  .standings--practice td:nth-child(5),
-  .standings--practice th:nth-child(6),
-  .standings--practice td:nth-child(6),
   .standings--week th:nth-child(6),
   .standings--week td:nth-child(6) {
     display: none;
@@ -1836,8 +1832,7 @@ th.standings__num {
 }
 
 /* the season leader wears the mode's signal colour on the rank digit only -
-   a micro-accent, never a second accent action. The practice leader doesn't:
-   warm-up frags earn no crown */
+   a micro-accent, never a second accent action */
 .standings--season tbody tr:first-child .standings__rank {
   color: var(--accent);
   font-weight: 700;
