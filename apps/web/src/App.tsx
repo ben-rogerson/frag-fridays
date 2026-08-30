@@ -151,6 +151,11 @@ const playTime = (secs: number) => {
 const kdPct = (kills: number, deaths: number) =>
   kills + deaths === 0 ? "-" : `${Math.round((100 * kills) / (kills + deaths))}%`;
 
+// the season table is a leaderboard, not a census - past the top 10 the
+// rows are people who dropped in once, and they push the weekly panels
+// off the screen
+const SEASON_ROWS = 10;
+
 // the podium wears medals instead of rank digits
 const MEDALS = ["\u{1F947}", "\u{1F948}", "\u{1F949}"];
 const rankLabel = (i: number) =>
@@ -2000,7 +2005,7 @@ const App: FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {standings.season.map((p, i) => {
+                          {standings.season.slice(0, SEASON_ROWS).map((p, i) => {
                             const mvps = standings.weeks.filter((w) => w.mvp === p.name).length;
                             return (
                               <tr key={p.name}>
