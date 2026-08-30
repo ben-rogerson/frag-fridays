@@ -1,6 +1,7 @@
 import { FC, Fragment, useEffect, useRef, useState } from "react";
 import {
   clearSavedSettings,
+  currentBinds,
   downloadValveZip,
   launchGame,
   leaveServer,
@@ -16,6 +17,9 @@ import "@fontsource/black-ops-one";
 import "./App.css";
 
 type Stage =
+  // revalidating valve.zip against Cache Storage: a cached copy makes this the
+  // whole wait, so no progress bar until we know there is a download to show
+  | { id: "checking" }
   | { id: "downloading"; received: number; total: number | null; rate: number | null }
   | { id: "ready" }
   | { id: "engine" }
@@ -37,6 +41,13 @@ const SEGMENTS = 24;
 // standings columns all failed that test and were cut - real work, invisible
 // from a player's seat. Flat facts only, newest first, no roadmap language.
 const NEWS: { label: string; items: string[] }[] = [
+  {
+    label: "30 aug",
+    items: [
+      "the esc menu now lists your controls - the actual keys you have bound, so nobody has to remember what 1.6 used",
+      "esc opens the match menu whether you are fullscreen or not - windowed, it used to just free the mouse and show nothing",
+    ],
+  },
   {
     label: "29 aug",
     items: [
@@ -622,6 +633,8 @@ const FullscreenIcon: FC<{ active: boolean }> = ({ active }) => (
 
 function stageProgress(stage: Stage): number | null {
   switch (stage.id) {
+    case "checking":
+      return null;
     case "downloading":
       return stage.total ? stage.received / stage.total : null;
     case "unpacking":
@@ -639,6 +652,8 @@ function stageProgress(stage: Stage): number | null {
 
 function stageLabel(stage: Stage): string {
   switch (stage.id) {
+    case "checking":
+      return "checking for a cached copy of valve.zip…";
     // the period download-dialog readout: real transfer rate and a flat
     // time estimate, straight off the byte stream
     case "downloading": {
@@ -931,18 +946,94 @@ const SettingsPanel: FC = () => {
   );
 };
 
+// --- keymap -----------------------------------------------------------------
+// Half the regulars have not played 1.6 since school and cannot remember the
+// keys, so the match menu lists them. The keys are read from the player's OWN
+// binds (see currentBinds), not printed from a table here - a rebind has to
+// show up or the list is worse than nothing.
+//
+// This is the running order of what a player needs, not everything that is
+// bound: the stock config binds ~60 keys and a wall of them teaches nobody.
+// One row can span several commands (move is four, weapons is five) and lists
+// a key for each, in order.
+const KEYMAP: { label: string; cmds: string[] }[] = [
+  { label: "move", cmds: ["+forward", "+moveleft", "+back", "+moveright"] },
+  { label: "jump", cmds: ["+jump"] },
+  { label: "duck", cmds: ["+duck"] },
+  { label: "walk quietly", cmds: ["+speed"] },
+  { label: "fire", cmds: ["+attack"] },
+  { label: "zoom / alt fire", cmds: ["+attack2"] },
+  { label: "reload", cmds: ["+reload"] },
+  { label: "use, plant, defuse", cmds: ["+use"] },
+  { label: "weapons", cmds: ["slot1", "slot2", "slot3", "slot4", "slot5"] },
+  { label: "last weapon", cmds: ["lastinv"] },
+  { label: "drop weapon", cmds: ["drop"] },
+  { label: "buy menu", cmds: ["buy"] },
+  { label: "scoreboard", cmds: ["+showscores"] },
+  { label: "chat, team chat", cmds: ["messagemode", "messagemode2"] },
+  { label: "radio", cmds: ["radio1", "radio2", "radio3"] },
+  { label: "spray", cmds: ["impulse 201"] },
+  { label: "torch", cmds: ["impulse 100"] },
+  { label: "join t, join ct", cmds: ["jointeam 1", "jointeam 2"] },
+  { label: "spectate", cmds: ["jointeam 6"] },
+  { label: "console", cmds: ["toggleconsole"] },
+];
+
+// Keys the stock config binds a command to SECOND, where the first one is not
+// what anyone reaches for: +attack is on ENTER before MOUSE1, and the arrows
+// shadow WASD. Skipped unless a command has nothing else.
+const AWKWARD_KEYS = new Set(["ENTER", "UPARROW", "DOWNARROW", "LEFTARROW", "RIGHTARROW"]);
+
+// Engine key names a player would not recognise on sight
+const KEYCAPS: Record<string, string> = {
+  MOUSE1: "mouse 1",
+  MOUSE2: "mouse 2",
+  MOUSE3: "mouse 3",
+  MWHEELUP: "wheel up",
+  MWHEELDOWN: "wheel down",
+  UPARROW: "up",
+  DOWNARROW: "down",
+  LEFTARROW: "left",
+  RIGHTARROW: "right",
+  ESCAPE: "esc",
+  RIGHTBRACKET: "]",
+  LEFTBRACKET: "[",
+  SEMICOLON: ";",
+};
+
+// One key per command in the row, ready to render. Rows nothing is bound to
+// drop out entirely - an empty row would just read as a broken menu.
+const keymapRows = (binds: Map<string, string[]>): { label: string; keys: string[] }[] => {
+  // a bind can carry a whole script (userconfig's join binds are
+  // `jointeam 1; joinclass 1`), so the first clause is an alias for it
+  const byCmd = new Map<string, string[]>();
+  for (const [cmd, keys] of binds) {
+    for (const alias of new Set([cmd, cmd.split(";")[0].trim()])) {
+      byCmd.set(alias, [...(byCmd.get(alias) ?? []), ...keys]);
+    }
+  }
+  const rows = KEYMAP.map(({ label, cmds }) => ({
+    label,
+    keys: cmds
+      .map((cmd) => {
+        const keys = byCmd.get(cmd) ?? [];
+        return keys.find((k) => !AWKWARD_KEYS.has(k)) ?? keys[0];
+      })
+      .filter((k): k is string => Boolean(k))
+      .map((k) => KEYCAPS[k] ?? k.toLowerCase()),
+  })).filter((row) => row.keys.length > 0);
+  // ours, not the engine's - the page reads Escape itself (see the pause state)
+  rows.push({ label: "this menu", keys: ["esc"] });
+  return rows;
+};
+
 const App: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zipRef = useRef<Uint8Array | null>(null);
   const xashRef = useRef<Xash3DWebRTC | null>(null);
   const startedRef = useRef(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [stage, setStage] = useState<Stage>({
-    id: "downloading",
-    received: 0,
-    total: null,
-    rate: null,
-  });
+  const [stage, setStage] = useState<Stage>({ id: "checking" });
   const [videoDead, setVideoDead] = useState(false);
   const [name, setName] = useState(() => localStorage.getItem("ff-name") ?? "");
   const [nameNeeded, setNameNeeded] = useState(false);
@@ -974,8 +1065,20 @@ const App: FC = () => {
   // the one that swallowed pointerlockchange broke mouse look outright. This
   // handler swallows nothing - see the effect below.
   const [paused, setPaused] = useState(false);
+  // the keymap the menu lists, read from the engine when the menu opens rather
+  // than held in state all session: a player can rebind mid-match
+  const [keys, setKeys] = useState<{ label: string; keys: string[] }[]>([]);
   // true for as long as the menu owns the cursor - see the release effect
   const holdCursorRef = useRef(false);
+  // Whether the player WANTS to be fullscreen, which is not the same as being
+  // fullscreen: Escape drops the page out of it without asking. Only the
+  // fullscreen button turning it off counts as changing their mind, so Resume
+  // knows whether to put fullscreen back or leave a windowed player windowed.
+  const wantFullscreenRef = useRef(false);
+  // when the last fullscreen transition happened, and when the page last gave
+  // the pointer lock up of its own accord - see the pointer-lock effect
+  const fsChangeAtRef = useRef(0);
+  const codeUnlockedAtRef = useRef(0);
 
   useEffect(() => {
     const t = window.setInterval(() => setClock(sessionClock()), 1000);
@@ -1014,6 +1117,7 @@ const App: FC = () => {
   useEffect(() => {
     const onFsChange = (e: Event) => {
       setFullscreen(Boolean(document.fullscreenElement));
+      fsChangeAtRef.current = Date.now();
       e.stopImmediatePropagation();
     };
     // Chrome fires the webkit-prefixed event too, and SDL listens to both
@@ -1026,12 +1130,18 @@ const App: FC = () => {
   }, []);
 
   const enterFullscreen = () => {
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    wantFullscreenRef.current = true;
+    // a refused request is no state to restore later
+    document.documentElement.requestFullscreen?.().catch(() => {
+      wantFullscreenRef.current = false;
+    });
   };
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else enterFullscreen();
+    if (document.fullscreenElement) {
+      wantFullscreenRef.current = false;
+      document.exitFullscreen().catch(() => {});
+    } else enterFullscreen();
   };
 
   // live server snapshot while waiting - stops once in-game. info.json rides
@@ -1053,6 +1163,48 @@ const App: FC = () => {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [playing]);
+
+  // The engine gives the lock up on its own whenever it wants the cursor back -
+  // opening the ~ console is the one players hit - and that must not raise the
+  // menu over it. Note when the lock is released BY CODE (the engine's
+  // SDL_SetRelativeMouseMode lands on document.exitPointerLock, as does the
+  // hold below) so the effect can tell those apart from the browser taking it
+  // away. The wrapper only timestamps and calls straight through: no swallowed
+  // events, no changed behaviour.
+  useEffect(() => {
+    const orig = document.exitPointerLock;
+    if (!orig) return;
+    document.exitPointerLock = function patched(this: Document) {
+      codeUnlockedAtRef.current = Date.now();
+      return orig.call(this);
+    };
+    return () => {
+      document.exitPointerLock = orig;
+    };
+  }, []);
+
+  // ...but windowed, that keypress never arrives. Chrome eats the Escape that
+  // exits pointer lock and dispatches nothing, so a windowed player pressing
+  // Escape only ever got their cursor back and no menu. The lock going away is
+  // the signal, then. (Fullscreen keeps working through the handler above -
+  // Escape leaves fullscreen there and the key does reach the page. Both paths
+  // only ever OPEN the menu, so the two firing on one keypress is a no-op.)
+  // Losing the lock any other way - alt-tab, a click outside the canvas -
+  // leaves a free cursor over a round that is still running, which is the
+  // state this menu exists for, so it opens for those too.
+  useEffect(() => {
+    if (!playing || paused) return;
+    const onLockChange = () => {
+      if (document.pointerLockElement) return;
+      // entering or leaving fullscreen drops the lock by itself; pressing the
+      // fullscreen button is not a request for the menu
+      if (Date.now() - fsChangeAtRef.current < 600) return;
+      if (Date.now() - codeUnlockedAtRef.current < 600) return;
+      setPaused(true);
+    };
+    document.addEventListener("pointerlockchange", onLockChange);
+    return () => document.removeEventListener("pointerlockchange", onLockChange);
+  }, [playing, paused]);
 
   // Escape frees the cursor, but not for long: the engine asks for it
   // straight back. emscripten's _emscripten_request_pointerlock queues a
@@ -1078,19 +1230,23 @@ const App: FC = () => {
     };
   }, [paused]);
 
+  useEffect(() => {
+    if (!paused) return;
+    setKeys(keymapRows(currentBinds(xashRef.current)));
+  }, [paused]);
+
   const resume = () => {
     // drop the hold first: the effect's cleanup has not run yet at this point,
     // and its listener would bounce the lock we are about to ask for
     holdCursorRef.current = false;
     setPaused(false);
-    // Escape always drops the page out of fullscreen and no page can cancel
-    // that, so Resume always puts it back - this is the game's fullscreen
-    // view, not a state to be restored only if it happened to be on. The
-    // click is the user gesture that makes the request legal, which is also
-    // why closing the menu with a second Escape cannot do it: a keypress the
-    // page did not act on is not a gesture the browser accepts, so that path
-    // stays windowed until the fullscreen button.
-    if (!document.fullscreenElement) enterFullscreen();
+    // Escape drops the page out of fullscreen and no page can cancel that, so
+    // Resume puts it back for a player who was in it - the click is the user
+    // gesture that makes the request legal, which is also why closing the menu
+    // with a second Escape cannot do it: a keypress the page did not act on is
+    // not a gesture the browser accepts, so that path stays windowed until the
+    // fullscreen button. A player who turned fullscreen off stays windowed.
+    if (wantFullscreenRef.current && !document.fullscreenElement) enterFullscreen();
     // SDL enters relative mouse mode when the lock is GRANTED, so asking for
     // it here is the same thing a click on the canvas does - it can only give
     // the engine back the mouse, never take it away.
@@ -1194,15 +1350,26 @@ const App: FC = () => {
     // transfer rate over a sliding ~3s window of progress samples; needs
     // ~0.8s of history before it reads as a rate rather than a spike
     const samples: { t: number; received: number }[] = [];
-    downloadValveZip((p) => {
-      if (cancelled) return;
-      const now = performance.now();
-      samples.push({ t: now, received: p.received });
-      while (samples.length > 1 && now - samples[0].t > 3000) samples.shift();
-      const span = now - samples[0].t;
-      const rate = span > 800 ? ((p.received - samples[0].received) / span) * 1000 : null;
-      setStage({ id: "downloading", ...p, rate });
-    })
+    // a cached zip still streams its bytes back out of Cache Storage, and that
+    // read is not a download - it gets no bar and no MB/s readout
+    let fromCache = false;
+    downloadValveZip(
+      (p) => {
+        if (cancelled || fromCache) return;
+        const now = performance.now();
+        samples.push({ t: now, received: p.received });
+        while (samples.length > 1 && now - samples[0].t > 3000) samples.shift();
+        const span = now - samples[0].t;
+        const rate = span > 800 ? ((p.received - samples[0].received) / span) * 1000 : null;
+        setStage({ id: "downloading", ...p, rate });
+      },
+      (source) => {
+        if (cancelled) return;
+        fromCache = source === "cache";
+        // the first progress callback lands a beat later, so open the bar here
+        if (!fromCache) setStage({ id: "downloading", received: 0, total: null, rate: null });
+      },
+    )
       .then((bytes) => {
         if (cancelled) return;
         zipRef.current = bytes;
@@ -1630,7 +1797,9 @@ const App: FC = () => {
                 )}
 
                 <div className="browser__lower">
-                  {(stage.id === "downloading" || stage.id === "ready") && (
+                  {(stage.id === "checking" ||
+                    stage.id === "downloading" ||
+                    stage.id === "ready") && (
                     <div className={`browser__strip${nameNeeded ? " browser__strip--needed" : ""}`}>
                       <label className="browser__striplabel" htmlFor="alias">
                         your alias:
@@ -1697,7 +1866,8 @@ const App: FC = () => {
                           reload
                         </button>
                       </>
-                    ) : stage.id === "ready" ? (
+                    ) : stage.id === "ready" || stage.id === "checking" ? (
+                      // nothing to measure yet, so nothing that looks like it
                       <p className="status">{stageLabel(stage)}</p>
                     ) : (
                       <>
@@ -1986,7 +2156,25 @@ const App: FC = () => {
             <button className="pause__leave" onClick={leaveMatch}>
               leave server
             </button>
-            <p className="pause__hint">esc closes this too</p>
+            {keys.length > 0 && (
+              <div className="keymap">
+                <p className="keymap__title">your controls</p>
+                <dl className="keymap__list">
+                  {keys.map((row) => (
+                    <div className="keymap__row" key={row.label}>
+                      <dt className="keymap__keys">
+                        {row.keys.map((k, i) => (
+                          <kbd className="key" key={`${k}-${i}`}>
+                            {k}
+                          </kbd>
+                        ))}
+                      </dt>
+                      <dd className="keymap__label">{row.label}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
           </div>
         </div>
       )}

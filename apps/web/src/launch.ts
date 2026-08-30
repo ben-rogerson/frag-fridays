@@ -8,6 +8,8 @@ import extrasURL from "cs16-client/extras.pk3?url";
 import { DropKind, Xash3DWebRTC } from "./webrtc";
 
 export type DownloadProgress = { received: number; total: number | null };
+// where the bytes are coming from, known only once the revalidation answers
+export type ZipSource = "cache" | "network";
 
 const ZIP_URL = "/valve.zip";
 const ZIP_CACHE = "ff-valve-v1";
@@ -38,6 +40,10 @@ async function readBody(
 
 export async function downloadValveZip(
   onProgress: (p: DownloadProgress) => void,
+  // fires once, the moment the revalidation settles the question. Nothing
+  // downstream can tell a 330MB download from a local read until then, so the
+  // page waits for this before it commits to showing a download at all.
+  onSource: (source: ZipSource) => void = () => {},
 ): Promise<Uint8Array> {
   // The zip is far bigger than Chrome's per-entry HTTP cache cap (~1/8 of the
   // disk cache), so the regular browser cache never stores it and every visit
@@ -58,11 +64,13 @@ export async function downloadValveZip(
     headers: lastModified ? { "If-Modified-Since": lastModified } : {},
   });
   if (res.status === 304 && cached) {
+    onSource("cache");
     return readBody(cached, onProgress);
   }
   if (!res.ok || !res.body) {
     throw new Error(`valve.zip download failed (HTTP ${res.status})`);
   }
+  onSource("network");
   const out = await readBody(res, onProgress);
   const freshModified = res.headers.get("last-modified");
   if (cache && freshModified) {
@@ -375,6 +383,89 @@ export function setSavedCvar(cvar: string, value: string | null) {
   const line = `${cvar} ${value}`;
   files[CVAR_FILE] = files[CVAR_FILE] ? `${files[CVAR_FILE]}\n${line}` : line;
   storeSaved(files);
+}
+
+// --- keymap ------------------------------------------------------------------
+
+// What the shipped valve.zip binds before a player touches anything: the stock
+// config.cfg keys we surface, plus userconfig.cfg's join binds. Only a seed -
+// the engine's own config.cfg opens with `unbindall`, so reading it wipes this
+// and the player's real binds take over. It exists so the menu still teaches
+// the controls when there is no engine to ask (no FS yet, a dead one).
+const DEFAULT_BINDS = `
+bind "w" "+forward"
+bind "a" "+moveleft"
+bind "s" "+back"
+bind "d" "+moveright"
+bind "SPACE" "+jump"
+bind "CTRL" "+duck"
+bind "SHIFT" "+speed"
+bind "MOUSE1" "+attack"
+bind "MOUSE2" "+attack2"
+bind "r" "+reload"
+bind "e" "+use"
+bind "1" "slot1"
+bind "2" "slot2"
+bind "3" "slot3"
+bind "4" "slot4"
+bind "5" "slot5"
+bind "q" "lastinv"
+bind "g" "drop"
+bind "b" "buy"
+bind "TAB" "+showscores"
+bind "y" "messagemode"
+bind "u" "messagemode2"
+bind "z" "radio1"
+bind "x" "radio2"
+bind "c" "radio3"
+bind "t" "impulse 201"
+bind "f" "impulse 100"
+bind "n" "nightvision"
+bind "\`" "toggleconsole"
+bind "f1" "jointeam 1; joinclass 1"
+bind "f2" "jointeam 2; joinclass 1"
+bind "f3" "jointeam 6"
+`;
+
+// The player's live keymap, as command -> every key bound to it, in the order
+// the config lists them.
+//
+// Read straight off the in-memory FS, never through the console: this runs
+// while a player sits in the Escape menu, and Cmd_ExecuteString behind a
+// connection that has gone away is the abort documented above persistSettings.
+// FS.readFile is plain JS over MEMFS, so it stays safe on a dead engine too.
+//
+// config.cfg on disk is whatever host_writeconfig last wrote - once at boot for
+// the baseline, then every persist tick - so it trails a rebind by at most one
+// tick. Within the first tick of a session the replayed saved diff is not in
+// the file yet, so it goes over the top here the same way the engine applied it
+// at boot.
+export function currentBinds(x: Xash3DWebRTC | null): Map<string, string[]> {
+  let text = "";
+  try {
+    text = (x?.em?.FS?.readFile(SETTINGS_DIR + "config.cfg", {
+      encoding: "utf8",
+    }) as string) ?? "";
+  } catch {
+    /* no engine, or nothing written yet - the seed below still teaches the keys */
+  }
+
+  const byKey = new Map<string, string>(); // KEY -> command
+  const apply = (raw: string) => {
+    const line = raw.trim();
+    if (/^unbindall\b/i.test(line)) return void byKey.clear();
+    const bind = line.match(/^bind\s+("?)(\S+?)\1\s+"?(.*?)"?\s*$/i);
+    if (bind) return void byKey.set(bind[2].toUpperCase(), bind[3]);
+    const unbind = line.match(/^unbind\s+("?)(\S+?)\1\s*$/i);
+    if (unbind) byKey.delete(unbind[2].toUpperCase());
+  };
+  for (const line of DEFAULT_BINDS.split("\n")) apply(line);
+  for (const line of text.split("\n")) apply(line);
+  for (const s of savedSettings()) apply(s.line);
+
+  const out = new Map<string, string[]>();
+  for (const [key, cmd] of byKey) out.set(cmd, [...(out.get(cmd) ?? []), key]);
+  return out;
 }
 
 // Shipped defaults as of this boot, captured after main() (userconfig.cfg
