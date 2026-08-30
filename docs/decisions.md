@@ -559,3 +559,129 @@ mapcycle and its own port. Two knock-on effects worth knowing:
   longer touches any of them; clean them off by hand if the disk matters.
 
 The 2026-08-03 entry above stays as the record of how it was built.
+
+## The match menu: two ways in, and a keymap (2026-08-30)
+
+The Escape menu only ever appeared in fullscreen, and nothing gated it on
+fullscreen - `App.tsx` listened for the Escape keydown and that was all.
+The reason is Chrome: the Escape that exits pointer lock is a user-agent
+shortcut and the keydown is **never dispatched to the page**. Windowed, a
+player pressing Escape got their cursor back and no menu. In fullscreen the
+same press also leaves fullscreen, and there the key does reach the page.
+
+So the menu now has two openers, and both only ever OPEN it (firing together
+on one keypress is a no-op):
+
+1. the Escape keydown, as before - the fullscreen path;
+2. `pointerlockchange` with the lock gone - the windowed path, and also
+   alt-tab or a click outside, which leave a free cursor over a running
+   round, which is what the menu is for.
+
+Two things must not raise it, and both are timestamp guards rather than
+anything that swallows an event (the 2026-08-29 attempt that swallowed
+`pointerlockchange` is the one that broke mouse look):
+
+- **fullscreen transitions**, which drop the lock by themselves - the
+  fullscreen button is not a request for the menu;
+- **the engine releasing the lock**, which it does whenever it wants the
+  cursor back - opening the `~` console is the one players hit. Every such
+  release lands on `document.exitPointerLock`, so that is wrapped to record
+  *when the page gave the lock up by code*, then calls straight through.
+  A release the browser initiated (Escape, focus loss) hits no wrapper.
+
+Resume no longer forces fullscreen. It could not tell "was fullscreen" from
+"wasn't", because Escape strips fullscreen before the handler runs and the
+old code read `document.fullscreenElement` after the fact - so it always put
+fullscreen back. A `wantFullscreenRef` records intent instead (set by Play
+and the fullscreen button, cleared only by turning fullscreen off or by a
+refused request), and a windowed player resumes windowed.
+
+### Where the keys come from
+
+The menu lists the player's controls, because half the regulars have not
+played 1.6 since school. They are read from the player's OWN binds via
+`currentBinds` in `launch.ts`, not printed from a table - a rebind has to
+show up or the list is worse than nothing.
+
+It reads `/rodir/cstrike/config.cfg` straight off the in-memory FS and
+**never pokes the console**: this runs while a player sits in the menu, and
+`Cmd_ExecuteString` behind a connection that has gone away is the
+`Mem_FreeBlock` abort documented above `persistSettings`. `FS.readFile` is
+plain JS over MEMFS, safe even on a dead engine. That file is whatever
+`host_writeconfig` last wrote (boot, then every 30s persist tick), so it
+trails a rebind by at most one tick; the saved diff is replayed over the top
+for the first tick of a session, when the file does not have it yet.
+
+A `DEFAULT_BINDS` seed parses first so the menu still teaches the keys with
+no engine to ask. It is not a second source of truth: the engine's
+config.cfg opens with `unbindall`, so reading it wipes the seed entirely.
+
+`KEYMAP` in `App.tsx` is the running order of what a player needs - about
+twenty rows, not the ~60 keys the stock config binds, because a wall of them
+teaches nobody. `AWKWARD_KEYS` breaks the ties where the stock config binds
+a command twice and the first line is not the one anyone reaches for
+(`+attack` is on ENTER before MOUSE1; the arrows shadow WASD).
+
+## How long the session has left, in-game (2026-08-30)
+
+The page always counted down TO Friday and then stopped counting: LIVE NOW,
+a map clock, and nothing that said how much of the slot was left. During a
+session that is the only question anyone has, and the page cannot answer it
+where it gets asked - once you are playing the overlay is hidden behind the
+canvas. So the number now rides over the game: a small bug centred on the
+top edge (`.slotclock`), rendered outside `.overlay` because that layer is
+hidden while playing, `pointer-events: none` so a click still reaches the
+canvas and re-locks the mouse.
+
+The end time needed no new plumbing. `data/sessions.json` has always carried
+`end` per week and `scripts/session.py` has always written it into
+`/assets/session.json` - `App.tsx` simply never read it, and assumed every
+slot ran the half hour in `SESSION_LIVE_MS`. It now reads it, and that
+constant survives as `SESSION_LENGTH_MS`, the fallback for a week with no
+usable end. "Usable" means parses as `HH:MM` AND lands after kickoff: a bad
+file falls back rather than showing a session that ran backwards.
+
+Knock-on: LIVE is no longer "kickoff + 30 min". A week whose slot runs an
+hour now stays live for the hour, and the site rolls to next week when the
+slot is actually over instead of half an hour in.
+
+The map clock keeps the strip's big counter cells and the session clock is a
+small line above them, because they are different numbers and one set of
+digits for both reads as a contradiction on the minute they disagree.
+
+QA: `?t-minus=<seconds>` already opened the page near kickoff; negative
+values now land INSIDE a synthetic half-hour session, so `?t-minus=-1740`
+opens on a session with a minute left and the final-minute state on screen.
+Positive values give the other face of the bug (`?t-minus=90` -> "SESSION IN
+1:30"), because `isToday` is true down that path.
+
+**It rides Tab** (same day): permanently on screen it was one more thing to
+play around, so it now shows only while Tab is held - the scoreboard key,
+where a player already looks for match state. The handler is read-only in
+exactly the way the Escape one is: capture phase on window so nothing can
+hide the event, but no `preventDefault` and nothing swallowed, so the engine
+still draws its own scoreboard on the same keypress. `keyup` is not
+guaranteed to arrive (alt-tab away holding Tab), so `blur` and
+`visibilitychange` clear the flag too, and so does unmounting. Being asked
+for rather than endured is also why it is solid and full-size now instead of
+translucent and tiny.
+
+Two faces, one bug: mid-session it counts the slot down, and on matchday
+BEFORE kickoff it counts up to it (`clock.isToday`, which already means
+"same day and still to come"). Any other day it stays off screen - a Tuesday
+warm-up does not need a three-day countdown over the game.
+
+## No fullscreen button (2026-08-30)
+
+The `.fs` toggle in the top-right corner is gone. Play already asks for
+fullscreen on the click that starts the game, and the esc menu's Resume puts
+it back after Escape strips it - so the button was chrome over the canvas
+that duplicated what both paths do anyway.
+
+What it took with it: the `fullscreen` state (the button's icon was its only
+reader) and `toggleFullscreen`. What stays: `wantFullscreenRef`, which now
+records only whether Play's request was granted, and the `fullscreenchange`
+swallower, which still has to keep SDL from seeing the event (the console
+font trap above). A player who leaves fullscreen with Escape and does not
+open the menu stays windowed until the next Resume click - a keypress the
+page did not act on is not a gesture the browser will take a request from.

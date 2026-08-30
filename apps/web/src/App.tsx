@@ -44,6 +44,7 @@ const NEWS: { label: string; items: string[] }[] = [
   {
     label: "30 aug",
     items: [
+      "hold tab in-game to see how long the friday session has left - or, before kickoff on the day, how long until it starts",
       "the esc menu now lists your controls - the actual keys you have bound, so nobody has to remember what 1.6 used",
       "esc opens the match menu whether you are fullscreen or not - windowed, it used to just free the mouse and show nothing",
     ],
@@ -290,19 +291,37 @@ const ClockRow: FC<{ groups: [number, string][] }> = ({ groups }) => (
 // rebuild, same serving path as standings.json) names the next kickoff:
 // {"date":"2026-08-21","hour":14,"minute":0}. It only applies while its
 // date matches the coming Friday, so a stale file falls back to the
-// default below and can never show last week's time. The strip reads LIVE
-// for the half hour of the session, then the countdown rolls to next week.
+// default below and can never show last week's time. Its "end" closes the
+// slot: the strip reads LIVE until then, counting the session down, and
+// afterwards the countdown rolls to next week. A file with no usable end
+// falls back to the half hour the slot used to be assumed to run.
 const SESSION_DAY = 5; // Friday
 const SESSION_HOUR = 13;
 const SESSION_MINUTE = 30;
-const SESSION_LIVE_MS = 30 * 60_000;
+const SESSION_LENGTH_MS = 30 * 60_000;
 
-let sessionOverride: { date: string; hour: number; minute: number } | null = null;
+type HourMinute = { hour: number; minute: number };
+
+const parseHHMM = (v: unknown): HourMinute | null => {
+  const m = typeof v === "string" ? /^(\d{1,2}):(\d{2})$/.exec(v) : null;
+  if (!m) return null;
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  return hour < 24 && minute < 60 ? { hour, minute } : null;
+};
+
+let sessionOverride: { date: string; hour: number; minute: number; end: HourMinute | null } | null =
+  null;
 fetch("/assets/session.json", { cache: "no-store" })
   .then((r) => (r.ok ? r.json() : null))
   .then((j) => {
     if (j && typeof j.date === "string" && Number.isFinite(j.hour)) {
-      sessionOverride = { date: j.date, hour: j.hour, minute: Number.isFinite(j.minute) ? j.minute : 0 };
+      sessionOverride = {
+        date: j.date,
+        hour: j.hour,
+        minute: Number.isFinite(j.minute) ? j.minute : 0,
+        end: parseHHMM(j.end),
+      };
     }
   })
   .catch(() => {}); // no file / bad json -> default time
@@ -310,14 +329,30 @@ fetch("/assets/session.json", { cache: "no-store" })
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+// the override only ever applies to its own Friday - see the note above
+const overrideFor = (kickoff: Date) =>
+  sessionOverride && sessionOverride.date === dateKey(kickoff) ? sessionOverride : null;
+
 // stamp the kickoff time onto a Date already set to the right Friday
 const applyKickoffTime = (kickoff: Date) => {
-  const o = sessionOverride && sessionOverride.date === dateKey(kickoff) ? sessionOverride : null;
+  const o = overrideFor(kickoff);
   kickoff.setHours(o ? o.hour : SESSION_HOUR, o ? o.minute : SESSION_MINUTE, 0, 0);
 };
 
+// when that Friday's slot is over. An end that isn't after kickoff is a bad
+// file, not a session that ran backwards, so it falls back with the rest.
+const sessionEnd = (kickoff: Date) => {
+  const o = overrideFor(kickoff);
+  if (o?.end) {
+    const end = new Date(kickoff);
+    end.setHours(o.end.hour, o.end.minute, 0, 0);
+    if (end.getTime() > kickoff.getTime()) return end;
+  }
+  return new Date(kickoff.getTime() + SESSION_LENGTH_MS);
+};
+
 type SessionClock =
-  | { id: "live" }
+  | { id: "live"; msLeft: number; mins: number; secs: number }
   | {
       id: "countdown";
       msLeft: number;
@@ -360,6 +395,12 @@ const DEBUG_MODE = new URLSearchParams(window.location.search).get("mode");
 const sydneyNow = () =>
   new Date(new Date().toLocaleString("en-US", { timeZone: "Australia/Sydney" }));
 
+// mins can pass 59 on a long slot, so it is not wrapped to the hour
+const liveFrom = (ms: number): SessionClock => {
+  const s = Math.ceil(ms / 1000);
+  return { id: "live", msLeft: ms, mins: Math.floor(s / 60), secs: s % 60 };
+};
+
 const countdownFrom = (
   ms: number,
   isToday: boolean,
@@ -380,14 +421,18 @@ const countdownFrom = (
 function sessionClock(): SessionClock {
   if (DEBUG_KICKOFF !== null) {
     const ms = DEBUG_KICKOFF - Date.now();
-    return ms <= 0 ? { id: "live" } : countdownFrom(ms, true, "today", "1.30 pm");
+    // past kickoff the debug session runs the default half hour, so
+    // ?t-minus=-1740 opens on a session with a minute left in it
+    if (ms <= 0) return liveFrom(Math.max(0, SESSION_LENGTH_MS + ms));
+    return countdownFrom(ms, true, "today", "1.30 pm");
   }
   const now = sydneyNow();
   const kickoff = new Date(now);
   kickoff.setDate(kickoff.getDate() + ((SESSION_DAY - now.getDay() + 7) % 7));
   applyKickoffTime(kickoff);
   if (kickoff.getTime() <= now.getTime()) {
-    if (now.getTime() - kickoff.getTime() < SESSION_LIVE_MS) return { id: "live" };
+    const end = sessionEnd(kickoff);
+    if (now.getTime() < end.getTime()) return liveFrom(end.getTime() - now.getTime());
     kickoff.setDate(kickoff.getDate() + 7);
     applyKickoffTime(kickoff); // next week may have its own slot (or the default)
   }
@@ -605,29 +650,6 @@ const CrestLogo: FC = () => (
       fill="currentColor"
       d="M43 23h-7v-2h9c-.131-.793-.66-1.501-1.395-1.808-.493-.226-1.044-.19-1.57-.19L36 19c-1 0-2 1-2 2v2c.055.998 1 2 2 2h7v2h-9c.134.637.47 1.237 1.018 1.593.48.346 1.083.424 1.657.407H43c1 0 2-1 2-2v-2C45 24 44.12 23.019 43 23zM5 21h8c0-1.105-.895-2-2-2H5c-1.105 0-2 .895-2 2v6c0 1.105.895 2 2 2h6c1.105 0 2-.895 2-2H5V21z"
     />
-  </svg>
-);
-
-// icons drawn inline, one 2px stroke family
-const FullscreenIcon: FC<{ active: boolean }> = ({ active }) => (
-  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none">
-    {active ? (
-      <path
-        d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    ) : (
-      <path
-        d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    )}
   </svg>
 );
 
@@ -1056,8 +1078,7 @@ const App: FC = () => {
   // on-air sting (radar burst, LIVE NOW flicker); a page merely loaded
   // mid-session gets the calm live state
   const [wentLive, setWentLive] = useState(false);
-  const prevClockIdRef = useRef(clock.id);
-  const [fullscreen, setFullscreen] = useState(false);
+  const prevClockRef = useRef<SessionClock>(clock);
   // Escape menu. Only possible because the engine no longer reacts to Escape
   // at all (the GameUI menu is not loaded - see ENGINE_LIBRARIES in
   // launch.ts). Before that, Escape opened a menu the build could not draw
@@ -1070,10 +1091,12 @@ const App: FC = () => {
   const [keys, setKeys] = useState<{ label: string; keys: string[] }[]>([]);
   // true for as long as the menu owns the cursor - see the release effect
   const holdCursorRef = useRef(false);
-  // Whether the player WANTS to be fullscreen, which is not the same as being
-  // fullscreen: Escape drops the page out of it without asking. Only the
-  // fullscreen button turning it off counts as changing their mind, so Resume
-  // knows whether to put fullscreen back or leave a windowed player windowed.
+  // Tab held down: the session clock rides the scoreboard key
+  const [tabHeld, setTabHeld] = useState(false);
+  // Whether the page got fullscreen when Play asked for it, which is not the
+  // same as being fullscreen: Escape drops the page out of it without asking.
+  // Resume reads this to know whether to put fullscreen back or leave a
+  // player whose request was refused windowed.
   const wantFullscreenRef = useRef(false);
   // when the last fullscreen transition happened, and when the page last gave
   // the pointer lock up of its own accord - see the pointer-lock effect
@@ -1086,9 +1109,15 @@ const App: FC = () => {
   }, []);
 
   useEffect(() => {
-    if (prevClockIdRef.current === "countdown" && clock.id === "live") setWentLive(true);
-    prevClockIdRef.current = clock.id;
-  }, [clock.id]);
+    // A genuine zero-crossing, not just any countdown -> live flip: the tick
+    // before has to have been a countdown with nothing left on it. Otherwise
+    // a page opened mid-session fires the sting anyway, because the first
+    // tick runs before /assets/session.json has answered and a week whose
+    // slot is not the compiled default reads as "not started" until it does.
+    const prev = prevClockRef.current;
+    if (prev.id === "countdown" && prev.msLeft < 1500 && clock.id === "live") setWentLive(true);
+    prevClockRef.current = clock;
+  }, [clock]);
 
   // While LIVE the scoreboard cells count the map's remaining time instead:
   // resynced to the feed on every poll, ticked down locally between polls.
@@ -1116,7 +1145,6 @@ const App: FC = () => {
   // window resize path, which handles fullscreen transitions fine.
   useEffect(() => {
     const onFsChange = (e: Event) => {
-      setFullscreen(Boolean(document.fullscreenElement));
       fsChangeAtRef.current = Date.now();
       e.stopImmediatePropagation();
     };
@@ -1137,17 +1165,40 @@ const App: FC = () => {
     });
   };
 
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      wantFullscreenRef.current = false;
-      document.exitFullscreen().catch(() => {});
-    } else enterFullscreen();
-  };
-
   // live server snapshot while waiting - stops once in-game. info.json rides
   // the same poll so a mod swap updates the match panel on an already-open
   // page. Parse failures (mid-write reads, plugin absent) just skip the tick.
   const playing = stage.id === "playing";
+
+  // The session clock is on screen only while Tab is down. Tab is where a
+  // player already looks for match state, so the number is asked for rather
+  // than played around - and the rest of the time the screen is the game's.
+  // Read-only in the same way the Escape handler is: capture phase so nothing
+  // can hide the event from us, but no preventDefault and nothing swallowed -
+  // the engine still draws its own scoreboard on the very same keypress.
+  useEffect(() => {
+    if (!playing) return;
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "Tab" && !e.repeat) setTabHeld(true);
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === "Tab") setTabHeld(false);
+    };
+    // the keyup that never comes: alt-tab away holding Tab, or the browser
+    // moving focus out of the page on that very press
+    const clear = () => setTabHeld(false);
+    window.addEventListener("keydown", down, true);
+    window.addEventListener("keyup", up, true);
+    window.addEventListener("blur", clear);
+    document.addEventListener("visibilitychange", clear);
+    return () => {
+      window.removeEventListener("keydown", down, true);
+      window.removeEventListener("keyup", up, true);
+      window.removeEventListener("blur", clear);
+      document.removeEventListener("visibilitychange", clear);
+      setTabHeld(false);
+    };
+  }, [playing]);
 
   // Capture phase on window so nothing can stop the event before we see it -
   // but we only READ it. No preventDefault (the browser still exits
@@ -1196,8 +1247,8 @@ const App: FC = () => {
     if (!playing || paused) return;
     const onLockChange = () => {
       if (document.pointerLockElement) return;
-      // entering or leaving fullscreen drops the lock by itself; pressing the
-      // fullscreen button is not a request for the menu
+      // entering or leaving fullscreen drops the lock by itself; that is not
+      // a request for the menu
       if (Date.now() - fsChangeAtRef.current < 600) return;
       if (Date.now() - codeUnlockedAtRef.current < 600) return;
       setPaused(true);
@@ -1245,7 +1296,7 @@ const App: FC = () => {
     // gesture that makes the request legal, which is also why closing the menu
     // with a second Escape cannot do it: a keypress the page did not act on is
     // not a gesture the browser accepts, so that path stays windowed until the
-    // fullscreen button. A player who turned fullscreen off stays windowed.
+    // next Resume click.
     if (wantFullscreenRef.current && !document.fullscreenElement) enterFullscreen();
     // SDL enters relative mouse mode when the lock is GRANTED, so asking for
     // it here is the same thing a click on the canvas does - it can only give
@@ -1474,6 +1525,28 @@ const App: FC = () => {
   const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null;
   const HeroEmblem = liveMode?.emblem ?? ClassicEmblem;
   const tier = clockTier(clock);
+  // What the in-game clock says, and whether it says anything at all: the
+  // slot's remaining time while the session runs, and on matchday before
+  // kickoff the wait for it. Every other day it stays off the screen - a
+  // Tuesday warm-up does not need a three-day countdown over the game.
+  const slotClock =
+    clock.id === "live"
+      ? {
+          lead: "session",
+          time: `${clock.mins}:${pad2(clock.secs)}`,
+          tail: "left",
+          aria: `session time remaining: ${clock.mins} minutes ${clock.secs} seconds`,
+        }
+      : clock.isToday
+        ? {
+            lead: "session in",
+            time: clock.hours
+              ? `${clock.hours}:${pad2(clock.mins)}:${pad2(clock.secs)}`
+              : `${clock.mins}:${pad2(clock.secs)}`,
+            tail: null,
+            aria: `session starts in ${clock.hours} hours ${clock.mins} minutes ${clock.secs} seconds`,
+          }
+        : null;
   // each mode broadcasts in its own signal colour; classic acid until the
   // live mode is known (or an unmatched future mod runs)
   const themeMode = DEBUG_MODE ?? liveMode?.key ?? "classic";
@@ -1529,9 +1602,12 @@ const App: FC = () => {
                       {serverStatus.humans === 1 ? "player" : "players"} in &middot;{" "}
                       <CountUp value={serverStatus.bots} /> bots
                     </span>
-                  ) : (
-                    <span className="event__when">session in progress</span>
-                  )}
+                  ) : null}
+                  {/* the slot's own clock - the map clock below is a different
+                      number and players read them as the same one otherwise */}
+                  <span className="event__when">
+                    {clock.mins}:{pad2(clock.secs)} left in this session
+                  </span>
                 </p>
                 {mapClock !== null && (
                   <p
@@ -1769,7 +1845,7 @@ const App: FC = () => {
                           {serverStatus.bots > 0 ? `+${serverStatus.bots} bots` : ""} /{" "}
                           {serverStatus.maxplayers}
                         </td>
-                        <td>{timeleft(serverStatus)}</td>
+                        <td className="nowrap">{timeleft(serverStatus)}</td>
                         <td className="nowrap">{ping !== null ? `${ping} ms` : "-"}</td>
                       </tr>
                     ) : (
@@ -2128,15 +2204,37 @@ const App: FC = () => {
           </footer>
         </div>
       </div>
-      {/* outside the overlay so it stays clickable in-game */}
-      <button
-        className="fs"
-        onClick={toggleFullscreen}
-        aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
-      >
-        <FullscreenIcon active={fullscreen} />
-      </button>
+      {/* how long the Friday session has left, over the game, for as long as
+          Tab is held. The page's own clock is behind the canvas once you are
+          playing, and mid-match the only thing anyone wants from it is this
+          number - so it rides in on the scoreboard key and leaves with it, at
+          the top of the screen, clear of the 1.6 HUD (which keeps to the
+          corners and the bottom). Outside .overlay because that is hidden
+          while playing. */}
+      {playing && tabHeld && slotClock && (
+        <div
+          // the last five minutes and the last minute read the same whether
+          // they are the end of the session or the wait for its start
+          className={`slotclock${clock.msLeft < 300_000 ? " slotclock--last" : ""}${
+            clock.msLeft < 60_000 ? " slotclock--final" : ""
+          }`}
+          data-mode={themeMode}
+          role="timer"
+          aria-label={slotClock.aria}
+        >
+          <span className="slotclock__label" aria-hidden="true">
+            {slotClock.lead}
+          </span>
+          <span className="slotclock__time" aria-hidden="true">
+            {slotClock.time}
+          </span>
+          {slotClock.tail && (
+            <span className="slotclock__label" aria-hidden="true">
+              {slotClock.tail}
+            </span>
+          )}
+        </div>
+      )}
       {playing && paused && (
         <div
           className="pause"

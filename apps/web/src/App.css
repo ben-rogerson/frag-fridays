@@ -29,12 +29,21 @@
   --mode-aim: #a86bff;
 }
 
+/* selecting text picks up whatever the mode is broadcasting - ::selection
+   resolves its vars against the element it came from, so no per-mode rule */
+::selection {
+  background: var(--accent, var(--acid));
+  color: var(--ink-deep);
+  text-shadow: none;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 2;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   background:
     radial-gradient(ellipse 120% 80% at 70% -10%, #16264a 0%, transparent 55%),
     linear-gradient(165deg, var(--ink) 0%, var(--ink-deep) 60%, #060a16 100%);
@@ -61,7 +70,8 @@
 
 /* GunGame: ember orange - weapon heat, climbing the ladder */
 .overlay[data-mode="gungame"],
-.pause[data-mode="gungame"] {
+.pause[data-mode="gungame"],
+.slotclock[data-mode="gungame"] {
   --accent: var(--mode-gungame);
   --accent-hot: #ffbb3d;
   --accent-deep: #d97f0b;
@@ -74,7 +84,8 @@
 
 /* Deathmatch: kill-feed crimson */
 .overlay[data-mode="dm"],
-.pause[data-mode="dm"] {
+.pause[data-mode="dm"],
+.slotclock[data-mode="dm"] {
   --accent: var(--mode-dm);
   --accent-hot: #ff7d8a;
   --accent-deep: #d32f3f;
@@ -87,7 +98,8 @@
 
 /* Aim Prac: signal violet - tracer glow against the knife horde */
 .overlay[data-mode="aim"],
-.pause[data-mode="aim"] {
+.pause[data-mode="aim"],
+.slotclock[data-mode="aim"] {
   --accent: var(--mode-aim);
   --accent-hot: #c49aff;
   --accent-deep: #8746f0;
@@ -1105,6 +1117,7 @@
 }
 
 .card__name {
+  text-wrap: balance;
   font-size: 1.2rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1130,6 +1143,7 @@
 }
 
 .card__tagline {
+  text-wrap: pretty;
   margin-top: 0.25rem;
   font-size: 0.8rem;
   color: var(--text-mute);
@@ -1153,6 +1167,7 @@
 
 .card__rulelist li {
   position: relative;
+  text-wrap: pretty;
   padding-left: 0.9rem;
   font-size: 0.78rem;
   color: var(--text);
@@ -1267,6 +1282,7 @@
 
 .rotation__blurb {
   min-width: 0;
+  text-wrap: pretty;
   font-size: 0.72rem;
   color: var(--text-faint);
 }
@@ -1421,6 +1437,7 @@
 
 .browser__stripinput {
   font: inherit;
+  caret-color: var(--accent);
   font-size: 0.85rem;
   color: var(--text);
   background: transparent;
@@ -1433,14 +1450,6 @@
 
 .browser__stripinput::placeholder {
   color: var(--text-faint);
-}
-
-/* the connect button overlaps the strip's bevel so they share one chrome edge */
-.join--strip {
-  margin: -1px;
-  margin-left: 0;
-  padding: 0.55rem 1.6rem;
-  font-size: 0.9rem;
 }
 
 /* join attempted with no alias - the strip flags itself and shakes once */
@@ -1479,18 +1488,28 @@
 /* the connect zone under the server list - command strip on top, action
    readout below */
 .browser__lower {
+  /* the bar's and readout's own heights, declared here so the slot the action
+     zone reserves and the parts that fill it can never drift apart */
+  --bar-h: 23px;
+  --status-h: 0.96rem;
+  --action-gap: 0.72rem;
   display: flex;
   flex-direction: column;
   gap: 0.72rem;
   padding: 1.08rem 0.8rem;
 }
 
+/* The bar only exists while there is a download to measure, but this panel
+   leads the page - checking -> downloading -> ready would step everything
+   below it twice. So the zone holds the download state's height from the
+   first paint and the bar comes and goes inside a slot that never moves. */
 .browser__action {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.72rem;
+  gap: var(--action-gap);
   min-width: 0;
+  min-height: calc(var(--bar-h) + var(--action-gap) + var(--status-h));
 }
 
 .browser__action .bar {
@@ -1584,6 +1603,17 @@
   transform: translateY(1px);
 }
 
+/* the connect button overlaps the strip's bevel so they share one chrome edge.
+   Sits after .join on purpose - same specificity, so the cascade decides, and
+   at full .join size the button is taller than the alias input: the strip
+   would grow the moment CONNECT appeared and shunt the page below it. */
+.join--strip {
+  margin: -1px;
+  margin-left: 0;
+  padding: 0.55rem 1.6rem;
+  font-size: 0.9rem;
+}
+
 /* one-shot power-on when the download lands and CONNECT becomes real: a
    fluorescent tube striking - dark, two flickers, then the resting glow.
    Glow means powered, and this is the moment the button gets its power.
@@ -1631,6 +1661,7 @@
 .bar {
   display: flex;
   gap: 3px;
+  height: var(--bar-h, 23px);
   padding: 4px;
   background: #0a1226;
   border: 1px solid var(--bevel-dark);
@@ -1642,7 +1673,6 @@
 
 .seg {
   flex: 1;
-  height: 13px;
   background: rgb(var(--accent-rgb) / 0.08);
 }
 
@@ -1678,10 +1708,12 @@
 }
 
 .status {
+  /* one line held open whatever the readout says - 1.2 lines of 0.8rem, in
+     rem so the action zone can reserve the same height for the bar swap */
   font-size: 0.8rem;
   color: var(--text-mute);
   font-variant-numeric: tabular-nums;
-  min-height: 1.2em;
+  min-height: var(--status-h, 0.96rem);
 }
 
 .status--error {
@@ -2038,6 +2070,7 @@ th.standings__num {
 }
 
 .specs__note {
+  text-wrap: pretty;
   margin: 0.7rem 0 0;
   padding-top: 0.55rem;
   border-top: 1px dashed rgba(51, 73, 127, 0.5);
@@ -2098,36 +2131,86 @@ th.standings__num {
   border-right-color: var(--bevel-light);
 }
 
-/* --- fullscreen toggle (above overlay AND game canvas) ----------------- */
+/* --- session clock, over the game -------------------------------------- */
 
-.fs {
+/* The Friday slot's remaining time, top-centre of the canvas, on screen only
+   while Tab is held - it rides the scoreboard key, so it is something a
+   player asks for rather than something they play around. That is also why
+   it is solid and not shy: nothing else is competing for the eye at the
+   moment it appears. Hangs off the top edge (no top border) so it reads as
+   part of the screen furniture rather than a floating box. Never takes the
+   pointer - a click here has to reach the canvas and re-lock the mouse. */
+.slotclock {
   position: fixed;
-  top: 0.9rem;
-  right: 0.9rem;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 3;
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  color: var(--text);
-  background: rgba(13, 23, 48, 0.75);
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.85rem 0.34rem;
+  pointer-events: none;
+  background: var(--ink-deep);
   border: 1px solid var(--bevel-light);
+  border-top: 0;
   border-bottom-color: var(--bevel-dark);
   border-right-color: var(--bevel-dark);
-  cursor: pointer;
-  transition: filter 0.15s;
+  color: var(--text-mute);
 }
 
-.fs:hover,
-.fs:focus-visible {
-  filter: brightness(1.3);
-  outline: none;
+.slotclock__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
 }
 
-/* Escape menu, over the live canvas. Sits above .fs so the fullscreen button
-   cannot be clicked through the scrim, and outside .overlay because that is
-   hidden while playing. */
+.slotclock__time {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--accent, var(--acid));
+}
+
+/* last five minutes: the bug steps forward and turns the mode's colour loose
+   for the alert red, because "nearly done" is worth interrupting for */
+.slotclock--last {
+  color: var(--text);
+  border-color: rgba(255, 107, 87, 0.5);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+}
+
+.slotclock--last .slotclock__time {
+  color: var(--alert);
+}
+
+/* final minute: the same one-second beat the countdown cells blink on */
+.slotclock--final .slotclock__time {
+  animation: slotclock-beat 1s steps(1, end) infinite;
+}
+
+@keyframes slotclock-beat {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slotclock--final .slotclock__time {
+    animation: none;
+  }
+}
+
+/* Escape menu, over the live canvas. Sits above the screen furniture, and
+   outside .overlay because that is hidden while playing. */
 .pause {
   position: fixed;
   inset: 0;
@@ -2161,6 +2244,7 @@ th.standings__num {
 }
 
 .pause__title {
+  text-wrap: balance;
   margin: 0;
   font-size: 0.82rem;
   font-weight: 700;
@@ -2170,6 +2254,7 @@ th.standings__num {
 }
 
 .pause__note {
+  text-wrap: pretty;
   margin: 0 0 0.3rem;
   font-size: 0.78rem;
   color: var(--text-mute);
@@ -2281,11 +2366,6 @@ th.standings__num {
   padding: 0.16rem 0.34rem;
 }
 
-.fs:focus-visible {
-  outline: 2px solid var(--acid-hot);
-  outline-offset: 1px;
-}
-
 /* --- server news: the between-Fridays log ------------------------------ */
 
 /* Reuses the mode card's rules vocabulary - micro-label over an acid-marked
@@ -2293,6 +2373,11 @@ th.standings__num {
    One column, unlike the rules grid: these are sentences, not specs. */
 .news {
   margin-top: 1rem;
+  /* last section on the page, below the fold at every width - skip its layout
+     until it scrolls in. `auto` banks the rendered height so a second pass
+     doesn't move the scrollbar under the cursor. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
 }
 
 .news__body {
@@ -2553,4 +2638,60 @@ th.standings__num {
   border: 1px solid var(--accent-edge-light);
   border-bottom-color: var(--accent-edge-dark);
   border-right-color: var(--accent-edge-dark);
+}
+
+/* ============================================================
+   Display preferences. The wallpaper (grid, radar, streaks) is
+   atmosphere; anything that carries meaning - live dots, the
+   download bar, the crosshair swatches - has to survive being
+   stripped of it.
+   ============================================================ */
+
+/* high contrast: pull the greys up to the body text and turn the
+   background noise down, so copy sits on close to flat navy */
+@media (prefers-contrast: more) {
+  :root {
+    --text: #ffffff;
+    --text-mute: #cbd8f2;
+    --text-faint: #b9c7e8;
+    --link: #b8d0ff;
+    --bevel-light: #5b78bd;
+  }
+
+  .overlay {
+    --streak-o: 0.15;
+    --grid-o: 0.18;
+  }
+
+  .radar {
+    display: none;
+  }
+}
+
+/* forced colours: the system owns every colour, so drop the decoration
+   outright and opt out only where hue IS the information */
+@media (forced-colors: active) {
+  .tacgrid,
+  .radar,
+  .streaks {
+    display: none;
+  }
+
+  /* green dot = server is live; the swatch IS the crosshair colour; the
+     lit segments are the only thing separating a stalled download from a
+     moving one */
+  .livedot,
+  .chip__swatch,
+  .bar {
+    forced-color-adjust: none;
+  }
+}
+
+/* reduced transparency: the pause menu stops being a frosted sheet over a
+   live round and becomes the panel navy, opaque */
+@media (prefers-reduced-transparency: reduce) {
+  .pause {
+    background: var(--panel);
+    backdrop-filter: none;
+  }
 }
