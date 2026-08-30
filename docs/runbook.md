@@ -53,10 +53,12 @@ Three messages on the day, each doing a specific job:
 
 ## 3. Join instructions (include in the final call)
 
-The browser build does not render the team select menu, so players must:
-
 - **Press F1 to join Terrorists, F2 for Counter-Terrorists.** These binds
-  ship to every player via the `userconfig.cfg` inside `valve.zip`.
+  ship to every player via the `userconfig.cfg` inside `valve.zip`. The team
+  menu does render (numbered text menu), so this is the fast path, not the
+  only one.
+- **Radio is Z / X / C**, picked with the number keys. Worth a mention -
+  they were dead until 2026-08-30, so regulars have learned to ignore them.
 - **Console fallback** if the binds fail: open console (backtick key), type
   `jointeam 1` then `joinclass 1`.
 - **DM sessions only:** gun choice is by chat - say `/guns` for the list,

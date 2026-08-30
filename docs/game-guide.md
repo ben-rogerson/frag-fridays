@@ -7,11 +7,38 @@ knobs. For the session-day procedure see [runbook.md](runbook.md).
 
 - URL: `http://149.28.172.74:27016` - same for every mod, laptop browsers
   only (mobile does not work).
-- **F1** joins Terrorists, **F2** joins Counter-Terrorists (the team menu
-  does not render in the browser). Console fallback (backtick): `jointeam 1`
+- **F1** joins Terrorists, **F2** joins Counter-Terrorists. The team menu
+  does render (as a numbered text menu), so the binds are a convenience
+  rather than the only way in. Console fallback (backtick): `jointeam 1`
   then `joinclass 1`.
 - First load pulls the whole ~300MB game into browser RAM - tell people to
   open the URL early and let it cache (see runbook, midday reminder).
+
+## Radio
+
+**Z**, **X** and **C** open the three stock radio menus; pick with the number
+keys, `0` closes.
+
+| Key | Menu | Contains |
+|---|---|---|
+| Z | Radio Commands | cover me, take the point, hold this position, regroup, follow me, taking fire |
+| X | Group Radio Commands | go, fall back, stick together, get in position, storm the front, report in |
+| C | Radio Responses/Reports | affirmative, enemy spotted, need backup, sector clear, in position, reporting in, she's gonna blow, negative, enemy down |
+
+The menus need two cvars in `userconfig.cfg` and are dead without either
+(fixed 2026-08-30, verified in-browser on gg/de_inferno):
+
+- `setinfo "_vgui_menus" "0"` - otherwise the server answers `radio1/2/3`
+  with a VGUIMenu message, and cs16-client's `ShowVGUIMenu` has no case for
+  `MENU_RADIOA/B/C`. It falls through to `exec touch/radioa.cfg`, a
+  mobile-only config that is not in the game tree (and `exec` is a no-op in
+  this build regardless).
+- `_extended_menus 0` - `CHudMenu::MsgFunc_ShowMenu` special-cases any menu
+  string starting `#Radio` and hands it straight back to those same dead
+  touch configs while this is on. It changes nothing else: every non-radio
+  menu takes the same branch either way.
+
+Menu text is stock `cstrike/titles.txt` (`RadioA`/`RadioB`/`RadioC`).
 
 ## Mods
 
@@ -25,7 +52,9 @@ One mod runs at a time; the URL never changes.
 
 ### DM gun selection (chat commands)
 
-AMXX menus are unverified in the browser build, so gun choice is chat:
+Gun choice is chat. That predates knowing AMXX menus render fine in the
+browser (the map vote menu proved it, 2026-08-02); it was never revisited,
+not ruled out:
 
 - `/guns` - list options
 - `/ak /m4 /awp /mp5 /p90 /scout /shotty /famas` - primary from next spawn
