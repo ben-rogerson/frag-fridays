@@ -74,8 +74,12 @@ export async function downloadValveZip(
   const out = await readBody(res, onProgress);
   const freshModified = res.headers.get("last-modified");
   if (cache && freshModified) {
-    // best-effort: a quota refusal just means a re-download next visit
-    await cache
+    // best-effort, and deliberately NOT awaited: this is a ~235MB write to
+    // disk, and awaiting it held the Play button shut for the whole of it
+    // after the download had already finished. The bytes are in hand either
+    // way - a write still running when the engine boots just finishes in the
+    // background, and a quota refusal only means a re-download next visit.
+    void cache
       .put(
         ZIP_URL,
         new Response(out, {
@@ -625,6 +629,148 @@ const ENGINE_LIBRARIES = [
   "libref_webgl2.wasm", // pushed by the package's initRender for gles3compat
 ];
 
+// --- payload unpacking -------------------------------------------------------
+//
+// Two payload layouts, and the client understands both so the two halves can
+// ship independently (client first, box second - the reverse would serve a
+// payload nothing can read).
+//
+//   legacy: valve.zip carries 4893 loose files, every one of them inflated in
+//     JS and written into MEMFS before the first frame. Measured 2026-08-30 on
+//     the 235MB build: 4.8s on a fast Mac, and that is the floor.
+//   pk3: the same files pre-packed into cstrike.pk3 + valve.pk3, carried by a
+//     STORED outer zip. The engine's own filesystem mounts *.pk3 found in a
+//     gamedir (FS_AddGameDirectory in FWGS searchpath.c) and inflates out of
+//     them on demand, in wasm, only for what a session actually opens - the
+//     same route extras.pk3 already takes. So the two pk3s are sliced straight
+//     out of the buffer and written whole: no JS inflate at all. Measured the
+//     same day on the same build: 0.28s, and peak memory drops by the 420MB
+//     that unpacked tree used to cost.
+//
+// Everything at a GAMEDIR ROOT stays loose, and that rule is load-bearing:
+// the engine decides a directory is a gamedir at all by looking for
+// liblist.gam / gameinfo.txt with FS_SysFileExists, which only ever sees real
+// files (gameinfo.c). Packed into a pk3 they are invisible, no gamedir is
+// found, and the engine unwinds out of main() before a frame - it surfaces
+// here as a bare `Infinity` thrown by emscripten_throw_number, which is how
+// this was first hit on 2026-08-30. Root is also where the wads live, and wad
+// lumps are read by seeking, which restarts the inflate from the top inside a
+// deflated entry (FS_OpenFile_ZIP). Root is 0.3MB of config plus the wads, so
+// the rule is "the root stays loose" rather than a list of special files.
+const PK3_PAYLOAD_MARKER = "cstrike/cstrike.pk3";
+
+type ZipEntry = { name: string; method: number; csize: number; offset: number };
+
+// Central-directory walk. Every byte is already in memory, so this reads the
+// directory itself rather than handing the buffer to a zip library - JSZip's
+// loadAsync alone costs ~360ms on the 235MB build before a single file comes
+// out of it. Fails loudly rather than half-reading: a payload this client
+// cannot fully understand is one where files go quietly missing, which on this
+// stack surfaces as checkerboard walls or a silent map load failure.
+function readZipEntries(buf: Uint8Array): ZipEntry[] {
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const latin1 = new TextDecoder("latin1"); // paths are ascii; latin1 never throws
+  // the end-of-central-directory record is last, after a comment (empty here)
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0 && i > buf.length - 66000; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error("payload is not a zip (no end-of-central-directory)");
+  const count = view.getUint16(eocd + 10, true);
+  let off = view.getUint32(eocd + 16, true);
+  // 0xffff entries / 0xffffffff offsets mean zip64, which this reader does not
+  // speak. The payload is ~5k files and ~235MB, so hitting either is a build
+  // that changed shape, not a client that needs extending in a hurry.
+  if (count === 0xffff || off === 0xffffffff) {
+    throw new Error("payload uses zip64 - the client cannot read it");
+  }
+  const out: ZipEntry[] = [];
+  for (let i = 0; i < count; i++) {
+    if (view.getUint32(off, true) !== 0x02014b50) {
+      throw new Error(`payload central directory is corrupt at entry ${i}`);
+    }
+    const method = view.getUint16(off + 10, true);
+    const csize = view.getUint32(off + 20, true);
+    const nlen = view.getUint16(off + 28, true);
+    const elen = view.getUint16(off + 30, true);
+    const clen = view.getUint16(off + 32, true);
+    const local = view.getUint32(off + 42, true);
+    const name = latin1.decode(buf.subarray(off + 46, off + 46 + nlen));
+    off += 46 + nlen + elen + clen;
+    if (name.endsWith("/")) continue; // directory record, nothing to write
+    if (method !== 0 && method !== 8) {
+      throw new Error(`${name}: unsupported zip compression method ${method}`);
+    }
+    // the local header repeats the name and carries its own extra field, and
+    // the two lengths do NOT have to match the central record - the data
+    // offset can only be read from the local header
+    out.push({
+      name,
+      method,
+      csize,
+      offset: local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true),
+    });
+  }
+  return out;
+}
+
+// The browser's own inflate, which is native code and ~4x JSZip's (1.1s vs
+// 4.5s over the whole 235MB build, measured 2026-08-30). Only the wads come
+// through here now, so the per-stream setup cost is paid 23 times, not 4893.
+async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([bytes as BlobPart])
+    .stream()
+    .pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function unpackPayload(
+  fs: { mkdirTree: (p: string) => void; writeFile: (p: string, b: Uint8Array) => void },
+  zipBytes: Uint8Array,
+  onStatus: (s: LaunchStatus) => void,
+): Promise<void> {
+  const write = (name: string, bytes: Uint8Array) => {
+    const path = "/rodir/" + name;
+    fs.mkdirTree(path.split("/").slice(0, -1).join("/"));
+    fs.writeFile(path, bytes);
+  };
+
+  // DecompressionStream is what makes the fast path fast; a browser without it
+  // is old enough that the engine's WebGL2 and WebRTC would fail next anyway,
+  // so fall back to the legacy reader rather than failing the join outright.
+  const entries =
+    typeof DecompressionStream === "undefined" ? [] : readZipEntries(zipBytes);
+  if (entries.some((e) => e.name === PK3_PAYLOAD_MARKER)) {
+    let done = 0;
+    onStatus({ phase: "unpacking", done, total: entries.length });
+    for (const e of entries) {
+      const raw = zipBytes.subarray(e.offset, e.offset + e.csize);
+      write(e.name, e.method === 0 ? raw : await inflateRaw(raw));
+      onStatus({ phase: "unpacking", done: ++done, total: entries.length });
+    }
+    return;
+  }
+
+  // Legacy payload: 4893 loose files, JSZip. Delete this path (and the jszip
+  // dependency) once the box has served the pk3 payload through a session.
+  const zip = await JSZip.loadAsync(zipBytes);
+  const files = Object.entries(zip.files).filter(([, file]) => !file.dir);
+  let done = 0;
+  onStatus({ phase: "unpacking", done, total: files.length });
+  await Promise.all(
+    files.map(async ([filename, file]) => {
+      write(filename, await file.async("uint8array"));
+      done += 1;
+      if (done % 200 === 0 || done === files.length) {
+        onStatus({ phase: "unpacking", done, total: files.length });
+      }
+    }),
+  );
+}
+
 export async function launchGame(
   canvas: HTMLCanvasElement,
   zipBytes: Uint8Array,
@@ -669,10 +815,9 @@ export async function launchGame(
   x.onDrop = onDrop;
 
   onStatus({ phase: "engine" });
-  // init() boots the wasm runtime and completes the WebRTC handshake; the zip
-  // parse and extras fetch overlap with it.
-  const [zip, extras] = await Promise.all([
-    JSZip.loadAsync(zipBytes),
+  // init() boots the wasm runtime and completes the WebRTC handshake; the
+  // extras fetch overlaps with it.
+  const [extras] = await Promise.all([
     fetch(extrasURL).then((r) => r.arrayBuffer()),
     x.init(),
   ]);
@@ -680,21 +825,7 @@ export async function launchGame(
   if (x.exited) throw new Error("engine exited during init");
   const fs = x.em!.FS;
 
-  const entries = Object.entries(zip.files).filter(([, file]) => !file.dir);
-  let done = 0;
-  onStatus({ phase: "unpacking", done, total: entries.length });
-  await Promise.all(
-    entries.map(async ([filename, file]) => {
-      const path = "/rodir/" + filename;
-      const dir = path.split("/").slice(0, -1).join("/");
-      fs.mkdirTree(dir);
-      fs.writeFile(path, await file.async("uint8array"));
-      done += 1;
-      if (done % 200 === 0 || done === entries.length) {
-        onStatus({ phase: "unpacking", done, total: entries.length });
-      }
-    }),
-  );
+  await unpackPayload(fs, zipBytes, onStatus);
 
   const extrasBytes = new Uint8Array(extras);
   fs.writeFile("/rodir/cstrike/extras.pk3", extrasBytes);

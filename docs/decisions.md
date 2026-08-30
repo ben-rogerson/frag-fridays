@@ -520,10 +520,8 @@ getting stock `valve/gfx/conback.lmp` - the Half-Life orange one.
 
 The replacement lives at `server/custom/gfx/shell/conback.tga`, riding the
 existing `server/custom/` -> `cs/cstrike/` overlay that `deploy.sh` installs
-and `update-clientcfg.sh` bundles into valve.zip. Art is the stock CS 1.6
-splash - stitched from the game's own `resource/background/800_*_loading.tga`
-tiles, the same wallpaper the web page is themed from - with a broadcast
-lower-third strap over it.
+and `update-clientcfg.sh` bundles into valve.zip. See the 2026-08-30 entry
+below for the art that is actually shipped.
 
 Two constraints on any future replacement:
 
@@ -537,8 +535,58 @@ Two constraints on any future replacement:
   the map loads, and its text runs top-to-bottom down that column. The strap
   starts at x=355 for that reason.
 
-No `loading.tga` is shipped: that branch is unreachable while the menu stays
-out, and shipping art for it would only rot.
+Both basenames are shipped, byte-identical - see below.
+
+## Loading screen: one artwork under both basenames (2026-08-30)
+
+The 2026-08-29 entry above shipped only `conback.tga` on the reasoning that
+the `loading` branch is unreachable while the GameUI menu stays out. Two
+things were wrong with that.
+
+First, the box was not clean: `cs/cstrike/gfx/shell/loading.tga` existed - a
+1024x768 placeholder reading "TEST IMAGE - loading.tga", dropped there during
+the 2026-08-29 work and never removed. It is untracked by `server/custom/`,
+so `deploy.sh` (an rsync without `--delete`) could never have cleaned it up,
+and `update-clientcfg.sh` bundled it into valve.zip along with everything
+else under `cs/`. Whichever branch the engine took, one of the two images was
+going to be wrong.
+
+Second, "unreachable" is a claim about `host.allow_console`, which is a
+consequence of the menu-preload decision - a decision that could be revisited
+for unrelated reasons. A branch that is unreachable today is a trap, not a
+saving. So both basenames now carry the same file:
+
+    server/custom/gfx/shell/conback.tga
+    server/custom/gfx/shell/loading.tga   (identical bytes)
+
+If they ever diverge again, that is the bug. Keep writing both.
+
+The art is new and carries no text at all - no wordmark, no session time. The
+strap had to go: it stated a fixed weekly time in a file that is rebuilt only
+when someone remembers to, which is exactly the kind of copy that goes stale
+without anything failing. Type also survives the engine's stretch worst - the
+canvas is whatever the player's display is, and the texture is scaled to it
+with no letterboxing.
+
+What replaced it is the web page's own atmosphere at full bleed, so the
+loading screen and the page it was launched from read as one thing: navy
+ground, the CPL briefing grid at its 44/176px pitch, acid scanline streak
+bands around a hot core bloom, the radar ring cluster bleeding off the
+top-right with its sweep arcs and blips, CS surveyor crosshairs on the grid
+intersections, hyperlink-blue viewfinder corners. Palette and pitches are
+lifted from `apps/web/DESIGN.md` rather than eyeballed.
+
+The generator is `scripts/make-conback.py`: it writes the SVG, screenshots it
+in headless Chrome at exactly 1512x982, and packs the pixels into a TGA by
+hand - type 2, 24-bit, descriptor `0x20` (top-left origin), matching the
+header the previous file used. ImageMagick's own TGA writer is not used
+because its origin handling is the one thing that must not drift. Re-run it
+with `python3 scripts/make-conback.py`; it overwrites both files.
+
+The 2026-08-29 constraints still hold and the generator honours them: 1512x982,
+and the left ~22% stays quiet for the console text that runs down it (measured
+on the shipped file: mean luminance 10/255 on the left column against 32/255
+across the rest).
 
 ## KZ mod removed (2026-08-30)
 
@@ -685,3 +733,45 @@ swallower, which still has to keep SDL from seeing the event (the console
 font trap above). A player who leaves fullscreen with Escape and does not
 open the menu stays windowed until the next Resume click - a keypress the
 page did not act on is not a gesture the browser will take a request from.
+
+## The client payload stopped being an unpacked tree (2026-08-30)
+
+`valve.zip` used to be 4893 loose files that the page inflated with JSZip and
+wrote into the engine's in-memory filesystem before the first frame - all
+420MB of them, whether or not a session ever opened them. Measured on the
+235MB build: 4.8s on a fast Mac, and that is the floor. Nobody plays on a
+fast Mac at 1:30 on a Friday.
+
+The engine already knew how to do better. FWGS mounts any `*.pk3` it finds in
+a gamedir (`FS_AddGameDirectory`) and inflates out of it on demand, in wasm,
+for the files it actually opens - the route `extras.pk3` has always taken
+here. So the payload is now a STORED outer zip carrying two archives,
+`cstrike/cstrike.pk3` and `valve/valve.pk3`, which the page slices out and
+writes whole. Two files instead of 4893, no JS inflate at all: 4.8s -> 0.27s,
+and the 420MB unpacked tree stops existing, so peak memory roughly halves.
+Wire size is unchanged - the compression just moved inside.
+
+**The gamedir root stays loose, and that rule is the whole finding.** First
+attempt packed everything, and the client died at boot with `Infinity` as its
+entire error message: emscripten's `_emscripten_throw_number` unwinding out of
+`main()`, stringified. The engine decides a directory is a gamedir at all by
+looking for `liblist.gam` / `gameinfo.txt` with `FS_SysFileExists`, which sees
+real files and never the VFS (`gameinfo.c`). Packed away, they are invisible,
+no gamedir is found, and there is nothing to boot. The root is also where the
+wads live, and wad lumps are read by seeking, which restarts the inflate from
+the top inside a deflated entry (`FS_OpenFile_ZIP`). Root is 0.3MB of config
+plus the wads, so the rule is "the root stays loose" rather than a list of
+special files - and `update-clientcfg.sh` now fails the build if `liblist.gam`
+is not loose, because that failure explains itself to nobody.
+
+The client reads both layouts, so the two halves ship independently: page
+first, payload second. The JSZip path (and the dependency) can go once a
+session has run on the pk3 payload.
+
+Also gone from the critical path: the ~235MB `cache.put` into Cache Storage
+was awaited, holding the Play button shut for the length of a disk write after
+the download had already finished. The bytes are in hand either way.
+
+Not done, and still the cheapest bytes left: `valve/sound` is 41MB across 2544
+files, kept as a fallback nobody has tested, and the maps are 49MB of which
+one mode needs a few. Both want a play-test, not a guess.
