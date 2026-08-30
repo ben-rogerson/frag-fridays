@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-28T10:37:15+00:00",
+ "generated": "2026-08-30T02:54:29+00:00",
  "season": [
   {
    "name": "ZenBot",
@@ -427,6 +427,39 @@
    ]
   }
  ],
- "practice": [],
+ "practice": [
+  {
+   "name": "Reverson",
+   "kills": 86,
+   "deaths": 49,
+   "kd": 1.76,
+   "plants": 0,
+   "time": 3994
+  },
+  {
+   "name": "Reversons",
+   "kills": 32,
+   "deaths": 22,
+   "kd": 1.45,
+   "plants": 0,
+   "time": 1247
+  },
+  {
+   "name": "esctest",
+   "kills": 0,
+   "deaths": 1,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 155
+  },
+  {
+   "name": "CrashProbe",
+   "kills": 0,
+   "deaths": 6,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 257
+  }
+ ],
  "practiceSince": "2026-08-28"
 }

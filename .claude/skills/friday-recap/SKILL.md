@@ -12,13 +12,16 @@ everyone reading it should want top spot next week.
 
 ## Step 1: parse the logs
 
-Logs are HL kill logs on the box at `/opt/cs16/logs/<mod>/L*.log` (UTC
-timestamps; only exist since 2026-08-03 when logging was enabled). Use
-`grep -H` so each line carries its file path - the parser reads the mod
-dir from it and tags every map segment with its game mode:
+Logs are HL kill logs (UTC timestamps; only exist since 2026-08-03 when
+logging was enabled). Read them from the local archive `data/logs/<mod>/`,
+refreshing it from the box first - the box's copy dies with the instance,
+so the archive is what survives between sessions. Use `grep -H` so each
+line carries its file path - the parser reads the mod dir from it and tags
+every map segment with its game mode:
 
 ```bash
-ssh cs16 'grep -H "" /opt/cs16/logs/*/L*.log' | \
+scripts/mirror-logs.sh   # exits 3 if the box is down; the archive still works
+grep -H "" data/logs/*/L*.log | \
   python3 .claude/skills/friday-recap/parse_logs.py --date <YYYY-MM-DD>
 ```
 
@@ -32,8 +35,9 @@ Output: JSON, one entry per map segment in play order, each with a `mode`
 field, players sorted by kills with K/D, `top_weapon`, `weapons_used`
 (distinct weapons - gungame ladder progress), bots flagged (`"bot": true`).
 
-Weekly log hygiene: if the logs dir grows past a few hundred files, old
-ones can be deleted - the recap only ever needs the session day.
+Weekly log hygiene: once mirrored, old files can be deleted **on the box**
+- the recap only ever needs the session day. Never prune `data/logs/`:
+`scripts/standings.py` replays the whole season from it on every run.
 
 ## Step 2: know the mode
 

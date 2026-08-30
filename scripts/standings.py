@@ -2,8 +2,8 @@
 """Aggregate HL kill logs (stdin) into the season standings JSON the web
 page renders at /assets/standings.json.
 
-Usage:
-    ssh cs16 'cat /opt/cs16/logs/*/L*.log' | python3 scripts/standings.py
+Usage (normally via scripts/standings.sh, which refreshes the mirror first):
+    cat data/logs/*/L*.log | python3 scripts/standings.py
 
 Log timestamps are UTC; sessions are grouped by Sydney date. By default
 only Fridays inside the session window count, so midweek testing doesn't

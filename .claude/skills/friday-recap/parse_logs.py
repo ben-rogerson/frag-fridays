@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Parse HL kill logs (stdin) into per-map player stats for the Friday recap.
 
-Usage:
-    ssh cs16 'grep -H "" /opt/cs16/logs/*/L*.log' | \
+Usage (scripts/mirror-logs.sh refreshes data/logs/ from the box first):
+    grep -H "" data/logs/*/L*.log | \
         python3 parse_logs.py --date 2026-08-07
 
 The window defaults to that Friday's slot from data/sessions.json, padded
@@ -11,7 +11,9 @@ called. --from/--to override it.
 
 grep -H prefixes each line with its file path; the logs/<mod>/ dir names
 the game mode, so each map segment comes out tagged (gungame, deathmatch,
-classic, ...). Plain `cat` input still works - mode is just null.
+classic, ...) - PATH_RE matches that dir anywhere in the path, so the local
+archive and the box's own paths both work. Plain `cat` input still works -
+mode is just null.
 
 Times are Sydney local (Australia/Sydney); log timestamps are UTC - the
 script converts. Emits JSON: one entry per map segment played in the

@@ -19,3 +19,6 @@ server/**/addons/yapb/data/train/
 # built web client (apps/web -> server/web via deploy.sh)
 server/web/
 __pycache__/
+
+# season kill-log mirror (scripts/standings.sh) - local only, 50MB+ of churn
+data/logs/
