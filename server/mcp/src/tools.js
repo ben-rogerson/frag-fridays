@@ -8,7 +8,10 @@ import { docker, gameContainer, modOf, psLine, run, sleep } from './exec.js'
 
 const GAME_ORIGIN = process.env.GAME_ORIGIN ?? 'http://host.docker.internal:27016'
 const ROOT = '/opt/cs16'
-const MOD_DIRS = ['gg', 'dm', 'zp'] // per-mod compose projects; vanilla lives in ROOT
+// per-mod compose projects; vanilla lives in ROOT. Every mod that can hold
+// 27016 must be listed - swap_mod's teardown loop reads this, and a mod
+// missing here keeps the port and fails the swap.
+const MOD_DIRS = ['gg', 'dm', 'zp', 'aim']
 
 const text = (t) => ({ content: [{ type: 'text', text: t }] })
 const errText = (t) => ({ content: [{ type: 'text', text: t }], isError: true })
@@ -84,7 +87,7 @@ export function registerTools(server) {
       title: 'Console command',
       description:
         'Send console commands to the LIVE game server via the cmdpipe (works on ' +
-        'gg/dm only - vanilla and zp have no pipe). Examples: "changelevel de_dust2", ' +
+        'gg/dm/aim only - vanilla and zp have no pipe). Examples: "changelevel de_dust2", ' +
         '"amx_csay green Hello", "amx_votemap de_dust2 fy_iceworld", cvar sets like ' +
         '"yb_quota 6". changelevel does NOT drop players. "restart", "quit", ' +
         '"exit" and "killserver" are blocked - restart segfaults this Xash3D ' +
@@ -107,7 +110,7 @@ export function registerTools(server) {
       const mod = modOf(container)
       if (!CMDPIPE_MODS.has(mod))
         return errText(
-          `Running mod is "${mod}", which has no cmdpipe plugin. Only gg/dm can take console commands remotely.`,
+          `Running mod is "${mod}", which has no cmdpipe plugin. Only gg/dm/aim can take console commands remotely.`,
         )
       let serial
       try {
@@ -217,12 +220,12 @@ export function registerTools(server) {
     {
       title: 'Swap game mod',
       description:
-        'DESTRUCTIVE: swaps the running mod (vanilla/gg/dm/zp). DROPS ALL ' +
+        'DESTRUCTIVE: swaps the running mod (vanilla/gg/dm/aim/zp). DROPS ALL ' +
         'PLAYERS and takes 1-2 minutes (longer on a cold image cache - if the ' +
         'call times out, do NOT retry; check server_status instead). ALWAYS ask ' +
         'the owner before calling this.',
       inputSchema: z.object({
-        mod: z.enum(['vanilla', 'gg', 'dm', 'zp']),
+        mod: z.enum(['vanilla', 'gg', 'dm', 'aim', 'zp']),
         confirm: z.literal(true).describe('Must be true - confirms the owner approved the swap'),
       }),
       annotations: { destructiveHint: true },
