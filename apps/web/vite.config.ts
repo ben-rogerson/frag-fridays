@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react'
 // plays against the real server.
 const GAME_SERVER = 'http://149.28.172.74:27016'
 
+// The war room's API answers on the control-plane container, not the game one.
+// Point this at a local `node src/index.js` (server/mcp, ADMIN_TOKEN set) to
+// work on the panel without touching the live box.
+const ADMIN_API = process.env.ADMIN_API ?? 'http://149.28.172.74:27017'
+
 // FF_PAYLOAD=/path/to/payload.zip serves that file as /valve.zip instead of
 // proxying the box's. A payload layout change is otherwise untestable without
 // building it on the server first and dropping whoever is connected; this
@@ -52,6 +57,8 @@ export default defineConfig({
       '/valve.zip': { target: GAME_SERVER },
       '/info.json': { target: GAME_SERVER },
       '/status.json': { target: GAME_SERVER },
+      // in production the front-door Worker routes /admin-api the same way
+      '/admin-api': { target: ADMIN_API },
     },
   },
 })

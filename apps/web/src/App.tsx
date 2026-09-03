@@ -44,6 +44,7 @@ const NEWS: { label: string; items: string[] }[] = [
   {
     label: "30 aug",
     items: [
+      "three more modes on the card: source maps (cs:s and cs:go remakes), fight yard (fy_ maps only) and sniper (awp and knife) - open them under more game modes",
       "hold tab in-game to see how long the friday session has left - or, before kickoff on the day, how long until it starts",
       "the esc menu now lists your controls - the actual keys you have bound, so nobody has to remember what 1.6 used",
       "esc opens the match menu whether you are fullscreen or not - windowed, it used to just free the mouse and show nothing",
@@ -493,6 +494,7 @@ type ModeEntry = {
   emblem: ModeEmblem;
   pool?: string[];
   bots?: boolean; // the mod fills empty slots with bots
+  fresh?: boolean; // just added - carries a "new" chip until it stops being news
 };
 
 // emblems: one 2.5px-stroke linework family, coloured via currentColor
@@ -525,6 +527,35 @@ const AimEmblem: ModeEmblem = () => (
   </svg>
 );
 
+// Source Maps: one map sheet traced over another - a remake of a map that
+// already existed somewhere else
+const SourceMapsEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M14 5h21v21" />
+    <path d="M5 14h21v21H5z" />
+  </svg>
+);
+
+// Fight Yard: two sides closing on each other inside a walled yard
+const FightYardEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M4 6h32v28H4z" />
+    <path d="M13 14l6 6-6 6" />
+    <path d="M27 14l-6 6 6 6" />
+  </svg>
+);
+
+// Sniper: a scope sitting on a rifle line - deliberately not the DM
+// targeting circle, which has its ticks outside and a filled centre
+const SniperEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <circle cx="27" cy="13" r="7" />
+    <path d="M27 6v14M20 13h14" />
+    <path d="M22 18L6 34" />
+    <path d="M6 27v7h7" />
+  </svg>
+);
+
 const MODES: ModeEntry[] = [
   {
     key: "gungame",
@@ -549,7 +580,7 @@ const MODES: ModeEntry[] = [
       "scoutzknivez",
       "de_rats",
       "de_train",
-      "awp_india",
+      "cs_prospeedball",
       "cs_deagle5",
     ],
   },
@@ -574,7 +605,7 @@ const MODES: ModeEntry[] = [
       "scoutzknivez",
       "de_rats",
       "de_train",
-      "awp_india",
+      "cs_prospeedball",
       "cs_deagle5",
     ],
   },
@@ -605,6 +636,55 @@ const MODES: ModeEntry[] = [
     ],
   },
   {
+    key: "css",
+    // "Source Maps" - keep this ahead of nothing else that matches /source/
+    match: /source/i,
+    name: "Source Maps",
+    blurb: "CS:S and CS:GO maps remade for 1.6",
+    rules: [
+      "pick your guns with /guns",
+      "instant respawn",
+      "cache, mirage and dust2 as 1.6 geometry",
+      "5v5 with bots - one leaves per human",
+    ],
+    emblem: SourceMapsEmblem,
+    bots: true,
+    fresh: true,
+    pool: ["css_dust2_go", "css_mirage_go", "css_cache", "de_bank_csgo", "css_bycastor", "css_deagle"],
+  },
+  {
+    key: "fy",
+    match: /fight\s*yard/i,
+    name: "Fight Yard",
+    blurb: "fy_ maps only - small yards, guns on the floor",
+    rules: [
+      "pick your guns with /guns",
+      "instant respawn",
+      "1 minute rounds - the yards are tiny",
+      "some maps hand out their own floor guns",
+    ],
+    emblem: FightYardEmblem,
+    bots: true,
+    fresh: true,
+    pool: ["fy_iceworld", "fy_desert", "fy_pool_day", "fy_houses", "fy_snow", "fy_nuketown"],
+  },
+  {
+    key: "awp",
+    match: /sniper/i,
+    name: "Sniper",
+    blurb: "AWP and knife, nothing else",
+    rules: [
+      "AWP only - no /guns, no buying",
+      "knife and grenades still work",
+      "instant respawn",
+      "5v5 with bots - one leaves per human",
+    ],
+    emblem: SniperEmblem,
+    bots: true,
+    fresh: true,
+    pool: ["awp_city", "awp_dust", "awp_sunburn"],
+  },
+  {
     key: "classic",
     match: /classic|vanilla/i,
     name: "Classic",
@@ -622,7 +702,7 @@ const MODES: ModeEntry[] = [
       "de_cbble",
       "de_nuke",
       "de_train",
-      "awp_india",
+      "cs_prospeedball",
       "cs_deagle5",
     ],
   },
@@ -726,7 +806,14 @@ function stageLabel(stage: Stage): string {
 // controls for the handful of settings worth changing outside the game.
 // `quote` is for values with spaces (an rgb triplet): the console needs them
 // quoted, everything in here compares and displays them bare.
-type ControlBase = { cvar: string; label: string; def: string; quote?: boolean };
+type ControlBase = {
+  cvar: string;
+  label: string;
+  def: string;
+  quote?: boolean;
+  // a caveat the player needs BEFORE picking, printed under the control
+  note?: string;
+};
 type Control = ControlBase &
   (
     | { kind: "range"; min: number; max: number; step: number; percent?: boolean }
@@ -804,6 +891,35 @@ const CONTROLS: Control[] = [
       { value: "255 255 255 255", label: "white" },
     ],
   },
+  {
+    // The browser canvas draws at native window resolution, so 1.6's stock HUD
+    // text is tiny on a laptop screen. Shipping a bigger one for everybody was
+    // tried and reverted (userconfig.cfg, 2026-08-21): the vgui-less scoreboard
+    // scales its text with this cvar but lays rows out at fixed unscaled
+    // spacing, so ANY value above 1 overlaps the rows. That is a trade a
+    // player can make for themselves, so it lives here with the cost spelled
+    // out rather than in the shipped config.
+    //
+    // 1.5 is a half-step in size and a whole-step in softness: the font is a
+    // GL-stretched bitmap, so only integer scales land on texel boundaries.
+    // It stays because the jump from 1 to 2 is a big one on a small laptop
+    // screen, and soft-but-readable beats tiny - but it is the pick that
+    // looks worst, so it is offered, not defaulted.
+    //
+    // FWGS extension, present in this build's engine. The saved diff replays
+    // after main() and before `connect`, and the HUD builds its fonts at
+    // connect, so a pick here is live for the whole session.
+    cvar: "hud_fontscale",
+    label: "hud text size",
+    def: "1",
+    note: "bigger than normal overlaps the scoreboard rows on tab",
+    kind: "choice",
+    options: [
+      { value: "1", label: "normal" },
+      { value: "1.5", label: "medium" },
+      { value: "2", label: "big" },
+    ],
+  },
 ];
 
 const CONTROL_BY_CVAR = new Map(CONTROLS.map((c) => [c.cvar, c]));
@@ -818,9 +934,19 @@ const controlNum = (c: Control, value: string) => {
   return Number.isNaN(n) ? parseFloat(c.def) : n;
 };
 
+// A choice matches on value, not spelling: a saved line comes back however the
+// engine last wrote it, and a number can come back long-hand ("1.500000") or
+// bare ("1.5"). Only both-sides-numeric compares numerically - an rgb triplet
+// is a string and stays one.
+const asNum = (v: string) => (/^-?\d+(\.\d+)?$/.test(v.trim()) ? parseFloat(v) : null);
+const sameValue = (a: string, b: string) => {
+  const [x, y] = [asNum(a), asNum(b)];
+  return x !== null && y !== null ? x === y : a === b;
+};
+
 const showValue = (c: Control, value: string): string => {
   const v = unquote(value);
-  if (c.kind === "choice") return c.options.find((o) => o.value === v)?.label ?? v;
+  if (c.kind === "choice") return c.options.find((o) => sameValue(o.value, v))?.label ?? v;
   const n = parseFloat(v);
   if (Number.isNaN(n)) return v;
   return c.percent ? `${Math.round(n * 100)}%` : tidy(n);
@@ -850,7 +976,8 @@ const SettingsPanel: FC = () => {
   const savedValue = (c: Control) => saved.find((s) => s.key === c.cvar)?.value;
 
   const set = (c: Control, value: string) => {
-    const same = c.kind === "choice" ? value === c.def : controlNum(c, value) === parseFloat(c.def);
+    const same =
+      c.kind === "choice" ? sameValue(value, c.def) : controlNum(c, value) === parseFloat(c.def);
     setSavedCvar(c.cvar, same ? null : c.quote ? `"${value}"` : value);
     reread();
   };
@@ -940,7 +1067,7 @@ const SettingsPanel: FC = () => {
                 ) : (
                   <span className="tweak__choices" role="group" aria-label={c.label}>
                     {c.options.map((o) => {
-                      const on = unquote(value) === o.value;
+                      const on = sameValue(unquote(value), o.value);
                       return (
                         <button
                           type="button"
@@ -964,6 +1091,7 @@ const SettingsPanel: FC = () => {
                     })}
                   </span>
                 )}
+                {c.note && <p className="tweak__note">{c.note}</p>}
               </div>
             );
           })}
@@ -1689,6 +1817,7 @@ const App: FC = () => {
                       <div className="card__herotext">
                         <p className="card__name">
                           {liveMode?.name ?? modeInfo.mode}
+                          {liveMode?.fresh && <span className="newbadge">new</span>}
                           {liveMode?.bots && <span className="botbadge">bots</span>}
                         </p>
                         {modeInfo.tagline && <p className="card__tagline">{modeInfo.tagline}</p>}
@@ -1762,6 +1891,7 @@ const App: FC = () => {
                         </span>
                         <span className="rotation__name">
                           {m.name}
+                          {m.fresh && <span className="newbadge">new</span>}
                           {m.bots && <span className="botbadge">bots</span>}
                         </span>
                         <span className="rotation__blurb">{m.blurb}</span>

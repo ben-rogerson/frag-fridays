@@ -27,6 +27,9 @@
   --mode-gungame: #ff9d1e;
   --mode-dm: #ff4d5e;
   --mode-aim: #a86bff;
+  --mode-css: #2ee6d6; /* Source Maps: source-engine cyan */
+  --mode-fy: #4ade80; /* Fight Yard: yard green */
+  --mode-awp: #5b9dff; /* Sniper: scope-glass blue */
 }
 
 /* selecting text picks up whatever the mode is broadcasting - ::selection
@@ -108,6 +111,48 @@
   --accent-rgb: 168 107 255;
   --accent-hot-rgb: 196 154 255;
   --accent-edge-dark-rgb: 91 43 163;
+}
+
+/* Source Maps: source-engine cyan - familiar ground, rebuilt */
+.overlay[data-mode="css"],
+.pause[data-mode="css"],
+.slotclock[data-mode="css"] {
+  --accent: var(--mode-css);
+  --accent-hot: #6ef5e9;
+  --accent-deep: #16b3a6;
+  --accent-edge-light: #b6fdf6;
+  --accent-edge-dark: #0d6f66;
+  --accent-rgb: 46 230 214;
+  --accent-hot-rgb: 110 245 233;
+  --accent-edge-dark-rgb: 13 111 102;
+}
+
+/* Fight Yard: yard green - grass, fences, close quarters */
+.overlay[data-mode="fy"],
+.pause[data-mode="fy"],
+.slotclock[data-mode="fy"] {
+  --accent: var(--mode-fy);
+  --accent-hot: #86efac;
+  --accent-deep: #22a55b;
+  --accent-edge-light: #c6f7d8;
+  --accent-edge-dark: #14653b;
+  --accent-rgb: 74 222 128;
+  --accent-hot-rgb: 134 239 172;
+  --accent-edge-dark-rgb: 20 101 59;
+}
+
+/* Sniper: scope-glass blue - cold, long, one shot */
+.overlay[data-mode="awp"],
+.pause[data-mode="awp"],
+.slotclock[data-mode="awp"] {
+  --accent: var(--mode-awp);
+  --accent-hot: #93bcff;
+  --accent-deep: #2f6fdb;
+  --accent-edge-light: #ccdeff;
+  --accent-edge-dark: #1d4485;
+  --accent-rgb: 91 157 255;
+  --accent-hot-rgb: 147 188 255;
+  --accent-edge-dark-rgb: 29 68 133;
 }
 
 .overlay[data-tier="matchday"] {
@@ -1123,8 +1168,10 @@
 }
 
 /* "bots" chip - flags modes that fill empty slots with bots, so a quiet
-   server still reads as playable; sits inline after the mode name */
-.botbadge {
+   server still reads as playable; sits inline after the mode name.
+   The "new" chip borrows its geometry so the two sit as one pair. */
+.botbadge,
+.newbadge {
   display: inline-block;
   margin-left: 0.55em;
   padding: 0.1em 0.45em;
@@ -1136,6 +1183,15 @@
   color: var(--accent);
   border: 1px solid rgb(var(--accent-rgb) / 0.45);
   text-shadow: none;
+}
+
+/* "new" chip - filled where the bots chip is outlined, so on a row carrying
+   both the recent mode is the one that reads first. Drop `fresh` from the
+   mode once it is no longer news. */
+.newbadge {
+  color: var(--ink-deep);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .card__tagline {
@@ -1265,6 +1321,18 @@
   --row-accent: var(--mode-aim);
 }
 
+.rotation__item[data-mode="css"] {
+  --row-accent: var(--mode-css);
+}
+
+.rotation__item[data-mode="fy"] {
+  --row-accent: var(--mode-fy);
+}
+
+.rotation__item[data-mode="awp"] {
+  --row-accent: var(--mode-awp);
+}
+
 .rotation__row:hover .rotation__emblem,
 .rotation__item--open .rotation__emblem {
   color: var(--row-accent, var(--accent));
@@ -1331,6 +1399,12 @@
 .rotation__item .botbadge {
   color: var(--row-accent, var(--accent));
   border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 45%, transparent);
+}
+
+.rotation__item .newbadge {
+  color: var(--ink-deep);
+  background: var(--row-accent, var(--accent));
+  border-color: var(--row-accent, var(--accent));
 }
 
 .rotation__poollabel {
@@ -2544,6 +2618,15 @@ th.standings__num {
 
 .tweak--set .tweak__value {
   color: var(--accent);
+}
+
+/* a cost the player should read before picking, not after - sits under the
+   control, quieter than the label above it */
+.tweak__note {
+  margin-top: 0.3rem;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: var(--text-faint);
 }
 
 /* wraps rather than overflowing: a five-swatch colour row or a three-word

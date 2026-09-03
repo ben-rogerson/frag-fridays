@@ -1,0 +1,14 @@
+// overview description file for fy_nuketown.bsp
+
+ global 
+ {
+ ZOOM 2.11
+ ORIGIN -214.19 -18.44 128
+ ROTATED 0
+ }
+
+ layer 
+ {
+ IMAGE "overviews/fy_nuketown.bmp"
+ HEIGHT -289
+ }

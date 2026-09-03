@@ -25,7 +25,7 @@ How the VPS was built, so it can be rebuilt from nothing. The player URL is
 | ----- | --------- | ------------------------------------ |
 | 22    | tcp       | SSH - restrict to admin IP only      |
 | 27016 | tcp       | Player URL / game server             |
-| 27017 | tcp       | MCP control plane (`server/mcp`)     |
+| 27017 | tcp       | Control plane (`server/mcp`): MCP + admin API |
 | 27018 | tcp + udp | Game networking                      |
 
 This table is the **Vultr cloud firewall** (dashboard). The box's own ufw
@@ -35,6 +35,27 @@ ufw's). Two consequences: opening a new containerised service means a Vultr
 rule plus a compose `ports:` entry, no ufw change; and anything run with
 `network_mode: host` or outside Docker WOULD be blocked by ufw. Trap noted
 here because it looks exactly like a misconfigured firewall from the outside.
+
+### Control-plane secrets (`/opt/cs16/mcp.env`)
+
+Box-only, never in the repo, `chmod 600`. Two independent secrets - the
+container reads both at boot and refuses to start without the first:
+
+```
+MCP_SECRET=<64 hex>    # rides the /mcp/<secret> URL - the claude.ai connector
+ADMIN_TOKEN=<64 hex>   # x-ff-admin header - the /#/warroom panel
+```
+
+Create or top up without clobbering the other line:
+
+```bash
+ssh cs16 'umask 177 && printf "ADMIN_TOKEN=%s\n" "$(openssl rand -hex 32)" >> /opt/cs16/mcp.env'
+ssh cs16 'cd /opt/cs16/mcp && docker compose up -d'
+```
+
+Without `ADMIN_TOKEN` the admin routes are simply not mounted (the panel's
+API 404s and the container says so in its boot log) - which is also how you
+turn the war room off.
 
 ## 3. Docker and the 32-bit image check
 

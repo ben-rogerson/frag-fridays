@@ -734,3 +734,33 @@ lines were previously going nowhere - the xash3d-fwgs wrapper installs its own
 Next occurrence, the tail says whether it was a join, a changelevel or
 mid-round, which separates "spawn-window race" from "precache/model-index rot"
 (see the MAX_MODELS leak above).
+
+## Map boot-tests: `timeout` makes every map look like it segfaults
+
+Boot-testing a new map with `timeout N docker run ...` ends the log with
+`Crash: signal 11 ... Sys_Crash (crash_posix.c:59)` and
+`runtime.cgocallback`. It is not the map. `timeout` sends SIGTERM, the engine
+logs `caught signal 15` -> `Server shutdown`, and the Go wrapper then faults
+on the way out. The crash lines always sit AFTER those two, so read the order
+before blaming the bsp.
+
+Two things make this easy to misread: the trace looks identical to a real
+sim crash, and a control run on a known-good map may *not* reproduce it if
+SIGTERM lands while that map is still loading (big maps like de_dust2 take
+>60s to reach steady play, so a short control proves nothing).
+
+Test the shutdown path instead - pipe a graceful `quit` and check the exit
+code, which also gives a clean kill count:
+
+```bash
+ssh cs16 '( sleep 100; echo "quit" ) | timeout 140 docker run -i --rm --platform linux/386 \
+  --entrypoint ./xash \
+  -v /opt/cs16/cs/cstrike/maps:/xashds/cstrike/custom/maps:ro \
+  -v /opt/cs16/cs/cstrike/models:/xashds/cstrike/custom/models:ro \
+  dm-xash3d:latest +ip 0.0.0.0 -port 27015 -game cstrike +maxplayers 12 "+map <map>"'
+```
+
+`exit=0` with zero `signal 11` means the map is clean. Cross-check `/cores`
+(empty = no real segfault has happened) and the live container's
+`RestartCount`. Note `--entrypoint ./xash` is needed at all because
+entrypoint.sh shuffles mapcycle.txt and strips any `+map` you pass.

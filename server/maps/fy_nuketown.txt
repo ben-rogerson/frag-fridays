@@ -1,0 +1,18 @@
+Nuketown - Fight Yard
+by Tommy (http://www.youtube.com/user/T0mmyPL)
+vehicles prefabs by Corvalho and Milburn
+
+Background: Nuclear testing grounds.
+Lots of fast paced action. The map is
+based on a typical U.S. suburb used to
+demonstrate the effects of a nuclear
+weapon on a residential area.
+Nuketown is a small map.
+
+Counter-Terrorists: Eliminate all
+Terrorist team.
+
+Terrorists: Eliminate all
+Counter-Terrorists team.
+
+Other Notes: Have Fun :)

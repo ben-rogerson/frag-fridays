@@ -1,0 +1,533 @@
+/* ============================================================
+   War room - the back of house for the matchday page. Same
+   navy/acid palette and bevelled chrome (tokens come from
+   App.css), but flatter and denser: every control here is a
+   button that changes a live server, so nothing glows for
+   decoration and the destructive ones read as switches.
+   ============================================================ */
+
+.war {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: linear-gradient(165deg, var(--ink) 0%, var(--ink-deep) 60%, #060a16 100%);
+  color: var(--text);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.war--gate {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* --- the gate ---------------------------------------------------------- */
+
+.gate {
+  width: min(24rem, 100%);
+}
+
+.gate__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.gate__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-mute);
+}
+
+.join--war {
+  font-size: 0.85rem;
+  padding: 0.6rem 1rem;
+  --accent: var(--acid);
+  --accent-hot: var(--acid-hot);
+  --accent-deep: #b8c313;
+  --accent-edge-light: #f4ff3d;
+  --accent-edge-dark: #8d9410;
+}
+
+.join--war:disabled {
+  filter: grayscale(0.7) brightness(0.7);
+  cursor: not-allowed;
+}
+
+/* --- header ------------------------------------------------------------ */
+
+.war__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--bevel-light);
+}
+
+.war__title h1 {
+  font-family: "Black Ops One", Tahoma, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--acid);
+  text-transform: uppercase;
+}
+
+.war__eyebrow {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--text-faint);
+  margin-bottom: 0.25rem;
+}
+
+.war__live {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--text-mute);
+}
+
+.war__mod {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.war__sep {
+  color: var(--bevel-light);
+}
+
+.war__headbtns {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.war__ghost {
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  color: var(--text-mute);
+  background: transparent;
+  border: 1px solid var(--bevel-light);
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+.war__ghost:hover {
+  color: var(--text);
+  border-color: var(--acid);
+}
+
+/* --- banners ----------------------------------------------------------- */
+
+.war__warn,
+.war__job {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  padding: 0.55rem 0.7rem;
+  border-left: 3px solid var(--alert);
+  background: rgb(255 107 87 / 0.08);
+  color: var(--text);
+}
+
+.war__job {
+  border-left-color: var(--acid);
+  background: rgb(220 232 30 / 0.08);
+}
+
+.war__job--ok {
+  border-left-color: var(--live);
+  background: rgb(75 227 129 / 0.08);
+}
+
+.war__job--bad {
+  border-left-color: var(--alert);
+  background: rgb(255 107 87 / 0.08);
+}
+
+/* --- the grid ---------------------------------------------------------- */
+
+.war__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 0.8rem;
+  align-content: start;
+  padding-bottom: 1.5rem;
+}
+
+.war__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem;
+}
+
+.war__hint {
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.war__empty {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.war__error {
+  font-size: 0.72rem;
+  color: var(--alert);
+}
+
+/* --- controls ---------------------------------------------------------- */
+
+.war__btn {
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  background: linear-gradient(180deg, #24396b 0%, #182a52 100%);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+  transition:
+    filter 0.12s,
+    color 0.12s;
+}
+
+.war__btn:hover:not(:disabled) {
+  filter: brightness(1.25);
+}
+
+.war__btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.war__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.war__btn--go {
+  color: var(--ink-deep);
+  background: linear-gradient(180deg, var(--acid-hot) 0%, var(--acid) 55%, #b8c313 100%);
+  border-color: #f4ff3d;
+  border-bottom-color: #8d9410;
+  border-right-color: #8d9410;
+}
+
+.war__btn--slim {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.62rem;
+}
+
+.war__btn--step {
+  width: 2.2rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+/* armed: one tap from dropping players, so it says so in alert red and
+   disarms itself after five seconds of second thoughts */
+.war__btn--armed {
+  color: var(--ink-deep);
+  background: linear-gradient(180deg, #ff8f7e 0%, var(--alert) 60%, #d94a38 100%);
+  border-color: #ff8f7e;
+  border-bottom-color: #a8341f;
+  border-right-color: #a8341f;
+  animation: war-armed 1s steps(2, end) infinite;
+}
+
+@keyframes war-armed {
+  50% {
+    filter: brightness(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .war__btn--armed {
+    animation: none;
+  }
+}
+
+.war__input {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  caret-color: var(--acid);
+  background: #0a1226;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.55);
+  padding: 0.55rem 0.6rem;
+  outline: none;
+  min-width: 0;
+  flex: 1 1 8rem;
+}
+
+.war__input:focus {
+  border-color: var(--acid);
+}
+
+.war__input--mono {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.war__row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.war__row--split > * {
+  flex: 1 1 0;
+}
+
+.war__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.war__chip {
+  font: inherit;
+  font-size: 0.65rem;
+  color: var(--text-mute);
+  background: transparent;
+  border: 1px dashed var(--bevel-light);
+  padding: 0.28rem 0.5rem;
+  cursor: pointer;
+}
+
+.war__chip:hover:not(:disabled) {
+  color: var(--acid);
+  border-color: var(--acid);
+}
+
+.war__chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- players ----------------------------------------------------------- */
+
+.war__players {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bevel-dark);
+  border: 1px solid var(--bevel-dark);
+}
+
+.war__player {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: #0f1a35;
+  font-size: 0.78rem;
+}
+
+.war__pname {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.war__bot {
+  margin-left: 0.4rem;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  border: 1px solid var(--bevel-light);
+  padding: 0 0.25rem;
+}
+
+.war__frags {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-mute);
+}
+
+/* --- bots -------------------------------------------------------------- */
+
+.war__stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.war__quota {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.6rem;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--acid);
+  background: #0a1226;
+  border: 1px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.55);
+}
+
+.war__stepper .war__btn--go {
+  flex: 1 1 auto;
+}
+
+/* --- maps -------------------------------------------------------------- */
+
+.war__maps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 2px;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.war__map {
+  font: inherit;
+  font-size: 0.72rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  text-align: left;
+  color: var(--text);
+  background: #0f1a35;
+  border: 1px solid var(--bevel-dark);
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+
+.war__map:hover:not(:disabled) {
+  border-color: var(--acid);
+  color: var(--acid);
+}
+
+.war__map:disabled {
+  cursor: default;
+}
+
+.war__map--live {
+  border-color: var(--live);
+  color: var(--live);
+  opacity: 1;
+}
+
+.war__now {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--live);
+  white-space: nowrap;
+}
+
+/* --- modes ------------------------------------------------------------- */
+
+.war__modes {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bevel-dark);
+  border: 1px solid var(--bevel-dark);
+}
+
+.war__mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: #0f1a35;
+}
+
+.war__mode--live {
+  background: #14224a;
+}
+
+.war__modename {
+  font-size: 0.78rem;
+}
+
+/* --- feed -------------------------------------------------------------- */
+
+.war__feed {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.war__feedline {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-mute);
+}
+
+.war__feedline--bad {
+  color: var(--alert);
+}
+
+.war__feedtime {
+  margin-right: 0.45rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.war__ps {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: var(--text-faint);
+  word-break: break-all;
+}
+
+@media (max-width: 30rem) {
+  .war {
+    padding: 0.6rem;
+  }
+
+  .war__headbtns {
+    margin-left: 0;
+  }
+}
+
+/* bots have no kick button - hold the column so their rows still line up */
+.war__botpad {
+  width: 3.1rem;
+}

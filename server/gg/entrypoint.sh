@@ -3,8 +3,8 @@
 # pool in a fresh order, then boot into the first shuffled map. Any +map arg
 # from docker-compose is dropped in favour of that entry.
 #
-# Identical copies live in gg/, dm/ and aim/ (each mod's build context is its
-# own dir). This replaces the base image's static entrypoint - keep the
+# Identical copies live in gg/, dm/, aim/, css/, fy/ and awp/ (each mod's build
+# context is its own dir). This replaces the base image's static entrypoint - keep the
 # ./xash args below in sync with it:
 #   docker inspect yohimik/cs-web-server-metpamx --format '{{json .Config.Entrypoint}}'
 set -euo pipefail
