@@ -38,6 +38,16 @@ type Job = {
   ok: boolean | null;
   message: string | null;
 };
+// web/assets/session.json, the file the front page's countdown reads.
+// `scheduled` is only there once the war room has moved the kickoff: it holds
+// the time to put back (null where there was no file to start with).
+type Session = {
+  date: string;
+  hour: number;
+  minute: number;
+  end?: string;
+  scheduled?: { hour: number; minute: number; end: string | null } | null;
+};
 type State = {
   container: string;
   ps: string;
@@ -48,6 +58,7 @@ type State = {
   maps: string[];
   mods: string[];
   job: Job | null;
+  session: Session | null;
 };
 
 // mod key -> what it is called on the site, so the panel and the front page
@@ -69,6 +80,17 @@ const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
 class AuthError extends Error {}
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+// the front page's own way of writing a kickoff: "1.30 pm", "2 pm"
+const timeLabel = (hour: number, minute: number) =>
+  `${hour % 12 || 12}${minute ? `.${String(minute).padStart(2, "0")}` : ""} ${hour < 12 ? "am" : "pm"}`;
+
+// session.json writes the slot's end as "15:00"; say it the same way as the
+// kickoff so a panel line never reads in two clocks at once
+const endLabel = (end: string | undefined) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(end ?? "");
+  return m ? timeLabel(Number(m[1]), Number(m[2])) : null;
+};
 
 // YaPB names its bots "[BOT] Ivan"; the row already carries a bot chip, so the
 // prefix is noise here. The real name is what gets sent to the console.
@@ -266,6 +288,10 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
   const bots = status?.players.filter((p) => p.bot) ?? [];
   const busy = Boolean(pending) || jobRunning;
   const teams = Boolean(state && TEAM_MODS.includes(state.mod));
+  const session = state?.session ?? null;
+  // the kickoff has been moved iff the file carries what to put back
+  const early = Boolean(session && session.scheduled !== undefined);
+  const scheduled = session?.scheduled ?? null;
 
   return (
     <div className="war">
@@ -348,6 +374,50 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               </li>
             ))}
           </ul>
+        </Panel>
+
+        <Panel title="Session" note={early ? "started early" : "the site's countdown"}>
+          <p className="war__hint war__hint--lead">
+            {!session
+              ? "No session file on the box: the site is counting down to its default Friday slot."
+              : early
+                ? `Kickoff moved to ${timeLabel(session.hour, session.minute)}${
+                    endLabel(session.end) ? `, slot ends ${endLabel(session.end)}` : ""
+                  }. The front page reads LIVE NOW.`
+                : `Kickoff ${timeLabel(session.hour, session.minute)}${
+                    endLabel(session.end) ? `, slot ends ${endLabel(session.end)}` : ""
+                  }. The front page is counting down to it.`}
+          </p>
+          {early ? (
+            <button
+              type="button"
+              className="war__btn"
+              disabled={busy}
+              onClick={() =>
+                act("sessionrestore", "/session/restore", {}, "Countdown back on schedule")
+              }
+            >
+              {pending === "sessionrestore"
+                ? "..."
+                : scheduled
+                  ? `Back to ${timeLabel(scheduled.hour, scheduled.minute)}`
+                  : "Back to the scheduled time"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="war__btn war__btn--go"
+              disabled={busy}
+              onClick={() => act("sessionstart", "/session/start", {}, "Session started early")}
+            >
+              {pending === "sessionstart" ? "Starting..." : "Start now"}
+            </button>
+          )}
+          <p className="war__hint">
+            Starts the session on the site, not on the server - nobody is dropped and the box has
+            been up all week. Pages already open pick it up within half a minute. Only Fridays: the
+            countdown has no other day to point at.
+          </p>
         </Panel>
 
         <Panel title="Teams" note={!state ? "offline" : teams ? "sides and headcount" : "not in this mode"}>

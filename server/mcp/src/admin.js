@@ -17,11 +17,14 @@ import { Router } from 'express'
 import {
   ActionError,
   mapcycle,
+  readSession,
   rebalanceTeams,
   requirePipe,
   restartServer,
+  restoreSession,
   runCommands,
   serverState,
+  startSessionNow,
   swapMod,
   swapTeams,
 } from './actions.js'
@@ -170,7 +173,7 @@ export function adminRouter() {
   // the live rotation, and whatever background job is in flight.
   router.get('/state', handle(async () => {
     const state = await serverState()
-    return { ...state, maps: await mapcycle(), mods: MODS, job }
+    return { ...state, maps: await mapcycle(), mods: MODS, job, session: readSession() }
   }))
 
   // Cheap "is my token good" for the login gate, and the only route that is
@@ -246,6 +249,22 @@ export function adminRouter() {
     log('command', command)
     const { serial, output } = await runCommands([command])
     return { ok: true, detail: `sent #${serial}`, output }
+  }))
+
+  // The site's countdown, not the game: starting early moves the kickoff in
+  // web/assets/session.json to now, which is what flips the front page from
+  // "next session" to LIVE NOW. Nothing here touches the server - the box has
+  // been up all week - so it is safe mid-round and needs no arming.
+  router.post('/session/start', handle(async () => {
+    log('session', 'start now')
+    const { kickoff, end } = startSessionNow()
+    return ok(`live from ${kickoff}, slot ends ${end}`)
+  }))
+
+  router.post('/session/restore', handle(async () => {
+    log('session', 'restore')
+    const { kickoff } = restoreSession()
+    return ok(kickoff ? `back to ${kickoff}` : 'back to the default time')
   }))
 
   router.post('/mode', handle(async (req) => {

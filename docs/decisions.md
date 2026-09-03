@@ -818,6 +818,21 @@ Choices worth recording:
   first tap ("Drop everyone?") and disarm after five seconds. Not a native
   `confirm()`: a modal dialog freezes the page the game engine is served
   next to.
+- **Starting early moves the kickoff, it does not hide the clock (2026-09-03).**
+  Sessions sometimes start before the scheduled time, and a countdown still
+  ticking over a session in progress is wrong. The obvious fix - a switch
+  that blanks the counter cells - would have left the rest of the page
+  lying: still "next session", still PRACTICE in the server browser, still
+  "warm up" on the join button, because all of those read the same clock. So
+  START NOW rewrites `web/assets/session.json` with the kickoff at this
+  minute (keeping the slot's end) and the page's existing "kickoff already
+  past = live until the end" rule does the rest, in one place. The original
+  time rides along in a `scheduled` key so BACK TO 2.30 PM is a rewrite and
+  not a guess, and the page ignores keys it does not know. Fridays only: the
+  clock counts to Fridays, so a file dated anything else is one the page
+  ignores - a dead button. The page also re-reads that file every 30s now,
+  because the useful case is the phone in someone's hand changing what the
+  page in front of everyone else says.
 
 ## Three map-pool modes: Source Maps, Fight Yard, Sniper (2026-08-30)
 
