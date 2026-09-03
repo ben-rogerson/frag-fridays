@@ -28,6 +28,16 @@ restarts the running mod. Players must hard-refresh the browser tab to fetch
 the new zip. (`pnpm run deploy` alone only installs the config into the game
 files tree - players won't see it.)
 
+**Deploy runs from a clean `main` only.** The syncs use `--delete`, so
+deploying any other tree doesn't merely skip what that tree lacks - it
+removes it from the box (this is how the war room went dead). Both the
+branch and the dirty-tree check refuse before anything is touched; merge to
+`main` first. `CS16_DEPLOY_FORCE=1 pnpm run deploy` skips them, for an
+emergency where a fix cannot wait on a merge. `pnpm run swap` and
+`pnpm run clientcfg` both call deploy.sh, so they are gated by it too -
+worth knowing on a Friday, when a mod swap from a half-finished tree now
+refuses instead of shipping it.
+
 ## 2. The three Slack messages
 
 Generate the text with the `/friday-posts` skill - it checks the live

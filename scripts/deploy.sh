@@ -6,6 +6,10 @@
 #   scripts/deploy.sh gg         # sync, then swap the running mod to gg
 #   scripts/deploy.sh vanilla    # sync, then swap to vanilla (root compose profile)
 #
+# Runs from a clean main only - the syncs use --delete, so deploying any other
+# tree removes from the box whatever that tree is missing. CS16_DEPLOY_FORCE=1
+# skips both checks for an emergency.
+#
 # The VPS keeps the copyrighted game files (/opt/cs16/cs) and the built
 # valve.zip archives - this script never touches them. It only syncs compose
 # files, Dockerfiles, addon sources and configs, then rebuilds and restarts
@@ -28,6 +32,24 @@ log() { printf '\033[1;36m[deploy]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[deploy]\033[0m %s\n' "$*" >&2; exit 1; }
 
 # --- preflight ---------------------------------------------------------------
+# main only. The syncs below run --delete, so a deploy from a branch that
+# doesn't have some feature yet doesn't just skip it - it wipes it off the
+# box (the war room went dead exactly this way). main is the one tree that
+# has everything, so it is the only tree allowed to push.
+# Uncommitted work is the same hazard in reverse: what ships is the working
+# TREE, not the commit, so anything half-done rides along, and the next
+# deploy from a clean main silently reverts it.
+# Both checks are off in a genuine emergency: CS16_DEPLOY_FORCE=1 pnpm run deploy
+if [[ "${CS16_DEPLOY_FORCE:-}" != "1" ]]; then
+  BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
+  [[ -n "$BRANCH" ]] || die "not a git checkout - refusing to deploy (CS16_DEPLOY_FORCE=1 overrides)"
+  [[ "$BRANCH" == "main" ]] \
+    || die "on branch '$BRANCH' - deploy runs from main only, or the --delete syncs wipe whatever main has and this branch doesn't. Merge to main first (CS16_DEPLOY_FORCE=1 overrides)."
+  [[ -z "$(git -C "$REPO_ROOT" status --porcelain)" ]] \
+    || die "working tree is dirty - commit or stash first, so the box matches main (CS16_DEPLOY_FORCE=1 overrides):
+$(git -C "$REPO_ROOT" status --short)"
+fi
+
 if [[ -n "$MOD" && "$MOD" != "vanilla" ]]; then
   [[ " ${DIR_MODS[*]} " == *" $MOD "* ]] || die "unknown mod '$MOD' (expected: vanilla ${DIR_MODS[*]})"
   [[ -f "$SERVER_DIR/$MOD/docker-compose.yml" ]] \
