@@ -2514,6 +2514,14 @@ th.standings__num {
   gap: 0.7rem 1.1rem;
 }
 
+/* a grid track sizes to its widest content unless told otherwise, so a row of
+   picks that does not fit its column widens the track and pushes the whole
+   grid out through the panel border - the cell has to be allowed to be
+   narrower than what is in it before the wrapping below can do anything */
+.tweak {
+  min-width: 0;
+}
+
 .tweak__head {
   display: flex;
   align-items: baseline;
@@ -2538,8 +2546,11 @@ th.standings__num {
   color: var(--accent);
 }
 
+/* wraps rather than overflowing: a five-swatch colour row or a three-word
+   pick group is wider than a 190px column on a narrow window */
 .tweak__choices {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.3rem;
 }
 
@@ -2577,8 +2588,10 @@ th.standings__num {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
 }
 
+/* tight enough that all five colours fit one line at the grid's narrowest
+   column (190px); they wrap rather than overflow below that */
 .chip--pick:has(.chip__swatch) {
-  padding: 0.3rem 0.35rem;
+  padding: 0.3rem;
 }
 
 /* sunken track, raised accent slug - the page's own chrome, not the OS slider */

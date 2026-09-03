@@ -735,6 +735,9 @@ type Control = ControlBase &
 
 // `def` must match what server/config/userconfig.cfg ships: a control moved
 // back to it drops the override instead of pinning today's default forever.
+// Sliders run first, then the pick-one controls: the grid fills row by row,
+// so grouping by shape keeps every row one kind of dial instead of stepping
+// between a track and a row of chips at every column.
 const CONTROLS: Control[] = [
   {
     cvar: "sensitivity",
@@ -744,6 +747,28 @@ const CONTROLS: Control[] = [
     min: 0.5,
     max: 4,
     step: 0.1,
+  },
+  {
+    // scoped aim (awp, scout) relative to the hip sensitivity above
+    cvar: "zoom_sensitivity_ratio",
+    label: "zoom sensitivity",
+    def: "1.0",
+    kind: "range",
+    min: 0.5,
+    max: 2,
+    step: 0.05,
+  },
+  { cvar: "xhair_size", label: "crosshair size", def: "2", kind: "range", min: 1, max: 6, step: 1 },
+  { cvar: "brightness", label: "brightness", def: "1", kind: "range", min: 0, max: 3, step: 0.1 },
+  {
+    cvar: "volume",
+    label: "game volume",
+    def: "0.8",
+    kind: "range",
+    min: 0,
+    max: 1,
+    step: 0.05,
+    percent: true,
   },
   {
     cvar: "cl_righthand",
@@ -761,7 +786,6 @@ const CONTROLS: Control[] = [
       { value: "1", label: "right" },
     ],
   },
-  { cvar: "xhair_size", label: "crosshair size", def: "2", kind: "range", min: 1, max: 6, step: 1 },
   {
     // the code-drawn crosshair cs16-client actually uses; the stock sprite
     // fallback (cl_crosshair_color) only draws if xhair is unavailable, which
@@ -779,27 +803,6 @@ const CONTROLS: Control[] = [
       { value: "255 40 40 255", label: "red" },
       { value: "255 255 255 255", label: "white" },
     ],
-  },
-  { cvar: "brightness", label: "brightness", def: "1", kind: "range", min: 0, max: 3, step: 0.1 },
-  {
-    // scoped aim (awp, scout) relative to the hip sensitivity above
-    cvar: "zoom_sensitivity_ratio",
-    label: "zoom sensitivity",
-    def: "1.0",
-    kind: "range",
-    min: 0.5,
-    max: 2,
-    step: 0.05,
-  },
-  {
-    cvar: "volume",
-    label: "game volume",
-    def: "0.8",
-    kind: "range",
-    min: 0,
-    max: 1,
-    step: 0.05,
-    percent: true,
   },
 ];
 
