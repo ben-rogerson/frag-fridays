@@ -310,19 +310,33 @@ const parseHHMM = (v: unknown): HourMinute | null => {
 
 let sessionOverride: { date: string; hour: number; minute: number; end: HourMinute | null } | null =
   null;
-fetch("/assets/session.json", { cache: "no-store" })
-  .then((r) => (r.ok ? r.json() : null))
-  .then((j) => {
-    if (j && typeof j.date === "string" && Number.isFinite(j.hour)) {
-      sessionOverride = {
-        date: j.date,
-        hour: j.hour,
-        minute: Number.isFinite(j.minute) ? j.minute : 0,
-        end: parseHHMM(j.end),
-      };
-    }
-  })
-  .catch(() => {}); // no file / bad json -> default time
+
+// Re-read on a slow poll, not just at load: the war room can move tonight's
+// kickoff to now (an early start), and a page already open should flip to
+// LIVE by itself rather than waiting for someone to reload it. A 404 is an
+// answer - the override is gone, fall back to the default slot - but a blip
+// or a bad gateway is not, and keeps whatever we last read.
+const loadSession = () =>
+  fetch("/assets/session.json", { cache: "no-store" })
+    .then((r) => {
+      if (r.status === 404) return null;
+      if (!r.ok) return undefined; // couldn't ask; not an answer
+      return r.json().catch(() => null); // bad json -> default time
+    })
+    .then((j) => {
+      if (j === undefined) return;
+      sessionOverride =
+        j && typeof j.date === "string" && Number.isFinite(j.hour)
+          ? {
+              date: j.date,
+              hour: j.hour,
+              minute: Number.isFinite(j.minute) ? j.minute : 0,
+              end: parseHHMM(j.end),
+            }
+          : null;
+    })
+    .catch(() => {});
+loadSession();
 
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1230,6 +1244,12 @@ const App: FC = () => {
 
   useEffect(() => {
     const t = window.setInterval(() => setClock(sessionClock()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // the kickoff itself can move under an open page - see loadSession
+  useEffect(() => {
+    const t = window.setInterval(loadSession, 30_000);
     return () => window.clearInterval(t);
   }, []);
 

@@ -186,6 +186,14 @@
   color: var(--text-faint);
 }
 
+/* the state line a panel opens with - what is true right now, above the
+   buttons that change it, so it reads before the hint under them */
+.war__hint--lead {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
 .war__empty {
   font-size: 0.75rem;
   color: var(--text-faint);

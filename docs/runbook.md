@@ -145,11 +145,26 @@ one IP locks that IP out for 15 minutes.
 | Panel | Action | Costs players? |
 |---|---|---|
 | On the server | Kick a human by name (engine `kick`) | that player only |
+| Session | Start the session on the site early (moves the kickoff to now) | no, touches no container |
 | Bots | `yb_quota` - the TOTAL headcount YaPB fills to, plus a clear-all | no |
 | Announce | `amx_csay green` centre-screen message | no |
 | Map | `changelevel` to any map in the live rotation | no, stays connected |
 | Mode | Full mod swap - `docker compose` down/build/up | DROPS EVERYONE, 1-2 min |
 | Console | Any console command through the pipe, team rebalance, container restart | restart DROPS EVERYONE |
+
+**Starting early:** if everyone is on and it is not kickoff yet, Session ->
+START NOW rewrites `/opt/cs16/web/assets/session.json` with the kickoff at
+this minute, keeping the slot's scheduled end. The front page stops counting
+down and reads LIVE NOW - the server browser row says LIVE, the join button
+says "join live" - and pages already open follow within 30 seconds without a
+reload. BACK TO <time> puts the scheduled kickoff back. It only offers this
+on Fridays: the site's clock has no other day to point at. The next
+`pnpm run session` overwrites the file, which is the intent - the schedule in
+`data/sessions.json` stays the source of truth and this is one night's
+override. Nothing here reaches the game server: it is a statement about the
+page, and the leaderboards still cut on the slot in `data/sessions.json` - so
+if play really did start half an hour early, widen that week's entry before
+`pnpm run standings`, or the early frags land in the practice table.
 
 Everything except mode and restart runs through the cmdpipe. Every mod hears
 it except **zp**, whose plugin mount is the abandoned template - on that one
