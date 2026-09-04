@@ -1018,12 +1018,33 @@ twenty seconds of a new map the only thing that can take a slot is a person.
 The cost is a visibly thinner server for those twenty seconds, on a
 ten-minute map, with everyone who matters already in it.
 
-**`yb_autovacate_keep_slots` 1 -> 4** in the five 16-player `fill` mods. Four
-landing slots, always. A returning player gets in, `yb_kick_after_player_
-connect` frees a bot slot behind them, and a queue of eight drains instead of
-deadlocking. It is free in normal operation - it implies a 12-player ceiling
-and the quota is 10 - so it only ever bites when the server is genuinely
-near-full, which is precisely when it should.
+**`yb_autovacate_keep_slots` 1 -> 4** in the five 16-player `fill` mods. This
+was written up as "four landing slots, always" and that was wrong; it is
+corrected here rather than quietly edited, because the wrong version is the
+kind of thing a future reader would build on. Measured on the box the next
+day: YaPB computes the reserve as `maxClients - (its own human count +
+keep_slots)`, and a client stalled mid-map-change is not in its human count -
+it is invisible to YaPB for the same reason it is missing from `status.json`.
+The reserve is real (verified: 12 bots against 15 with the quota at the
+ceiling) but it is subtracted from the wrong number for this bug, and the
+incident's own log confirms it - eight bots created then `Maximum players
+reached (16/16)` is only consistent with YaPB reading the server as empty.
+
+It is kept anyway, reframed as what it is: headroom against players the server
+can see, free in normal operation (it implies a 12-player ceiling and the
+quota is 10). It is not the map-change guard.
+
+**`changeMap()` clears the bots when it catches the lockout** - `yb_quota 0` +
+`yb kickall` before it reports the failure. This is the repair that does not
+depend on YaPB's arithmetic: it does not matter whether YaPB can see the
+stalled clients, because taking the bots away frees every slot those clients
+are not themselves holding, and the players' own reloads land in them. It
+fires on one narrow signature (the map came up, there were humans, now there
+are none), it is the same command pair the panel's Clear button already runs,
+and it says loudly in the feed that it has happened. Acting rather than only
+advising is justified here by how the night went: the advice existed - restart
+the server - and it still cost six people a session, because nobody knew which
+advice applied.
 
 `aim` is deliberately excluded from the second change and gets only the join
 delay. It runs `maxplayers 24` with a fixed 16 bots and `yb_autovacate "0"`,
@@ -1036,14 +1057,19 @@ None of this touches the behaviour README.md describes ("bots hold the slots
 and step out one at a time as humans arrive"): with quota 10 under a 12
 ceiling, `fill` mode and autovacate work exactly as before.
 
-The war room's bot fill now stops at `maxplayers - 4` instead of the last
-slot. That is the belt to the reserve's braces, and it earns its place for a
-second reason: `yb_quota` is in `yb_ignore_cvars_on_changelevel`, so a quota
-raised at runtime survives every map change and is never re-read from
-yapb.cfg. The live server was filling to 16 on the night against a config
-that says 10, because someone had raised it at some point and it had stuck.
-A ceiling in the panel is the only place that can be prevented, since the
-file is not authoritative once the container is running.
+The war room's bot fill now stops at `maxplayers - 4` (`- 2` on Classic's 12
+slots, where the reserve is the spare pair rather than four). It earns its
+place for a second reason: `yb_quota` is in
+`yb_ignore_cvars_on_changelevel`, so any non-zero quota raised at runtime
+survives every map change and is never re-read from yapb.cfg (verified
+2026-09-04 - a live `yb_quota 6` came through a changelevel as 6). The panel
+is the only place that can be capped, since the file is not authoritative
+once the container is running.
+
+The one value that is NOT preserved is zero: `config.cpp` special-cases a
+quota of `<= 0` and lets the config value through on changelevel. That is
+what makes the bot clear above safe to leave behind - it heals at the next
+map change instead of leaving a botless server for someone to find later.
 
 `yb_join_delay` and `yb_autovacate_keep_slots` are deliberately NOT added to
 `yb_ignore_cvars_on_changelevel`: being re-read from the file at every

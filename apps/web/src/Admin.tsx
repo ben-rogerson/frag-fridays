@@ -82,19 +82,32 @@ const MOD_LABEL: Record<string, string> = {
 // weight anywhere else (mirrors TEAM_MODS in server/mcp/src/actions.js)
 const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
 
-// Slots the bot fill must leave alone, mirroring yb_autovacate_keep_slots in
-// every mod's yapb.cfg. Filling to the very last slot is what turned a slow
-// map carry-over into a server nobody could rejoin through on 2026-09-04:
-// stalled clients hold their slots for sv_timeout, the bots take the rest, and
-// every reload is refused. yb_quota also survives a changelevel
-// (yb_ignore_cvars_on_changelevel), so a quota pushed to the ceiling once
-// stays there until the container is restarted - which is exactly what had
-// happened that night.
-const BOT_RESERVE = 4;
+// Slots the bot fill leaves alone, mirroring yb_autovacate_keep_slots in every
+// mod's yapb.cfg.
+//
+// Be honest about what this does and does not buy. It reserves room against
+// players the server can SEE, which keeps an ordinary near-full night from
+// having no room for one more person. It does NOT protect against the
+// 2026-09-04 lockout: clients stalled mid-map-change hold engine slots that
+// YaPB does not count, so the quota expands past this reserve into whatever
+// they are not already holding (measured - see docs/troubleshooting.md). The
+// guard for that is yb_join_delay plus changeMap clearing the bots outright.
+//
+// It is still worth setting, and worth setting HERE as well as in yapb.cfg:
+// any non-zero yb_quota survives a changelevel (yb_ignore_cvars_on_changelevel,
+// verified 2026-09-04), so a quota pushed to the ceiling once stays there until
+// the container restarts. The panel is the only place that can be stopped.
+// 4 on the 16-slot modes, 2 on Classic's 12, mirroring their yapb.cfg files.
+// The same number would be the wrong number: Classic's slot count IS its
+// format (10 for the teams plus 2 spare), so reserving 4 there would cap a
+// warm-up fill at 8 and make filling a 5v5 quietly impossible.
+const botReserveFor = (maxplayers: number) => (maxplayers >= 16 ? 4 : 2);
 // 16 is also the API's own ceiling for a fill (server/mcp/src/admin.js), so a
 // bigger server never lets the panel ask for something that would be refused
-const botCapOf = (maxplayers: number | undefined) =>
-  Math.min(16, Math.max(1, (maxplayers ?? 16) - BOT_RESERVE));
+const botCapOf = (maxplayers: number | undefined) => {
+  const slots = maxplayers ?? 16;
+  return Math.min(16, Math.max(1, slots - botReserveFor(slots)));
+};
 
 class AuthError extends Error {}
 
@@ -528,12 +541,13 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
             </button>
           </div>
           <p className="war__hint">
-            {/* the gap is worked out rather than printed as BOT_RESERVE: on a
-                24-slot mod the API's own ceiling of 16 is the binding one and
-                the free slots are 8, not 4 */}
+            {/* the gap is worked out rather than printed from the reserve: on
+                a 24-slot mod the API's own ceiling of 16 is the binding one
+                and the free slots are 8, not 4 */}
             Total players, not bots: each human who joins takes a bot's slot. Stops at {botCap},
             not {status?.maxplayers ?? 16} - the last {(status?.maxplayers ?? 16) - botCap} slots
-            stay free so anyone reloading mid-map-change has somewhere to land.{" "}
+            stay free for people the server can see. A player stuck mid-map-change is not one of
+            them, so this is headroom, not the map-change guard.{" "}
             {quota === 0 ? "Zero means an empty server." : ""}
             {matchMod
               ? " Classic ships zero bots for the 5v5 - a fill lasts until the container restarts, then it is back to zero."

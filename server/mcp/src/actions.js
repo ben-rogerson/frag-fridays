@@ -360,11 +360,42 @@ export async function changeMap(map) {
   await sleep(MAP_SETTLE_MS)
   const after = await statusSnapshot()
   const humansAfter = after.status?.humans ?? 0
-  if (humansAfter === 0)
+  if (humansAfter === 0) {
+    // The lockout, caught in the act - and the one moment it is unambiguous,
+    // so this is where it gets repaired rather than only reported.
+    //
+    // The bots are the door. Stalled clients hold their engine slots for
+    // sv_timeout (600s) and YaPB CANNOT SEE THEM (measured 2026-09-04: its
+    // quota maths counts only clients the game DLL has put in the server, so
+    // it reads the server as empty and expands to fill every slot they are
+    // not already holding). No yb_autovacate_keep_slots value can reserve
+    // against a headcount that does not include them. What does work is
+    // taking the bots out: the slots the stalled clients are NOT holding go
+    // free immediately and the players' own reloads land.
+    //
+    // yb kickall alone would be undone by the quota maintainer within a
+    // second, so the quota has to come down with it. It puts itself back:
+    // YaPB re-reads its config on changelevel and specifically exempts a
+    // quota of zero from yb_ignore_cvars_on_changelevel (config.cpp, "preserve
+    // quota number if it's zero"), so the NEXT map change restores whatever
+    // yapb.cfg says. Measured both ways 2026-09-04: a runtime quota of 6
+    // survived a changelevel, a runtime quota of 0 came back as the config's.
+    // So this opens the doors now and heals itself, with no botless server
+    // left behind for someone to notice on Monday.
+    try {
+      await sendCommands(['yb_quota 0', 'yb kickall'])
+    } catch {
+      // best effort: the message below is still the important part, and a
+      // pipe that refuses this is a pipe the admin needs to know about
+    }
     throw new ActionError(
-      `${map} is up, but all ${humansBefore} players are stuck on the loading screen - they never rejoined, and their slots stay held for 10 minutes while the bots fill the rest, so nobody can get back in either. Restart the server.`,
+      `${map} is up, but all ${humansBefore} players are stuck on the loading screen and never rejoined. ` +
+        'Their slots stay held for 10 minutes, so I have cleared the bots to open the rest of the server - ' +
+        'tell people to reload the page and they will get back in. The bots come back by themselves at the ' +
+        'next map change. Restart the server if you want the held slots back now.',
       409,
     )
+  }
   return { serial, map, humansBefore, humansAfter }
 }
 
