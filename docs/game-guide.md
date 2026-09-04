@@ -228,7 +228,10 @@ Custom (non-Steam) maps live in `server/maps/` and reach the server via a
 compose mount (`cs/cstrike/maps` -> `custom/maps` in the container), so
 adding one needs no image rebuild - just the deploy + clientcfg pair.
 
-Maps rotate at `mp_timelimit` (30 min) on every mode except **Classic**,
+Maps rotate at `mp_timelimit`, which each mode sets for itself - the
+deathmatch-family modes (Deathmatch, Source Maps, Fight Yard, Aim Prac,
+Sniper) run 10 minutes, set from `frag_dm.sma` rather than any config file -
+on every mode except **Classic**,
 which runs `mp_timelimit 0` - no map clock at all, because a match must not
 be cut off mid-half. Its map changes when the half ends
 (`mp_maxrounds 15`); see [classic-rules.md](classic-rules.md). Classic's
