@@ -288,6 +288,10 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
   const bots = status?.players.filter((p) => p.bot) ?? [];
   const busy = Boolean(pending) || jobRunning;
   const teams = Boolean(state && TEAM_MODS.includes(state.mod));
+  // Classic is the 5v5 match mode: it ships yb_quota 0, so an empty bot panel
+  // is its correct resting state and a fill is a deliberate act (a short side,
+  // a warm-up). Worth saying, because every other mod arrives with bots in.
+  const matchMod = state?.mod === "vanilla";
   const session = state?.session ?? null;
   // the kickoff has been moved iff the file carries what to put back
   const early = Boolean(session && session.scheduled !== undefined);
@@ -443,7 +447,10 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
           </p>
         </Panel>
 
-        <Panel title="Bots" note="yapb fills to a total headcount">
+        <Panel
+          title="Bots"
+          note={matchMod ? "classic starts at zero" : "yapb fills to a total headcount"}
+        >
           <div className="war__stepper">
             <button
               type="button"
@@ -479,6 +486,9 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
           </div>
           <p className="war__hint">
             Total players, not bots: each human who joins takes a bot's slot. {quota === 0 ? "Zero means an empty server." : ""}
+            {matchMod
+              ? " Classic ships zero bots for the 5v5 - a fill lasts until the container restarts, then it is back to zero."
+              : ""}
           </p>
           <button
             type="button"

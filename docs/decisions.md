@@ -884,3 +884,58 @@ Client payload cost: ~60MB of new BSPs plus ~15MB of models/sounds/sprites
 (de_bank_csgo alone is 19MB of BSP and 28MB installed). The maps are trimmed
 by mapcycle, but `models/`, `sprites/` and `sound/` ship to everyone
 regardless - worth remembering before the next big map goes in.
+
+## Classic becomes the 5v5 match mode (2026-09-04)
+
+Classic was the mode with nothing to say for itself: stock CS 1.6, casual
+quick-round cvars, the same twelve-map cycle as everything else, and a card
+on the front page that described it as "buy your kit, win the round". Every
+other mode had a reason to exist. This one was the absence of a reason.
+
+It is now the match mode: five a side, the era's competition ruleset
+(sources and cvar-by-cvar rationale in [classic-rules.md](classic-rules.md)),
+the era's map pool, and no bots. The casual modes stay casual; Classic is the
+one you swap to when ten people want a real game.
+
+Four things worth recording, all of them about where config LIVES rather than
+what it says:
+
+- **The box copy of `amxx.cfg` was silently winning.** AMXX execs
+  `configs/amxx.cfg` at every map start, after the engine has exec'd
+  `server.cfg`. Classic's copy lived only on the box, in
+  `/opt/cs16/mods/zp/configs/`, and held the quick-round values - so
+  `server/vanilla/server.cfg`, the file in this repo that looks like the
+  server's config, was being overridden by a file the repo has never
+  contained. The fix is not to move the ruleset into `amxx.cfg`; it is to
+  mount a repo copy of `amxx.cfg` that sets **no gameplay cvar at all**,
+  leaving `server.cfg` unopposed. One readable file is the ruleset; the other
+  exists to stop something else claiming to be.
+- **Mounting over the box tree is how anything gets rescued from `mods/`.**
+  `deploy.sh` only `mkdir -p`s `/opt/cs16/mods`; its contents were hand-seeded
+  and nothing syncs them. Rather than a big migration, two files were pulled
+  back one at a time by adding deeper bind mounts over the directory mounts
+  that feed them (`vanilla/amxx.cfg`, `vanilla/yapb.cfg`). Docker applies
+  mounts deepest-path-last, so a file mount inside a directory mount wins.
+  That is the pattern for the next one. The real fix - giving Classic its own
+  Dockerfile so it can bake its own everything - is backlog item 16.
+- **Zero bots has to be a file, not a habit.** `yb_quota` is a live cvar with
+  no persistence, so "we just don't add any" is not a default, it is a
+  convention that survives exactly until someone fills the server for a
+  warm-up and then restarts the container. `server/vanilla/yapb.cfg` ships
+  `yb_quota "0"` and YaPB re-reads it on load, so zero is what a cold start
+  means. Bots stayed fully supported: the war room's Bots panel already
+  reaches Classic (vanilla has the cmdpipe plugin), and a fill deliberately
+  survives a map change (`yb_ignore_cvars_on_changelevel`) but never a
+  restart.
+- **The match itself is a script, not a plugin.** Knife round, live-on-3 and
+  the half-time swap are `scripts/match.sh`, because Classic runs the stock
+  image unbuilt and cannot compile a plugin at all. That is a real ceiling,
+  not a shortcut - no `.ready`, no automatic side swap, no score carried
+  across the halves - and it is written up as backlog item 16 rather than
+  half-built here.
+
+On the page, Classic leads the roster and wears a "5v5" chip, and its emblem
+gained a pentagram inside the shield it already had - the only mark in the set
+with something inside it, five points for the five a side. The copy states the
+ruleset flatly and makes no claim about being serious; the ruleset is the
+claim.

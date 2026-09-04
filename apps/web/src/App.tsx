@@ -509,6 +509,10 @@ type ModeEntry = {
   pool?: string[];
   bots?: boolean; // the mod fills empty slots with bots
   fresh?: boolean; // just added - carries a "new" chip until it stops being news
+  // the match mode: fixed teams, no bots, a real ruleset. Carries a "5v5"
+  // chip so the roster says which mode is the serious one without a word of
+  // copy claiming it.
+  tournament?: boolean;
 };
 
 // emblems: one 2.5px-stroke linework family, coloured via currentColor
@@ -527,10 +531,20 @@ const DeathmatchEmblem: ModeEmblem = () => (
   </svg>
 );
 
+// Classic: the same defusal shield the mode has always worn, now a
+// tournament crest - the slash is replaced by a pentagram drawn in one
+// unbroken stroke, five points for the five a side. It is the only emblem in
+// the set with a mark INSIDE it, which is what makes it read as the flagship
+// without leaving the one-stroke-linework family. The star runs thinner than
+// the family's 2.5 so it stays legible at the 18px roster size.
 const ClassicEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M20 3l14 5v10c0 9-6 15-14 19-8-4-14-10-14-19V8z" />
-    <path d="M9 24l22-10" />
+    <path
+      d="M20 12l4.41 13.57L12.87 17.18h14.26L15.59 25.57z"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
@@ -571,6 +585,36 @@ const SniperEmblem: ModeEmblem = () => (
 );
 
 const MODES: ModeEntry[] = [
+  // Classic leads the roster because it is the match mode - the one with a
+  // real ruleset and no bots. Order here is the order of the MORE GAME MODES
+  // rows, and `match` is tested top-down (no other mode's name matches
+  // /classic|vanilla/, so leading is safe).
+  {
+    key: "classic",
+    match: /classic|vanilla/i,
+    name: "Classic",
+    blurb: "5v5 on competition rules - no bots, one life a round",
+    rules: [
+      "five a side, humans only",
+      "15 rounds a half, first to 16",
+      "knife round decides sides",
+      "friendly fire on",
+    ],
+    emblem: ClassicEmblem,
+    tournament: true,
+    // the era's rotation, cut to maps this server already ships (see
+    // docs/classic-rules.md for what was in the CPL and CAL pools)
+    pool: [
+      "de_dust2",
+      "de_inferno",
+      "de_nuke",
+      "de_train",
+      "de_cbble",
+      "de_aztec",
+      "cs_italy",
+      "cs_assault",
+    ],
+  },
   {
     key: "gungame",
     match: /gun\s*game/i,
@@ -697,28 +741,6 @@ const MODES: ModeEntry[] = [
     bots: true,
     fresh: true,
     pool: ["awp_city", "awp_dust", "awp_sunburn"],
-  },
-  {
-    key: "classic",
-    match: /classic|vanilla/i,
-    name: "Classic",
-    blurb: "stock 1.6 - buy your kit, win the round",
-    rules: ["classic round rules", "12 map rotation", "20 minute maps"],
-    emblem: ClassicEmblem,
-    pool: [
-      "de_dust2",
-      "de_dust",
-      "cs_italy",
-      "cs_assault",
-      "cs_office",
-      "de_inferno",
-      "de_aztec",
-      "de_cbble",
-      "de_nuke",
-      "de_train",
-      "cs_prospeedball",
-      "cs_deagle5",
-    ],
   },
 ];
 
@@ -1838,6 +1860,7 @@ const App: FC = () => {
                         <p className="card__name">
                           {liveMode?.name ?? modeInfo.mode}
                           {liveMode?.fresh && <span className="newbadge">new</span>}
+                          {liveMode?.tournament && <span className="matchbadge">5v5</span>}
                           {liveMode?.bots && <span className="botbadge">bots</span>}
                         </p>
                         {modeInfo.tagline && <p className="card__tagline">{modeInfo.tagline}</p>}
@@ -1912,6 +1935,7 @@ const App: FC = () => {
                         <span className="rotation__name">
                           {m.name}
                           {m.fresh && <span className="newbadge">new</span>}
+                          {m.tournament && <span className="matchbadge">5v5</span>}
                           {m.bots && <span className="botbadge">bots</span>}
                         </span>
                         <span className="rotation__blurb">{m.blurb}</span>

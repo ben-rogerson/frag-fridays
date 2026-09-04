@@ -15,6 +15,7 @@
     "pull": "scripts/pull.sh",
     "clientcfg": "scripts/deploy.sh && ssh cs16 /opt/cs16/update-clientcfg.sh",
     "rc": "scripts/rc.sh",
+    "match": "scripts/match.sh",
     "votemap": "scripts/votemap.sh",
     "nextmap": "scripts/nextmap.sh",
     "restartmap": "scripts/restartmap.sh",
