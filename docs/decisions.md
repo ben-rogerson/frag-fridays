@@ -884,3 +884,61 @@ Client payload cost: ~60MB of new BSPs plus ~15MB of models/sounds/sprites
 (de_bank_csgo alone is 19MB of BSP and 28MB installed). The maps are trimmed
 by mapcycle, but `models/`, `sprites/` and `sound/` ship to everyone
 regardless - worth remembering before the next big map goes in.
+
+## The map button verifies, and the page says a map is loading (2026-09-04)
+
+Two war-room map changes stranded a session on its loading screen (the full
+diagnosis is in [troubleshooting.md](troubleshooting.md)). The map changes
+themselves ran; what broke was every client's carry-over into the new level,
+and neither end of the system said a word about it. The admin was told
+"Changed map to de_nuke" while nobody could see de_nuke, and the players had
+a frozen canvas with no message on it at all. Both halves are worth fixing
+separately from whatever the underlying engine fault turns out to be.
+
+**The admin API now checks its own work.** `changeMap()` in
+`server/mcp/src/actions.js` warns, waits, changes, then polls `status.json`
+for the new map name and finally for the players still being on it. It is the
+only action here that does this, and it earns it: it is the only one that has
+stranded a session, and it is the one whose failure mode looks exactly like
+success from the outside (the map really does come up, the scoreboard really
+does refill - with bots). The cost is that the button takes ~15s to answer
+instead of returning the moment the pipe is written. That is the right
+trade: an admin who has to guess whether a button worked will press it again,
+which is precisely what happened on the night.
+
+Two supporting rules fell out of it:
+
+- **The restart button is never disabled by another action.** It is the way
+  out of everything on this stack, and a 15-second map change is exactly when
+  someone reaches for it. `act()` in the panel grew an `urgent` flag that
+  skips the one-at-a-time gate; the restart is the only caller.
+- **`status.json` gets read for its AGE, not just its contents.** The file
+  reads perfectly healthy when the sim behind it has stopped - a full
+  scoreboard, a map name, a clock. `serverState()` now reports
+  `statusAgeMs`/`statusStale` off the Last-Modified header (this process and
+  the game container share a clock, so there is no skew to argue about), the
+  panel warns when the scoreboard has stopped moving, and `changeMap` refuses
+  to send a change into a sim that is not running. A server that sends no
+  Last-Modified reports `null`, which every caller reads as "unknown" - never
+  as fresh, and never as stale.
+
+**The page polls `status.json` while playing.** It only ever polled in the
+lobby, which meant that once the engine had the screen the page's model of
+the server was frozen and a map change was invisible by construction. Now a
+change puts a banner at the top of the canvas (which map, and that the slot
+is kept) and, if the player's own alias has not appeared in the new map's
+player list after 30 seconds, a card with a rejoin button.
+
+Two things make this honest rather than a guess. `status.json`'s player list
+comes from `get_players()`, which only counts clients that have actually
+spawned in, so "my name is not on the new map" is the server saying it has
+not seen this player arrive. And the page can tell a stuck client from a
+stopped server, because a sim that is running rewrites `status.json` every
+five seconds with clocks that move - identical bytes for thirty seconds means
+the server stopped, and the card says so, because "restart it" and "rejoin"
+are not the same advice.
+
+The banner deliberately does not cover the game or take the pointer: a
+healthy carry-over is one to three seconds and the page must not be a
+five-second obstacle every map. Only the stuck state gets the full sheet, by
+which point there is nothing to play behind it.

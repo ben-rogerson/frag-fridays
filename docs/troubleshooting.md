@@ -269,6 +269,103 @@ overwritten when that page unloads. Set the live cvars back to the
 shipped values FIRST (then the diff is empty), and only then clean
 `ff-settings-v2` - or do the cleanup with no game session open.
 
+## A war-room map change stranded everyone on the loading screen (2026-09-04)
+
+Reported as "I changed the level through the admin area and it hung on the
+loading screen with no indication it was loading or going to load. To fix it
+I had to restart the server." Six or seven people on. It happened TWICE in
+one session, fifteen minutes apart.
+
+**The server was never wedged.** That is the whole trap here, and every
+instinct points the other way. There is no `Host_Error`, no `MAX_MODELS`, no
+`bad entity number`, no `Server was killed due to an error` anywhere in the
+container's logs for that day; no core dump; nothing in
+`/opt/cs16/logs/sim-watchdog.log`. The changelevel ran perfectly - the log has
+a clean `Spawn Server` a second after each button press, the sim kept ticking,
+the bots kept playing, `status.json` kept updating, and `cmdpipe` kept
+executing commands (proved by the NEXT admin command running fine).
+
+What actually failed is the CLIENTS' half of the level change:
+
+    03:34:03  cmdpipe #522: amx_csay green Changing map to fy_iceworld...
+    03:34:03  cmdpipe #522: changelevel fy_iceworld
+    03:34:03  Spawn Server: fy_iceworld []
+    03:34:04  "_vicentEYyyo<129>" connected     <- all 8 carried over...
+    03:34:04  "ZenBot<130>" connected
+    03:34:04  ... six more ...
+              (no "entered the game", ever, for any of them)
+    03:34:13  Maximum players reached (16/16). Unable to create Bot.
+    03:34:18  websocket: close 1001 (going away)   <- players reloading
+    03:34:22  websocket: close 1001 (going away)
+    ...
+
+Read the diff against a HEALTHY changelevel (a rotation one, 04:11:41, seven
+humans, same session, same container):
+
+    04:11:41  "_vicentEYyyo<36>" connected
+    04:11:42  Custom resource propagation complete.
+    04:11:42  "_vicentEYyyo<36>" entered the game     <- 1 second
+
+**`Custom resource propagation complete.` is the marker.** It is printed once
+per client, at the end of the engine's per-client resource/consistency
+handshake, immediately before `entered the game`. It appears 56 times in that
+day's log and never once after either failed change. So the clients got as far
+as `SV_ConnectClient` on the new map and then stopped dead in the resource
+handshake - which on the player's screen is a loading screen that never ends,
+with a server that is demonstrably alive.
+
+**Why a restart was the only way out**, and this is the part that turned a
+stall into a stranded session: the stalled clients still hold their slots for
+the full `sv_timeout` (600s). Ten seconds after the change YaPB's quota filled
+every remaining slot - `Maximum players reached (16/16)`, a line that appears
+exactly twice in the whole day and both times right here. So eight zombie
+humans plus eight bots = a full server, and every player who reloaded in
+frustration (that is what the `close 1001 (going away)` burst is) could not
+get back in. Note what does NOT happen on a healthy change: at 04:11:49 YaPB
+starts kicking its own bots back out as the humans return. The lockout is
+self-inflicted by the bot quota and cannot clear itself for ten minutes.
+
+**What was different about the failed changes.** They are the only two
+changelevels of the day issued from the war room's map button, and the war
+room was the only path that wrote the warning and the changelevel as ONE
+cmdpipe write. `cmdpipe.amxx` runs every line of a write in the same
+`task_poll` frame and calls `server_exec()`, so `amx_csay` broadcast a HUD
+message to all sixteen clients and `changelevel` tore the level down inside
+that same frame. Two other differences ride along and are NOT excluded by the
+evidence: the rotation changelevel goes through intermission first (ten quiet
+seconds with the pipe empty) while an admin one is immediate, and both
+failures had eight clients where the two admin changes that worked that day
+had one. `scripts/nextmap.sh` has always done the warn and the change as two
+writes five seconds apart and has never done this.
+
+**Changed 2026-09-04**, and note that only the first of these is a candidate
+cure - the rest are guards that hold whichever of the three differences turns
+out to be the cause:
+
+- `server/mcp/src/actions.js` `changeMap()` warns and changes as two separate
+  pipe writes 4s apart, back to nextmap.sh's shape.
+- The same function then VERIFIES: it polls `status.json` for the new map name
+  (20s budget) and then, 8s later, checks the humans are still on the
+  scoreboard. `humansBefore > 0 && humansAfter === 0` is exactly this bug's
+  signature and now fails the call with the sentence "restart the server"
+  rather than reporting "Changed map to X". It also refuses to send a map
+  change at all against a `status.json` that has stopped moving.
+- The war room's restart button is no longer disabled while another action is
+  in flight, and its Map hint says what a red result means.
+- The client (`apps/web/src/App.tsx`) polls `status.json` while PLAYING, not
+  only in the lobby, and says on screen that a map change is happening. If the
+  new map's `status.json` does not list this player's own alias after 30s it
+  puts up a card with a rejoin button - and distinguishes "the server has
+  stopped answering" (its payload froze) from "the map is up but you did not
+  come back", because the fixes differ.
+
+**Still to verify on the box** (the incident was diagnosed entirely from
+`docker logs`, no repro): whether splitting the write is the actual cure.
+The test is a map change from the war room with 6+ real (or headless-Chrome,
+see the joiner recipe above) clients connected, watching for `Custom resource
+propagation complete.` per client. Do NOT trust a repro with one client -
+both admin changes that day with a single client worked fine.
+
 ## Server sim dies silently: Host_Error kills it, the container lives on
 
 The engine's internal server can die while the container, Go websocket

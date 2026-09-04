@@ -55,6 +55,11 @@ type State = {
   pipe: boolean;
   mode: string | null;
   status: Status | null;
+  // age of status.json, written every 5s from a server frame. Frozen = the sim
+  // has stopped, and every number in `status` is a photograph of when it did.
+  // null where the box sent no Last-Modified: unknown, not fresh.
+  statusAgeMs: number | null;
+  statusStale: boolean;
   maps: string[];
   mods: string[];
   job: Job | null;
@@ -262,9 +267,20 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const act = async (key: string, path: string, body: unknown, label: string) => {
-    if (pending) return;
-    setPending(key);
+  // `urgent` skips the one-at-a-time gate and never claims `pending`. Only the
+  // restart uses it: a verified map change now holds the panel for ~15s, and
+  // the restart is precisely what an admin reaches for when a map change is
+  // going wrong. Being told to wait for the thing that is failing is the
+  // position this panel exists to avoid.
+  const act = async (
+    key: string,
+    path: string,
+    body: unknown,
+    label: string,
+    urgent = false,
+  ) => {
+    if (pending && !urgent) return;
+    if (!urgent) setPending(key);
     try {
       const res = await call<{ detail?: string; output?: string }>(token, path, body);
       say(res.detail ? `${label} - ${res.detail}` : label);
@@ -275,7 +291,7 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
       if (err instanceof AuthError) return onLock();
       say(`${label} failed - ${(err as Error).message}`, true);
     } finally {
-      setPending(null);
+      if (!urgent) setPending(null);
       refresh();
     }
   };
@@ -338,6 +354,16 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
         </p>
       )}
       {stateError && state && <p className="war__warn">{stateError}</p>}
+      {/* The sim can stop while the container, the page and the scoreboard all
+          stay green - see docs/troubleshooting.md. When it does, the panel is
+          painting a photograph, the command pipe is not being read, and the
+          only thing that helps is the restart button below. Say so. */}
+      {state?.statusStale && (
+        <p className="war__warn">
+          The scoreboard has not moved for {Math.round((state.statusAgeMs ?? 0) / 1000)}s - the sim
+          is not running. Commands will not be executed. Restart the server.
+        </p>
+      )}
       {job && (
         <p className={`war__job ${job.finishedAt ? (job.ok ? "war__job--ok" : "war__job--bad") : ""}`}>
           {jobRunning
@@ -534,15 +560,20 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
                   type="button"
                   className={`war__map ${m === status?.map ? "war__map--live" : ""}`}
                   disabled={busy || !pipe || m === status?.map}
-                  onClick={() => act(`map-${m}`, "/map", { map: m }, `Changed map to ${m}`)}
+                  onClick={() => act(`map-${m}`, "/map", { map: m }, `Map to ${m}`)}
                 >
                   <span>{m}</span>
                   {m === status?.map && <span className="war__now">on now</span>}
+                  {pending === `map-${m}` && <span className="war__now">changing...</span>}
                 </button>
               </li>
             ))}
           </ul>
-          <p className="war__hint">Changing map keeps everyone connected.</p>
+          <p className="war__hint">
+            Warns the server, changes, then waits to see the new map come up with its players still
+            on it - about 15 seconds before it answers. If it comes back red, the map change did
+            not carry the players and the restart button is the fix.
+          </p>
         </Panel>
 
         <Panel title="Mode" note="drops everyone">
@@ -598,14 +629,19 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               {pending === "command" ? "..." : "Run"}
             </button>
           </form>
+          {/* deliberately NOT gated on `busy`: this is the way out of a
+              wedged sim, and a map change going wrong is when it is wanted */}
           <Arm
             label="Restart server"
             armed="Drop everyone?"
-            disabled={busy}
-            onFire={() => act("restart", "/restart", {}, "Restarting the server")}
+            disabled={jobRunning}
+            onFire={() => act("restart", "/restart", {}, "Restarting the server", true)}
           />
           <p className="war__hint">
-            restart/quit/exit are refused by the pipe - they segfault this engine build.
+            Drops everyone; they come back through the page's reconnect button, and the zip is
+            already cached so it is quick. It is the only fix for a sim that has stopped, or for a
+            map change that left players on the loading screen. restart/quit/exit are refused by
+            the pipe - they segfault this engine build.
           </p>
         </Panel>
 
