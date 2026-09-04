@@ -1184,3 +1184,30 @@ p95 53 -> 50ms, and - the surprise - CPU 39-45% -> 32-37% of a core. Running
 the loop faster is cheaper than letting it undershoot. Combined with the
 update-rate cap the final numbers are p50 39ms, p95 50ms, max 51ms against a
 baseline of p50 45-48ms, p95 73-104ms, max 74-116ms.
+
+**Second follow-up, same day:** `sys_ticrate` 200 -> 1000, after Ben asked
+whether the league-standard "1000 fps server" would cause trouble here. Swept
+100/200/250/300/400/450/500/1000/2000/10000 with a frame-counting plugin in a
+throwaway container, and 200/500/1000/10000 against six real browser clients.
+
+The loop never reaches 1000: it tops out near **425Hz**. But the target still
+matters, because the engine busy-waits the gap between its ~2.3ms frame cost
+and the ticrate period. That makes CPU against ticrate **non-monotonic** - it
+peaks around 250 at 45% of a core and collapses to 9% once the period reaches
+the frame cost. It also explains the earlier surprise that 200 was cheaper than
+100. At the shipped 200 the loop was actually delivering ~120Hz with a 52ms
+hitch at p99; at 1000 it delivers ~425Hz for half the CPU (31-41% -> 15-18% of
+a core with six clients).
+
+The honest half: **the ping column does not move.** Every value from 200 to
+10000 sits inside the run-to-run noise, and a deliberate re-check at 200 run
+last came back indistinguishable from 1000. The gain is simulation rate and CPU
+headroom, not latency, and `sv_maxupdaterate 60` means the wire rate is
+unchanged at 44-47 snapshots/sec per client throughout. 1000 is chosen over 500
+only for margin above the ceiling; 10000 measures identically and buys nothing.
+
+Also settled: a ping tail seen at ten headless clients (p95 96-117ms) is the
+**harness**, not the box - engine CPU flat through it, server-to-client rate
+collapsing while client-to-server held, and an independent UDP probe over the
+same Mac uplink showing 60-170ms excursions on its own. Two clean ten-client
+runs show p95 49-50ms, the same as six. Don't re-chase it.
