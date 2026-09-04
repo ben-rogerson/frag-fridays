@@ -884,3 +884,36 @@ Client payload cost: ~60MB of new BSPs plus ~15MB of models/sounds/sprites
 (de_bank_csgo alone is 19MB of BSP and 28MB installed). The maps are trimmed
 by mapcycle, but `models/`, `sprites/` and `sound/` ship to everyone
 regardless - worth remembering before the next big map goes in.
+
+## Server ping: capped sv_maxupdaterate at the browser's refresh rate (2026-09-04)
+
+Players reported ping "up around 100, fluctuating between 30 and 100" and a
+rubber-banding feel, worst on `fy_iceworld` with six to eight humans.
+
+The server was sending each client ~76 snapshots a second. A browser client
+presents at most one per rendered frame and the frame loop is rAF-driven, so
+everything above the display refresh was built, compressed, pushed through
+pion and delta-decoded purely to be thrown away - and the cost of doing that
+for every client showed up as a long, unstable ping tail for all of them.
+
+`sv_maxupdaterate` 102 -> 60 in every mod Dockerfile and in
+`vanilla/server.cfg`. Measured with six connected browser clients on
+`fy_iceworld`: the ping column's p95 went from 73-104ms to 47-48ms while the
+median barely moved (45-48 -> 43-48), and engine CPU fell from 44-47% to
+39-41% of a core. Run twice each way; the baseline's own p95 varied by 30ms
+between identical runs and the capped config's did not, which is the actual
+complaint - the spread, not the median.
+
+Deliberately a SERVER cvar rather than a `userconfig.cfg` one: it clamps
+whatever a client asks for, so it needs no `valve.zip` rebuild and it also
+covers players whose saved-settings snapshot replays an old `cl_updaterate`
+over the shipped default. `cl_updaterate` was moved to 60 to match, but that
+half is tidiness only.
+
+Three suspects were measured and cleared, which is the more useful half of
+the record: the WebRTC data channels are already `ordered=false` /
+`maxRetransmits=0` (no head-of-line blocking to fix), `ex_interp` is already
+0.1 which is the engine's own hard ceiling, and `yb_quota_mode fill` means
+eight humans leaves two bots, so bot CPU was never in it. The internet path
+itself is clean - 0% loss on a game-shaped UDP probe - and the box adds
+0.66ms. Full numbers and method in docs/netcode.md.

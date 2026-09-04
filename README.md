@@ -80,6 +80,7 @@ that does something else entirely.
 - [Game guide](docs/game-guide.md) - the modes, chat commands, bot tuning
 - [Setup](docs/setup.md) - rebuilding the VPS from scratch
 - [Troubleshooting](docs/troubleshooting.md) - this stack fails silently; verify, don't assume
+- [Netcode](docs/netcode.md) - where the ping actually comes from, measured
 - [Decisions](docs/decisions.md) - why things are the way they are
 - [Backlog](docs/backlog.md) - what's next
 
