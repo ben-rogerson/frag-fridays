@@ -27,16 +27,34 @@
      that remap .overlay, .pause and .slotclock. */
   --accent: var(--acid);
   --accent-rgb: 220 232 30;
+  /* The game's own team colours, not page accent colours: they mean T and CT
+     in every mode and never remap with data-mode, the same way live green and
+     alert red never do. Classic's side bands and the combined list's side tags
+     both read them from here, so there is exactly one T and one CT hue in the
+     build and the two shapes cannot drift apart. */
+  --team-t: #e4785e;
+  --team-ct: #7fa8e8;
 }
 
 /* What the panel is measured against - viewport minus the furniture it must
    not collide with. The top inset is in rem because it is clearing the
-   slotclock, which is sized in rem. */
+   slotclock, which rides in at the top on this same Tab press and is sized in
+   rem; the bottom one keeps clear of 1.6's own HUD, which lives in the corners
+   and along the bottom edge. What is left between them is the screen the board
+   may actually have - which is why the fits/does-not-fit measure reads this
+   box (avail = frame.clientHeight) and not the viewport.
+   Centred in that box rather than pinned to the top of it, so the board sits
+   in the middle of the free screen instead of hanging off the slotclock. The
+   two insets are deliberately unequal, and that IS the optical correction: the
+   larger bottom inset lands the panel a few pixels above true centre, which is
+   where a centred box has to sit to look centred. The panel's own
+   max-height: 100% keeps this safe on a short window - it can never grow past
+   the frame, so centring it can never push it up under the clock. */
 .tabscreen__frame {
   position: absolute;
-  inset: 2.6rem 1em 1em;
+  inset: 2.6rem 1em 3.4em;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
 }
 
@@ -184,7 +202,9 @@
 
 /* One template per shape, shared by the band and its rows so the columns line
    up without a table layout. Classic has no rank column: the teams are the
-   ranking. Everything else is one list, so a place number is the point. */
+   ranking. Everything else is one list, so a place number is the point. The
+   trailing three tracks are identical in every shape, so k/d/ping sit in the
+   same place and the board does not re-flow when the mode changes. */
 .tabscreen__team {
   --cols: minmax(0, 1fr) 3.4em 3.4em 4.6em;
 }
@@ -193,40 +213,75 @@
   --cols: 2.6em minmax(0, 1fr) 3.4em 3.4em 4.6em;
 }
 
+/* The combined list with side tags. A box still running the pre-0.2.0
+   statusjson sends no team on anybody, and then this class is simply not
+   applied - the column does not exist rather than standing empty. */
+.tabscreen__team--sides {
+  --cols: 2.6em 1.9em minmax(0, 1fr) 3.4em 3.4em 4.6em;
+}
+
 .tabscreen__team + .tabscreen__team {
   margin-top: 1.1em;
 }
 
-/* Team colour bands. These two are the game's own team colours, not page
-   accent colours - they mean T and CT in every mode and never remap with
-   data-mode, the same way live green and alert red never do. */
 .tabscreen__team--t {
-  --side: #e4785e;
+  --side: var(--team-t);
 }
 
 .tabscreen__team--ct {
-  --side: #7fa8e8;
+  --side: var(--team-ct);
 }
 
 .tabscreen__team--all {
   --side: var(--accent, var(--acid));
 }
 
-/* the band doubles as the column header, as 1.6's own scoreboard does */
-.tabscreen__band {
+/* The band doubles as the column header, as 1.6's own scoreboard does - so
+   band and rows are two separate grids that have to agree track for track.
+   Everything that places a column is therefore declared once, here, for both.
+   It has to be shared rather than repeated because --cols is a token list of
+   em lengths and em resolves against each element's OWN font-size: while the
+   band sat at 0.74em and the rows at 0.94em, the same "3.4em" measured 21%
+   narrower in the header than in the values beneath it, and every k/d/ping
+   heading landed about 2em right of the column it labels. The band's smaller
+   type now goes on its cells, where it can move glyphs but not tracks. */
+.tabscreen__band,
+.tabscreen__row {
   display: grid;
   grid-template-columns: var(--cols);
   align-items: baseline;
   gap: 0 0.6em;
-  padding: 0.3em 0.7em 0.32em;
+  /* the row spacing IS the type scale - this is the line the engine's
+     scoreboard gets wrong at any hud_fontscale above 1 */
+  padding: 0.34em 0.7em;
+  border-left: 3px solid transparent;
+  font-size: 0.94em;
+}
+
+.tabscreen__band {
+  /* trimmed off the shared 0.34em so the band keeps the height it had at its
+     old, smaller font-size - the fits/does-not-fit measure is sensitive */
+  padding-top: 0.24em;
+  padding-bottom: 0.25em;
   background: linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent);
   border-bottom: 1px solid var(--bevel-dark);
-  border-left: 3px solid var(--side);
-  font-size: 0.74em;
+  border-left-color: var(--side);
+}
+
+/* the header tier, on the cells rather than the grid box - see above */
+.tabscreen__band > * {
+  font-size: 0.79em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.13em;
   color: var(--text-mute);
+}
+
+/* Tracking pads after the LAST glyph too, so a right-aligned heading stops
+   short of its column edge while the number under it sits flush against it.
+   Pull the tracking back off the right edge rather than dropping it. */
+.tabscreen__band .tabscreen__num {
+  margin-right: -0.13em;
 }
 
 .tabscreen__side {
@@ -244,16 +299,7 @@
 }
 
 .tabscreen__row {
-  display: grid;
-  grid-template-columns: var(--cols);
-  align-items: baseline;
-  gap: 0 0.6em;
-  /* the row spacing IS the type scale - this is the line the engine's
-     scoreboard gets wrong at any hud_fontscale above 1 */
-  padding: 0.34em 0.7em;
-  border-left: 3px solid transparent;
   border-bottom: 1px solid rgb(51 73 127 / 0.3);
-  font-size: 0.94em;
 }
 
 .tabscreen__row:nth-child(even) {
@@ -263,6 +309,39 @@
 .tabscreen__rank {
   font-variant-numeric: tabular-nums;
   color: var(--text-faint);
+}
+
+/* Which side you are on, in the combined list. That list stays one ranking by
+   kills - the whole point of it - so this tag is the only thing carrying the
+   side, and it says it twice over: the game's own word, in the game's own
+   colour. The word means it needs no legend; the colour is what actually gets
+   scanned. Text only, never a filled block or a full-height stripe - a block
+   per row would turn two alternating team colours into noise down the table,
+   which is the one thing a mixed list must not do. Right-aligned so both T and
+   CT hug the same gutter and the names stay flush. */
+.tabscreen__tag {
+  text-align: right;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  /* same trailing-tracking correction as the band headings above */
+  margin-right: -0.06em;
+  color: var(--text-faint);
+}
+
+.tabscreen__tag--t {
+  color: var(--team-t);
+}
+
+.tabscreen__tag--ct {
+  color: var(--team-ct);
+}
+
+/* Bots sit a tier down everywhere else on the row and the tag follows - but by
+   dimming, not by greying out: the hue IS the signal, so it has to survive. */
+.tabscreen__row--bot .tabscreen__tag {
+  opacity: 0.6;
 }
 
 .tabscreen__name {
