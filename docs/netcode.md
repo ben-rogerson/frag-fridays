@@ -236,6 +236,22 @@ The settings control writes `net_graph` only, so if `cl_showfps` is ever
 turned back on in `userconfig.cfg` the duplicate comes back for everyone who
 has not set the cvar themselves.
 
+## Getting it live
+
+Both server cvars are already set on the running container, applied through
+`rc.sh` during the measurements and left there:
+
+```sh
+pnpm run rc "sv_maxupdaterate 60" "sys_ticrate 200"
+```
+
+A live `rc` set survives a `changelevel` but **not** a container restart -
+`server.cfg` re-execs from the image on a fresh start, so until the mods are
+rebuilt the box reverts to 102/100 on any restart, crash-heal or swap. The
+deploy is what makes it stick. The client half (`cl_updaterate`, `net_graph`,
+`cl_showfps`) needs a `pnpm run clientcfg` rebuild of `valve.zip` on top of
+that, and players must hard-refresh.
+
 ## Re-measuring
 
 The server's own ping column is the honest metric and needs no client
