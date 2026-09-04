@@ -884,3 +884,56 @@ Client payload cost: ~60MB of new BSPs plus ~15MB of models/sounds/sprites
 (de_bank_csgo alone is 19MB of BSP and 28MB installed). The maps are trimmed
 by mapcycle, but `models/`, `sprites/` and `sound/` ship to everyone
 regardless - worth remembering before the next big map goes in.
+
+## Loading screen: the masthead and the stack, on the same margin (2026-09-04)
+
+The 2026-08-30 entry above says the art "carries no text at all". That is now
+half wrong, deliberately. What had to go was the strap - a fixed weekly
+session time baked into a file that is rebuilt only when someone remembers
+to. The failure mode was stale copy, not lettering. So the rule the art keeps
+is narrower than "no text": **nothing time-bound, date-bound or
+session-bound**. A wordmark and a list of what the thing runs on never go
+stale.
+
+Two blocks, both hung off one right margin (`MARGIN = 108`, inside the
+viewfinder corners at 56/1456):
+
+- **Top right, the masthead lockup** - the page's own crest and
+  `FRAG<b>FRIDAYS</b>` in Black Ops One, scaled up off the site's 54px crest /
+  42px logo, over a hairline and a `counter-strike 1.6` micro-label. The crest
+  IS the Counter-Strike figure, so the game gets its logo without a second
+  traced mark competing with it.
+- **Bottom right, the colophon** - `running on` over three right-aligned rows
+  of small mark-and-label pairs: the game (xash3d-fwgs, webassembly, webrtc,
+  amx mod x, metamod-p, yapb), the box (go, docker, ubuntu, vultr, cloudflare
+  workers), the page (react, typescript, vite). Rows are written out in the
+  script rather than left to flex wrapping, so each one is a group you can
+  read. Every mark is one flat slate weight at 11px - a colophon, not a
+  sponsor board. Things with no official SVG take the page's news square
+  instead of a logo, so the row grammar holds.
+
+Both blocks are far right of `QUIET_W`; the console column measures 11/255
+mean against 35/255 across the rest, unchanged from before.
+
+Two things the render now depends on, both embedded because headless Chrome
+has no network guarantee and a missing asset fails *silently* into a fallback
+nobody notices:
+
+- `assets/black-ops-one-latin-400-normal.woff2`, base64'd into an
+  `@font-face`. Committed rather than read out of `node_modules` so a fresh
+  clone renders the same wordmark with no install; the script raises if it is
+  missing rather than letting Arial Narrow through.
+- `scripts/brandmarks.py` - the crest's two paths (copied from `CrestLogo` in
+  `apps/web/src/App.tsx`; redraw both together) and the official monochrome
+  tech marks from simple-icons 13.0.0, verbatim path data.
+
+The atmosphere is still one SVG, but the two blocks sit over it as HTML in
+the same document: they are rows of mark-plus-label pairs, right-aligned, and
+the browser is the thing that knows how wide a label is. Chrome screenshots
+both layers as one image, so the pipeline below the render is untouched -
+same 1512x982, same hand-packed type-2 24-bit TGA with descriptor `0x20`,
+same identical bytes under both basenames, same 4.5MB each (an uncompressed
+TGA is a fixed size, so valve.zip does not grow).
+
+The image only reaches players after `pnpm run clientcfg` rebuilds valve.zip,
+and then only after a hard refresh - the old payload is cached.
