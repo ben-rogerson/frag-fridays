@@ -60,10 +60,11 @@ const NEWS: { label: string; items: string[] }[] = [
     label: "4 sep",
     items: [
       "changing map no longer strands everyone on the loading screen - the page names the map it is loading, tells you your slot is held, and says so plainly if your game does not come back",
-      "the netcode is retuned: with six players on, the worst pings came down from about 100ms to 50ms, which was most of the rubber banding. your ping is now on screen",
+      "the netcode is retuned: with six players on, the worst pings came down from about 100ms to 50ms, which was most of the rubber banding. the server also runs its simulation about three times faster than it did, on less cpu. your ping is now on screen",
       "bots wait 20 seconds at the top of a new map, and if a change does lock people out the server clears the bots out of the way so your reload lands",
-      "tab draws its own scoreboard now - it scales to your screen instead of overlapping its own rows, and carries the mode's rules. every mode but classic is one list ordered by kills",
+      "tab draws its own scoreboard now - it scales to your screen instead of overlapping its own rows, sits centred, and carries the mode's rules. every mode but classic is one list ordered by kills, with your side shown next to your name",
       "classic is the 5v5 match mode: cpl and esl era rules, friendly fire on, no bots, $800 start, and dead players fade to black until the round ends",
+      "holding tab no longer sets the sound off - the key was firing at the engine dozens of times a second the whole time you held it",
       "the game starts at 20% volume instead of full",
       "the loading screen carries the frag fridays logo and what the server runs on, instead of being a blue screen",
     ],
