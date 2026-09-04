@@ -1,0 +1,400 @@
+/* ============================================================
+   The tab screen - our scoreboard, over the canvas, while Tab
+   is held. Same furniture as the page: bevelled panel, gradient
+   title bar, uppercase letterspaced column heads, hairline row
+   rules. The one thing it does NOT borrow is rem: every size
+   here is em off --tsu below, which is the whole point of it
+   existing (see TabScreen.tsx).
+   ============================================================ */
+
+.tabscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  /* Never takes the pointer: a click during a round has to reach the canvas
+     and re-lock the mouse, exactly as it does through the slotclock. */
+  pointer-events: none;
+  font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
+  /* The fluid type unit. Both terms matter: width alone leaves a short wide
+     window with type too big to fit, height alone leaves a tall narrow one
+     with type too small to read. Clamped so a 4K screen does not turn the
+     board into signage and a 640px window still resolves the digits. */
+  font-size: clamp(10.5px, 0.62vw + 0.72vh, 19px);
+  color: var(--text);
+  /* The accent role, baseline classic. It lives here rather than being
+     inherited because the tab screen sits outside .overlay (which is hidden
+     while playing); data-mode remaps it in App.css, alongside the same blocks
+     that remap .overlay, .pause and .slotclock. */
+  --accent: var(--acid);
+  --accent-rgb: 220 232 30;
+}
+
+/* What the panel is measured against - viewport minus the furniture it must
+   not collide with. The top inset is in rem because it is clearing the
+   slotclock, which is sized in rem. */
+.tabscreen__frame {
+  position: absolute;
+  inset: 2.6rem 1em 1em;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.tabscreen__panel {
+  width: min(62em, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* the round is still running behind it - solid enough to read over a
+     bright skybox, sheer enough that the match is not gone */
+  background: rgb(18 31 61 / 0.93);
+  backdrop-filter: blur(2px);
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.55);
+}
+
+/* --- title bar ---------------------------------------------------------- */
+
+/* .panel__bar carries the gradient, the inset highlight and the CRT scanline
+   texture; everything here is the parts that have to leave rem behind. */
+.tabscreen__bar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
+  flex: none;
+  padding: 0.45em 0.9em;
+  font-size: 0.78em;
+  letter-spacing: 0.14em;
+}
+
+.tabscreen__title {
+  color: var(--accent, var(--acid));
+  white-space: nowrap;
+}
+
+/* map names read as links everywhere else on the page; they read as links here */
+.tabscreen__map {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--link);
+}
+
+.tabscreen__clocks {
+  display: flex;
+  gap: 0.9em;
+  flex: none;
+  font-weight: 400;
+  font-size: 0.92em;
+  letter-spacing: 0.1em;
+  color: var(--text-mute);
+}
+
+.tabscreen__clock strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* --- page strip (only when the briefing will not fit) ------------------- */
+
+.tabscreen__strip {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2em;
+  flex: none;
+  padding: 0.5em 0.9em 0;
+  font-size: 0.7em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.tabscreen__tab {
+  color: var(--text-faint);
+  border-bottom: 2px solid transparent;
+  padding-bottom: 0.35em;
+}
+
+.tabscreen__tab--on {
+  color: var(--text);
+  border-bottom-color: var(--accent, var(--acid));
+}
+
+/* says what turns the page, because nothing else on screen can */
+.tabscreen__hint {
+  margin-left: auto;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* --- pages -------------------------------------------------------------- */
+
+/* Both pages are always in the DOM: the inactive one goes absolute and
+   invisible rather than unmounting, so its height stays readable and the
+   fits/does-not-fit measurement cannot oscillate. Clipped, not scrolled -
+   an absolutely positioned child would otherwise add scroll height. */
+.tabscreen__pages {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tabscreen__page {
+  padding: 0.7em 0.9em 0.9em;
+}
+
+.tabscreen--paged .tabscreen__page[data-on="false"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* the page turn: a short lift, so a wheel notch reads as a page arriving
+   rather than the panel's contents being swapped underneath */
+.tabscreen--paged .tabscreen__page[data-on="true"] {
+  animation: tabscreen-page 0.16s ease-out;
+}
+
+@keyframes tabscreen-page {
+  from {
+    opacity: 0;
+    transform: translateY(0.5em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabscreen--paged .tabscreen__page[data-on="true"] {
+    animation: none;
+  }
+}
+
+/* --- the board ---------------------------------------------------------- */
+
+/* One template per shape, shared by the band and its rows so the columns line
+   up without a table layout. Classic has no rank column: the teams are the
+   ranking. Everything else is one list, so a place number is the point. */
+.tabscreen__team {
+  --cols: minmax(0, 1fr) 3.4em 3.4em 4.6em;
+}
+
+.tabscreen__team--all {
+  --cols: 2.6em minmax(0, 1fr) 3.4em 3.4em 4.6em;
+}
+
+.tabscreen__team + .tabscreen__team {
+  margin-top: 1.1em;
+}
+
+/* Team colour bands. These two are the game's own team colours, not page
+   accent colours - they mean T and CT in every mode and never remap with
+   data-mode, the same way live green and alert red never do. */
+.tabscreen__team--t {
+  --side: #e4785e;
+}
+
+.tabscreen__team--ct {
+  --side: #7fa8e8;
+}
+
+.tabscreen__team--all {
+  --side: var(--accent, var(--acid));
+}
+
+/* the band doubles as the column header, as 1.6's own scoreboard does */
+.tabscreen__band {
+  display: grid;
+  grid-template-columns: var(--cols);
+  align-items: baseline;
+  gap: 0 0.6em;
+  padding: 0.3em 0.7em 0.32em;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent);
+  border-bottom: 1px solid var(--bevel-dark);
+  border-left: 3px solid var(--side);
+  font-size: 0.74em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--text-mute);
+}
+
+.tabscreen__side {
+  color: var(--side);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabscreen__side strong {
+  margin-left: 0.6em;
+  font-size: 1.15em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.tabscreen__row {
+  display: grid;
+  grid-template-columns: var(--cols);
+  align-items: baseline;
+  gap: 0 0.6em;
+  /* the row spacing IS the type scale - this is the line the engine's
+     scoreboard gets wrong at any hud_fontscale above 1 */
+  padding: 0.34em 0.7em;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgb(51 73 127 / 0.3);
+  font-size: 0.94em;
+}
+
+.tabscreen__row:nth-child(even) {
+  background: rgb(255 255 255 / 0.022);
+}
+
+.tabscreen__rank {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.tabscreen__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabscreen__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabscreen__num--ping {
+  color: var(--text-mute);
+}
+
+/* bots are furniture, not opponents to measure yourself against - present,
+   legible, and a tier down */
+.tabscreen__row--bot .tabscreen__name,
+.tabscreen__row--bot .tabscreen__num {
+  color: var(--text-faint);
+}
+
+/* you: the mode's colour on the edge and the name, nothing louder - the same
+   micro-accent the season leader gets in the standings table */
+.tabscreen__row--you {
+  border-left-color: var(--accent, var(--acid));
+  background: rgb(var(--accent-rgb) / 0.07);
+}
+
+.tabscreen__row--you .tabscreen__name {
+  font-weight: 700;
+  color: var(--accent, var(--acid));
+}
+
+.tabscreen__empty {
+  padding: 0.5em 0.7em;
+  font-size: 0.9em;
+  color: var(--text-faint);
+}
+
+.tabscreen__specs {
+  margin: 0.9em 0 0;
+  font-size: 0.82em;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- the briefing ------------------------------------------------------- */
+
+/* The mode's own info.json, the same copy the loading screen's mode card
+   shows - one source of truth for the rules, never a second one written here.
+   Unpaged it sits under the board behind a rule; paged it is page two. */
+.tabscreen__brief {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.tabscreen--paged .tabscreen__brief {
+  padding-top: 0.2em;
+}
+
+.tabscreen:not(.tabscreen--paged) .tabscreen__page + .tabscreen__page {
+  padding-top: 0;
+  margin-top: 0.2em;
+}
+
+.tabscreen:not(.tabscreen--paged) .tabscreen__brief {
+  padding-top: 0.9em;
+  border-top: 1px solid rgb(var(--accent-rgb) / 0.22);
+}
+
+/* the title bar is already naming the mode two rows up; the heading earns its
+   place only on page two, where the bar is the only other place it appears */
+.tabscreen:not(.tabscreen--paged) .tabscreen__briefhead {
+  display: none;
+}
+
+.tabscreen__briefhead {
+  margin: 0;
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent, var(--acid));
+}
+
+.tabscreen__tagline {
+  margin: 0;
+  max-width: 46em;
+  text-wrap: pretty;
+  font-size: 0.95em;
+  color: var(--text);
+}
+
+.tabscreen__rules {
+  margin: 0.15em 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  /* wide columns on purpose: a rule that wraps mid-sentence into a third
+     narrow column is harder to read than two roomy ones */
+  grid-template-columns: repeat(auto-fit, minmax(24em, 1fr));
+  align-content: start;
+  gap: 0.35em 1.6em;
+  font-size: 0.9em;
+  color: var(--text-mute);
+}
+
+.tabscreen__rules li {
+  position: relative;
+  padding-left: 1em;
+  text-wrap: pretty;
+}
+
+/* the page's rules markers: a small hard square in the mode's colour */
+.tabscreen__rules li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 0.4em;
+  height: 0.4em;
+  background: var(--accent, var(--acid));
+}
+
+@media (prefers-contrast: more) {
+  .tabscreen__panel {
+    background: var(--ink-deep);
+  }
+}

@@ -42,8 +42,46 @@ function localPayload(): Plugin | false {
   )
 }
 
+// FF_FIXTURES=/path/to/dir answers /status.json and /info.json out of that
+// directory instead of proxying the box's. The tab screen is a scoreboard, so
+// checking its layout means checking it full of players, in a given mode, at a
+// given window size - and the alternative is organising a match per screenshot.
+// Dev only, like localPayload above. It takes the two routes off the proxy
+// rather than racing it, so which middleware Vite installs first is moot.
+const FIXTURES = process.env.FF_FIXTURES
+
+function localFeed(): Plugin | false {
+  const dir = FIXTURES
+  return (
+    !!dir && {
+      name: 'ff-local-feed',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const name = req.url?.split('?')[0]
+          if (name !== '/status.json' && name !== '/info.json') return next()
+          try {
+            const body = fs.readFileSync(dir + name)
+            res.setHeader('content-type', 'application/json')
+            res.setHeader('cache-control', 'no-store')
+            return res.end(body)
+          } catch {
+            return next()
+          }
+        })
+      },
+    }
+  )
+}
+
+const feedProxy = FIXTURES
+  ? {}
+  : {
+      '/info.json': { target: GAME_SERVER },
+      '/status.json': { target: GAME_SERVER },
+    }
+
 export default defineConfig({
-  plugins: [react(), localPayload()],
+  plugins: [react(), localPayload(), localFeed()],
   build: {
     // deploy.sh rsyncs server/ to the box; the composes mount index.html
     // and assets/ from here over the image's stock client.
@@ -55,8 +93,7 @@ export default defineConfig({
     proxy: {
       '/websocket': { target: GAME_SERVER, ws: true },
       '/valve.zip': { target: GAME_SERVER },
-      '/info.json': { target: GAME_SERVER },
-      '/status.json': { target: GAME_SERVER },
+      ...feedProxy,
       // in production the front-door Worker routes /admin-api the same way
       '/admin-api': { target: ADMIN_API },
     },

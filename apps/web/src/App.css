@@ -74,6 +74,7 @@
 /* GunGame: ember orange - weapon heat, climbing the ladder */
 .overlay[data-mode="gungame"],
 .pause[data-mode="gungame"],
+.tabscreen[data-mode="gungame"],
 .slotclock[data-mode="gungame"] {
   --accent: var(--mode-gungame);
   --accent-hot: #ffbb3d;
@@ -88,6 +89,7 @@
 /* Deathmatch: kill-feed crimson */
 .overlay[data-mode="dm"],
 .pause[data-mode="dm"],
+.tabscreen[data-mode="dm"],
 .slotclock[data-mode="dm"] {
   --accent: var(--mode-dm);
   --accent-hot: #ff7d8a;
@@ -102,6 +104,7 @@
 /* Aim Prac: signal violet - tracer glow against the knife horde */
 .overlay[data-mode="aim"],
 .pause[data-mode="aim"],
+.tabscreen[data-mode="aim"],
 .slotclock[data-mode="aim"] {
   --accent: var(--mode-aim);
   --accent-hot: #c49aff;
@@ -116,6 +119,7 @@
 /* Source Maps: source-engine cyan - familiar ground, rebuilt */
 .overlay[data-mode="css"],
 .pause[data-mode="css"],
+.tabscreen[data-mode="css"],
 .slotclock[data-mode="css"] {
   --accent: var(--mode-css);
   --accent-hot: #6ef5e9;
@@ -130,6 +134,7 @@
 /* Fight Yard: yard green - grass, fences, close quarters */
 .overlay[data-mode="fy"],
 .pause[data-mode="fy"],
+.tabscreen[data-mode="fy"],
 .slotclock[data-mode="fy"] {
   --accent: var(--mode-fy);
   --accent-hot: #86efac;
@@ -144,6 +149,7 @@
 /* Sniper: scope-glass blue - cold, long, one shot */
 .overlay[data-mode="awp"],
 .pause[data-mode="awp"],
+.tabscreen[data-mode="awp"],
 .slotclock[data-mode="awp"] {
   --accent: var(--mode-awp);
   --accent-hot: #93bcff;
