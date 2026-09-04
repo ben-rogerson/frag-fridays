@@ -9,7 +9,7 @@ services:
     # caps a team at five, only maxplayers and mp_limitteams between them.
     #
     # These +cvars only cover the first moments of a cold boot: server.cfg
-    # execs at map start and beats them, and it is where the ruleset lives.
+    # execs after them and beats them, and it is where the ruleset lives.
     # They are set to match it anyway, so the two never disagree on paper.
     # +sv_timeout: browsers freeze the WASM game loop in background tabs, so
     # alt-tabbed players go network-silent; the engine default (65s) kicked
@@ -41,14 +41,24 @@ services:
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
       # ...and the repo takes ONE file back off that box-side configs dir.
-      # AMXX execs configs/amxx.cfg at every map start, AFTER server.cfg, so
-      # whatever is in it beats server.cfg - and the box copy used that to hold
-      # Classic's old casual values (16k money, 2.5 min rounds, 10 min maps),
-      # invisibly outranking the config in this repo. The repo copy sets no
-      # gameplay cvar at all, which leaves server.cfg unopposed as the single
-      # source of truth for the ruleset. Docker applies bind mounts
-      # deepest-path-last, so this file wins over the directory mount above.
+      # AMXX execs configs/amxx.cfg at EVERY map start; server.cfg execs only
+      # at container start (measured 2026-09-04). So whatever is in amxx.cfg
+      # beats server.cfg on every map after the first - which is exactly what
+      # the box copy was doing with Classic's old casual values (16k money,
+      # 2.5 min rounds, 10 min maps), invisibly outranking the config in this
+      # repo. The repo copy sets no gameplay cvar at all and ends with
+      # `exec server.cfg`, so the ruleset re-applies every map from one file.
+      # Docker applies bind mounts deepest-path-last, so this file wins over
+      # the directory mount above (verified on the box: yb_quota_mode reads
+      # `fill` where the box file says `normal`).
       - "./vanilla/amxx.cfg:/xashds/cstrike/addons/amxmodx/configs/amxx.cfg:ro"
+      # ...and configs/maps.ini, mapchooser's list of maps the end-of-map vote
+      # may offer. The mod Dockerfiles regenerate it from mapcycle.txt so a
+      # vote can never send players to a map that is not in valve.zip; vanilla
+      # has no build step, so its box copy had gone stale and was still
+      # offering de_prodigy and cs_militia, neither of which is in the client
+      # payload at all (found 2026-09-04). Keep it equal to mapcycle.txt.
+      - "./vanilla/maps.ini:/xashds/cstrike/addons/amxmodx/configs/maps.ini:ro"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "./cmdpipe:/xashds/cstrike/cmdpipe:ro"
       # YaPB bots (mod images bake these in; vanilla mounts them). The tree is

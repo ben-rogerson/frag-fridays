@@ -232,10 +232,12 @@ Maps rotate at `mp_timelimit` (30 min) on every mode except **Classic**,
 which runs `mp_timelimit 0` - no map clock at all, because a match must not
 be cut off mid-half. Its map changes when the half ends
 (`mp_maxrounds 15`); see [classic-rules.md](classic-rules.md). Classic's
-cvars used to come from box-side `mods/zp/configs/amxx.cfg`, which is exec'd
-every map start and silently overrode `server/vanilla/server.cfg`; the repo
-now mounts an `amxx.cfg` that sets no gameplay cvar, so server.cfg is the
-ruleset.
+cvars used to come from box-side `mods/zp/configs/amxx.cfg`, which AMXX execs
+at every map start while `server.cfg` execs only at container start - so it
+silently overrode `server/vanilla/server.cfg` for the life of every container
+(the full exec order is in [troubleshooting.md](troubleshooting.md)). The repo
+now mounts an `amxx.cfg` that sets no gameplay cvar and ends with
+`exec server.cfg`, so server.cfg is the ruleset and re-applies every map.
 AMXX's end-of-map vote
 (`mapchooser`) is enabled and fires shortly before the limit - whether the
 vote menu renders in the browser client is untested. All players can use

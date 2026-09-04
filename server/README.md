@@ -10,7 +10,7 @@ gets hand-edited on the server.
 | Path | On the VPS | Purpose |
 |---|---|---|
 | `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile vanilla` runs Classic, the 5v5 match mode, off the stock image. The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
-| `vanilla/` | `/opt/cs16/vanilla/` | Classic's config, mounted (not baked) because vanilla runs the stock image unbuilt: `server.cfg`, `amxx.cfg` (the match ruleset - execs last, so it wins), `yapb.cfg` (`yb_quota 0`), `mapcycle.txt`. See [docs/classic-rules.md](../docs/classic-rules.md) |
+| `vanilla/` | `/opt/cs16/vanilla/` | Classic's config, mounted (not baked) because vanilla runs the stock image unbuilt: `server.cfg` (the match ruleset), `amxx.cfg` (sets no gameplay cvar; ends with `exec server.cfg`, which is what re-applies the ruleset each map), `yapb.cfg` (`yb_quota 0`), `mapcycle.txt`, `maps.ini`. See [docs/classic-rules.md](../docs/classic-rules.md) |
 | `gg/` | `/opt/cs16/gg/` | GunGame (working) - Dockerfile compiles `addons/` plugin source at build time, appends to `plugins.ini` |
 | `dm/` | `/opt/cs16/dm/` | Deathmatch (working) - our `frag_dm.sma` compiled at build time; CSDM itself is dead on this stack (see docs/troubleshooting.md) |
 | `css/` | `/opt/cs16/css/` | Source Maps - dm's rules on CS:S/CS:GO maps remade for 1.6 (`css_*` + `de_bank_csgo`) |
@@ -36,11 +36,19 @@ gets hand-edited on the server.
   AMXX plugins, AMXX configs and the YaPB tree out of `mods/`, which was
   hand-seeded on the box and which `deploy.sh` only ever `mkdir -p`s. Nothing
   in `server/` syncs it, so a change made there is invisible here and dies
-  with the box. Two files have been pulled back under repo control by mounting
-  over it (`vanilla/amxx.cfg`, `vanilla/yapb.cfg`) - do the same for anything
-  else that starts mattering, rather than editing `mods/` in place. Still
-  box-only: `mods/zp/plugins/*.amxx` (compiled binaries - nothing can rebuild
-  them for vanilla), `mods/zp/configs/{plugins.ini,users.ini,maps/}` and
+  with the box. Three files have been pulled back under repo control by
+  mounting over it (`vanilla/amxx.cfg`, `vanilla/maps.ini`,
+  `vanilla/yapb.cfg`) - do the same for anything else that starts mattering,
+  rather than editing `mods/` in place. When you do, take the box copy
+  VERBATIM and subtract from it; retyping a config from what the docs say is
+  in it is how you lose settings nobody remembered.
+
+  Still box-only, audited 2026-09-04: `mods/zp/plugins/*.amxx` (compiled
+  binaries - nothing can rebuild them for vanilla; the loaded set is stock
+  AMXX plus `cmdpipe.amxx` and `statusjson.amxx`, and notably NOT
+  `chatrestart` or `teambalance`), `mods/zp/configs/plugins.ini`,
+  `configs/users.ini`, `configs/maps/` (per-map cfgs for awp_india,
+  cs_deagle5 and scoutzknivez - none of them in Classic's pool) and
   `mods/metamod-plugins.ini`.
 
 ## Rules (learned the hard way - see docs/troubleshooting.md)

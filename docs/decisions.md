@@ -1087,19 +1087,33 @@ It is now the match mode: five a side, the era's competition ruleset
 the era's map pool, and no bots. The casual modes stay casual; Classic is the
 one you swap to when ten people want a real game.
 
-Four things worth recording, all of them about where config LIVES rather than
-what it says:
+Five things worth recording, most of them about where config LIVES rather
+than what it says:
 
-- **The box copy of `amxx.cfg` was silently winning.** AMXX execs
-  `configs/amxx.cfg` at every map start, after the engine has exec'd
-  `server.cfg`. Classic's copy lived only on the box, in
-  `/opt/cs16/mods/zp/configs/`, and held the quick-round values - so
+- **The box copy of `amxx.cfg` was silently winning, and the reason is worse
+  than it looked.** Classic's `amxx.cfg` lived only on the box, in
+  `/opt/cs16/mods/zp/configs/`, and held quick-round values - so
   `server/vanilla/server.cfg`, the file in this repo that looks like the
   server's config, was being overridden by a file the repo has never
-  contained. The fix is not to move the ruleset into `amxx.cfg`; it is to
-  mount a repo copy of `amxx.cfg` that sets **no gameplay cvar at all**,
-  leaving `server.cfg` unopposed. One readable file is the ruleset; the other
-  exists to stop something else claiming to be.
+  contained. Boot-testing it on 2026-09-04 turned up the actual mechanism,
+  which this repo had backwards: **`server.cfg` execs ONCE, at container
+  start, and never again; `amxx.cfg` is exec'd by AMXX at EVERY map start.**
+  So on the first map amxx.cfg won by running later, and on every map after
+  that it won by running at all. Written up properly in troubleshooting.md
+  because it applies to every mod, not just Classic.
+  The fix is not to move the ruleset into `amxx.cfg`; it is to mount a repo
+  copy of `amxx.cfg` that sets **no gameplay cvar at all** and ends with
+  `exec server.cfg`. One readable file is the ruleset, it re-applies every
+  map, and the other file exists only to stop something else claiming to be
+  the ruleset. Cost: `log on` re-running splits each map's kill log into two
+  files. `standings.sh` cats them all, so it is cosmetic.
+- **Take the box copy verbatim when rescuing a file, then subtract.** The
+  first draft of `server/vanilla/amxx.cfg` was hand-written from what the
+  docs said was in it, which would have silently dropped `amx_default_access`,
+  the vote ratios, the CS stats settings and a rewritten `amx_imessage` the
+  moment it mounted. The committed version is the box file byte-for-byte
+  minus the five casual gameplay lines - a diff of the two proves nothing
+  else moved. Rescuing a config is a subtraction, never a retype.
 - **Mounting over the box tree is how anything gets rescued from `mods/`.**
   `deploy.sh` only `mkdir -p`s `/opt/cs16/mods`; its contents were hand-seeded
   and nothing syncs them. Rather than a big migration, two files were pulled
