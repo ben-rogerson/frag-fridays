@@ -225,8 +225,16 @@ So 3 is simultaneously the most informative and the least cluttered.
 health numbers; pos 1 (the engine default) drops it on top of the ammo
 counter.
 
-`net_graph` prints its own fps, so the shipped `cl_showfps 1` is redundant
-while it is on. It stays as the fallback for players who turn the graph off.
+`cl_showfps` went 1 -> 0 as part of this. Every non-zero `net_graph` prints
+its own fps, so leaving `cl_showfps` on puts two fps numbers on screen at
+once, sampled over different windows and disagreeing with each other - "30
+fps" in the corner against "33.3 fps" in the block, verified in-game. That
+reads as a bug. `net_graph` owns the readout; turning the stats off takes the
+fps with them, which is what "off" should mean.
+
+The settings control writes `net_graph` only, so if `cl_showfps` is ever
+turned back on in `userconfig.cfg` the duplicate comes back for everyone who
+has not set the cvar themselves.
 
 ## Re-measuring
 
