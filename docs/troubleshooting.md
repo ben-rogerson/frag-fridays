@@ -315,15 +315,36 @@ handshake - which on the player's screen is a loading screen that never ends,
 with a server that is demonstrably alive.
 
 **Why a restart was the only way out**, and this is the part that turned a
-stall into a stranded session: the stalled clients still hold their slots for
-the full `sv_timeout` (600s). Ten seconds after the change YaPB's quota filled
-every remaining slot - `Maximum players reached (16/16)`, a line that appears
-exactly twice in the whole day and both times right here. So eight zombie
-humans plus eight bots = a full server, and every player who reloaded in
-frustration (that is what the `close 1001 (going away)` burst is) could not
-get back in. Note what does NOT happen on a healthy change: at 04:11:49 YaPB
-starts kicking its own bots back out as the humans return. The lockout is
-self-inflicted by the bot quota and cannot clear itself for ten minutes.
+stall into a stranded session: **the bots got to the new map before the
+humans**. Put the two windows side by side and it is the whole story.
+
+    FAILED  03:34:03 fy_iceworld (8 humans)
+      03:34:10-13  eight [BOT] ... "entered the game"      <- bots first
+      03:34:13     Maximum players reached (16/16)
+                   (no human ever reaches "entered the game")
+      03:34:18-27  five websocket close 1001 - reloads, into a full server
+
+    HEALTHY 04:11:41 de_dust2 (7 humans, rotation)
+      04:11:42-43  seven "Custom resource propagation complete" + entered
+      04:11:46-48  then bots fill the remainder                <- humans first
+      04:11:49+    "Bot ... kicked" as more humans arrive
+
+The stalled clients still hold their slots for the full `sv_timeout` (600s),
+and YaPB filled everything left within ten seconds - `Maximum players reached
+(16/16)`, a line that appears exactly twice in the whole day and both times
+right here. Eight zombie humans plus eight bots is a full server, so every
+player who reloaded in frustration (that is what the `close 1001 (going away)`
+burst is) was refused. On a healthy change the humans reclaim their slots in
+one to two seconds and YaPB fills what is left, then keeps kicking bots as
+more arrive. **Whatever made the carry-over slow, only the bots made it
+unrecoverable.**
+
+The config made that inevitable. Every 16-player mod shipped
+`yb_autovacate_keep_slots "1"` - one reserved slot out of sixteen, which
+cannot absorb a session's worth of people coming back at once - and
+`yb_join_delay "5.0"`, so bots start claiming slots five seconds after the
+map spawns. It gets WORSE the more people are playing, which is the wrong way
+round for an event.
 
 There is a no-restart escape from the lockout, worth knowing but not worth
 preferring: the war room's "Clear all bots" (`yb_quota 0` + `yb kickall`)
@@ -331,6 +352,16 @@ frees every bot slot, so reloading players can get back in while the zombie
 human slots age out on their own. It leaves an empty-feeling server for a
 minute and does nothing about the stalled clients themselves. A restart is
 faster and cleaner, and it is what the failure message says.
+
+**A trap worth knowing while reading any of this:** `yb_quota` and
+`yb_autovacate` are listed in `yb_ignore_cvars_on_changelevel`, so a quota
+poked at runtime (the war room's Bots panel, or an MCP call) **survives every
+changelevel and is never re-read from yapb.cfg**. That is why the live server
+was filling to 16 on the night when its config says `yb_quota "10"` - someone
+had raised it at some point and it had stuck. Only a container restart puts
+the file's value back. The two cvars changed below are deliberately NOT in
+that list, so their file values ARE re-applied at every map change, which is
+exactly the moment they matter.
 
 **What was different about the failed changes.** They are the only two
 changelevels of the day issued from the war room's map button, and the war
@@ -345,12 +376,31 @@ failures had eight clients where the two admin changes that worked that day
 had one. `scripts/nextmap.sh` has always done the warn and the change as two
 writes five seconds apart and has never done this.
 
-**Changed 2026-09-04**, and note that only the first of these is a candidate
-cure - the rest are guards that hold whichever of the three differences turns
-out to be the cause:
+**Changed 2026-09-04.** Only the first of these is a candidate cure for the
+stall itself; the rest make the stall survivable whichever of the three
+differences turns out to have caused it. The bot-slot changes are the ones
+that matter most - they are what turns "restart the server" into "that map
+took a while".
 
 - `server/mcp/src/actions.js` `changeMap()` warns and changes as two separate
   pipe writes 4s apart, back to nextmap.sh's shape.
+- **`yb_join_delay "5.0"` -> `"20.0"`** in every mod's `addons/yapb/conf/`
+  `yapb.cfg` (gg, dm, css, fy, awp AND aim). This is the ordering fix: bots do
+  not start claiming slots until 20s after the map spawns, so a carry-over
+  that takes longer than a second or two is no longer a race the humans lose.
+  YaPB's own max for this cvar is 30.
+- **`yb_autovacate_keep_slots "1"` -> `"4"`** in the five 16-player `fill`
+  mods. A standing reserve of four landing slots, so a reload always has
+  somewhere to go and a queue of returning players drains (each arrival kicks
+  a bot via `yb_kick_after_player_connect`) instead of deadlocking. It costs
+  nothing in normal play: it implies a 12-player ceiling and `yb_quota` is 10.
+  `aim` is deliberately left alone here - it runs `maxplayers 24` with a fixed
+  16 bots and `yb_autovacate "0"`, so it already keeps 8 slots free by
+  arithmetic (a bigger reserve than this), and switching autovacate on would
+  change how many bots an aim session runs. It still gets the join delay.
+- The war room's bot fill now stops at `maxplayers - 4` rather than the last
+  slot, so the quota cannot be pushed back into the reserve - which matters
+  because a runtime quota sticks across changelevels (see the trap above).
 - The same function then VERIFIES: it polls `status.json` for the new map name
   (20s budget) and then, 8s later, checks the humans are still on the
   scoreboard. `humansBefore > 0 && humansAfter === 0` is exactly this bug's
@@ -366,12 +416,34 @@ out to be the cause:
   stopped answering" (its payload froze) from "the map is up but you did not
   come back", because the fixes differ.
 
+**Would the bot changes alone have saved that night?** Almost certainly, as
+recovery rather than as a cure. The carry-over would still have stalled, but
+with bots held off for 20s and four slots reserved, the players who reloaded
+at +15 to +25s would have landed on the new map instead of bouncing off a
+full server, and each arrival would have kicked a bot to keep the reserve.
+That is the difference between "restart the server" and "that map took a
+while". It does not fix the stall, and the client card is what stops a player
+sitting there not knowing to reload in the first place.
+
 **Still to verify on the box** (the incident was diagnosed entirely from
-`docker logs`, no repro): whether splitting the write is the actual cure.
-The test is a map change from the war room with 6+ real (or headless-Chrome,
-see the joiner recipe above) clients connected, watching for `Custom resource
-propagation complete.` per client. Do NOT trust a repro with one client -
-both admin changes that day with a single client worked fine.
+`docker logs`, no repro):
+
+- Whether splitting the pipe write is the actual cure. The test is a map
+  change from the war room with 6+ real (or headless-Chrome, see the joiner
+  recipe above) clients connected, watching for `Custom resource propagation
+  complete.` per client. Do NOT trust a repro with one client - both admin
+  changes that day with a single client worked fine.
+- **What `yb_autovacate_keep_slots` actually reserves against.** The reading
+  taken here is that it caps total slot occupancy at `maxplayers - N`, which
+  is what the `Maximum players reached (16/16)` line implies YaPB checks
+  before creating a bot. If instead it only reserves against humans YaPB can
+  SEE, it will not help against stalled clients (which are not `ingame` and so
+  are invisible to `get_players()` and probably to YaPB too) - and the war
+  room's fill cap becomes the load-bearing part of the guarantee rather than
+  the belt. Check by filling a 16-player mod to the cap and confirming
+  `status.json` settles at 12, not 16.
+- That `yb_join_delay 20` does not read as a dead server at the top of each
+  map. Watch one full rotation with people on it.
 
 ## Server sim dies silently: Host_Error kills it, the container lives on
 

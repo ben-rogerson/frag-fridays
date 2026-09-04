@@ -75,6 +75,16 @@ humans are in. (The previous `normal` mode meant "always 7 bots" - `yb_autovacat
 bots hung around until the 8th human. Changed 2026-08-21.) Bots are unmistakable on the scoreboard: names are
 prefixed `[BOT]` and the ping column shows `BOT` rather than a fake ping.
 
+**Bots keep out of the way of a map change** (changed 2026-09-04, after they
+locked a session out of one - see [troubleshooting.md](troubleshooting.md)).
+`yb_join_delay 20` holds them off for the first 20 seconds of every new map,
+which is the window the humans need to carry over into it, so the server
+looks a little thin for that first 20s on purpose.
+`yb_autovacate_keep_slots 4` then keeps four slots permanently free, so a
+player reloading mid-session always has somewhere to land. Neither changes
+the fill behaviour above: the ceiling they imply is 12 and the quota is 10,
+so on any normal night they never bind.
+
 Config lives per mod in `server/<mod>/addons/yapb/conf/yapb.cfg`. It is
 baked into the image, so changes need `pnpm run deploy <mod>` (rebuild +
 restart) to take effect. The two mods deliberately have separate copies -
@@ -110,6 +120,9 @@ and `yb_difficulty_auto 0`, then `yb_difficulty` alone applies.
 |---|---|---|
 | `yb_quota` | 10 | target total players in `fill` mode (bot count in `normal`); lower it for tiny maps |
 | `yb_quota_mode` | fill | `fill` = top up to quota counting humans (bots leave as humans arrive); `normal` = fixed bot count, only vacate when slots run out; `match` = N bots per human |
+| `yb_join_delay` | 20.0 | seconds before bots start joining after a changelevel; max 30. Raised from 5 so the humans carry over first |
+| `yb_autovacate_keep_slots` | 4 (1 on aim) | slots never given to bots; max 8. aim keeps 8 free by arithmetic instead (24 slots, 16 fixed bots) |
+| `yb_ignore_cvars_on_changelevel` | `yb_quota,yb_autovacate` | those two survive a changelevel, so a quota poked at runtime sticks until the container restarts and yapb.cfg's value is NOT authoritative on a long-running box |
 | `yb_join_team` | any | force `t`/`ct` to stack one side |
 | `yb_chat` / `yb_chat_percent` | 0 / 30 | text-chat banter, off since 2026-08-02 |
 | `yb_radio_mode` | 0 | 0 = no radio, 1 = radio, 2 = radio + voice chatter; off since 2026-08-02 |

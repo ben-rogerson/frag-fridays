@@ -942,3 +942,58 @@ The banner deliberately does not cover the game or take the pointer: a
 healthy carry-over is one to three seconds and the page must not be a
 five-second obstacle every map. Only the stuck state gets the full sheet, by
 which point there is nothing to play behind it.
+
+## The bots wait for the humans at a map change (2026-09-04)
+
+The same incident, one layer down. When the carry-over into the new map
+stalled, the thing that made it unrecoverable was not the stall - it was that
+YaPB reached the new map first and closed it. Side by side:
+
+    FAILED   bots enter 03:34:10-13, "Maximum players reached (16/16)" at :13,
+             no human ever enters, reloads at :18-:27 hit a full server
+    HEALTHY  humans enter 04:11:42-43, bots fill the remainder at :46-:48,
+             and YaPB keeps kicking its own bots as more humans arrive
+
+Every 16-player mod shipped `yb_autovacate_keep_slots "1"` and
+`yb_join_delay "5.0"`. One reserved slot cannot absorb a session's worth of
+people coming back at once, and five seconds is shorter than a slow
+carry-over - so the failure gets WORSE the more people are playing, which is
+exactly the wrong way round for an event.
+
+**`yb_join_delay` 5 -> 20** (YaPB's max is 30) in all six mods with a bot
+tree. This is the ordering fix and it is the important one: for the first
+twenty seconds of a new map the only thing that can take a slot is a person.
+The cost is a visibly thinner server for those twenty seconds, on a
+ten-minute map, with everyone who matters already in it.
+
+**`yb_autovacate_keep_slots` 1 -> 4** in the five 16-player `fill` mods. Four
+landing slots, always. A returning player gets in, `yb_kick_after_player_
+connect` frees a bot slot behind them, and a queue of eight drains instead of
+deadlocking. It is free in normal operation - it implies a 12-player ceiling
+and the quota is 10 - so it only ever bites when the server is genuinely
+near-full, which is precisely when it should.
+
+`aim` is deliberately excluded from the second change and gets only the join
+delay. It runs `maxplayers 24` with a fixed 16 bots and `yb_autovacate "0"`,
+so it already holds 8 slots free by arithmetic - a bigger reserve than the
+one being added elsewhere - and switching autovacate on there would change
+how many bots an aim session runs, which is a mode design decision and not a
+bug fix.
+
+None of this touches the behaviour README.md describes ("bots hold the slots
+and step out one at a time as humans arrive"): with quota 10 under a 12
+ceiling, `fill` mode and autovacate work exactly as before.
+
+The war room's bot fill now stops at `maxplayers - 4` instead of the last
+slot. That is the belt to the reserve's braces, and it earns its place for a
+second reason: `yb_quota` is in `yb_ignore_cvars_on_changelevel`, so a quota
+raised at runtime survives every map change and is never re-read from
+yapb.cfg. The live server was filling to 16 on the night against a config
+that says 10, because someone had raised it at some point and it had stuck.
+A ceiling in the panel is the only place that can be prevented, since the
+file is not authoritative once the container is running.
+
+`yb_join_delay` and `yb_autovacate_keep_slots` are deliberately NOT added to
+`yb_ignore_cvars_on_changelevel`: being re-read from the file at every
+changelevel is the property that makes them reliable here, since a
+changelevel is the only moment they do anything.

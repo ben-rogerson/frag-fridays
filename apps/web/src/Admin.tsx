@@ -82,6 +82,20 @@ const MOD_LABEL: Record<string, string> = {
 // weight anywhere else (mirrors TEAM_MODS in server/mcp/src/actions.js)
 const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
 
+// Slots the bot fill must leave alone, mirroring yb_autovacate_keep_slots in
+// every mod's yapb.cfg. Filling to the very last slot is what turned a slow
+// map carry-over into a server nobody could rejoin through on 2026-09-04:
+// stalled clients hold their slots for sv_timeout, the bots take the rest, and
+// every reload is refused. yb_quota also survives a changelevel
+// (yb_ignore_cvars_on_changelevel), so a quota pushed to the ceiling once
+// stays there until the container is restarted - which is exactly what had
+// happened that night.
+const BOT_RESERVE = 4;
+// 16 is also the API's own ceiling for a fill (server/mcp/src/admin.js), so a
+// bigger server never lets the panel ask for something that would be refused
+const botCapOf = (maxplayers: number | undefined) =>
+  Math.min(16, Math.max(1, (maxplayers ?? 16) - BOT_RESERVE));
+
 class AuthError extends Error {}
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -254,7 +268,9 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
       // YaPB's fill mode that number IS the quota's effect, so it starts
       // honest instead of at some default that would yank the server
       if (!quotaTouched.current && s.status)
-        setQuota(Math.min(16, s.status.humans + s.status.bots));
+        setQuota(
+          Math.min(botCapOf(s.status.maxplayers), s.status.humans + s.status.bots),
+        );
     } catch (err) {
       if (err instanceof AuthError) return onLock();
       setStateError((err as Error).message);
@@ -304,6 +320,7 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
   const bots = status?.players.filter((p) => p.bot) ?? [];
   const busy = Boolean(pending) || jobRunning;
   const teams = Boolean(state && TEAM_MODS.includes(state.mod));
+  const botCap = botCapOf(status?.maxplayers);
   const session = state?.session ?? null;
   // the kickoff has been moved iff the file carries what to put back
   const early = Boolean(session && session.scheduled !== undefined);
@@ -486,10 +503,10 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
             <button
               type="button"
               className="war__btn war__btn--step"
-              disabled={busy || !pipe || quota >= 16}
+              disabled={busy || !pipe || quota >= botCap}
               onClick={() => {
                 quotaTouched.current = true;
-                setQuota((q) => Math.min(16, q + 1));
+                setQuota((q) => Math.min(botCap, q + 1));
               }}
             >
               +
@@ -504,7 +521,13 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
             </button>
           </div>
           <p className="war__hint">
-            Total players, not bots: each human who joins takes a bot's slot. {quota === 0 ? "Zero means an empty server." : ""}
+            {/* the gap is worked out rather than printed as BOT_RESERVE: on a
+                24-slot mod the API's own ceiling of 16 is the binding one and
+                the free slots are 8, not 4 */}
+            Total players, not bots: each human who joins takes a bot's slot. Stops at {botCap},
+            not {status?.maxplayers ?? 16} - the last {(status?.maxplayers ?? 16) - botCap} slots
+            stay free so anyone reloading mid-map-change has somewhere to land.{" "}
+            {quota === 0 ? "Zero means an empty server." : ""}
           </p>
           <button
             type="button"
