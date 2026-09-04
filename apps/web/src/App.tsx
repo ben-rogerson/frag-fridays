@@ -32,6 +32,16 @@ type Stage =
 
 const SEGMENTS = 24;
 
+// status.json is rewritten every 5s from a server frame, and the clocks inside
+// it always move - the same bytes coming back for this long means the sim has
+// stopped, not that nothing happened. The fetch keeps succeeding either way.
+const STATUS_FROZEN_MS = 30_000;
+// How long carrying over into a new map is allowed to take before the page
+// stops calling it loading and calls it stuck. A healthy carry-over is 1-3s;
+// this rides out a big map on a slow link and is still nothing like the ten
+// minutes a stalled client used to sit there for.
+const CHANGE_STUCK_MS = 30_000;
+
 // What changed, in the players' terms - the server is worked on between
 // Fridays and nothing on the page said so.
 //
@@ -406,6 +416,12 @@ const DEBUG_KICKOFF = (() => {
 // QA override: ?mode=dm previews that mode's signal colours on any week.
 // Theme only - the card still reads real content from info.json.
 const DEBUG_MODE = new URLSearchParams(window.location.search).get("mode");
+// Same idea, for the map carry-over cards: `?mapload=de_nuke` paints the
+// banner, `&mapstate=stuck` and `&mapstate=frozen` the two stuck sheets. That
+// state is otherwise only reachable while a session is actually falling over,
+// which is the worst possible time to discover it renders badly.
+const DEBUG_MAPLOAD = new URLSearchParams(window.location.search).get("mapload");
+const DEBUG_MAPSTATE = new URLSearchParams(window.location.search).get("mapstate");
 
 // A Date whose local fields mimic Sydney wall time. Fine for a countdown:
 // it's recomputed from scratch every tick, so DST edges self-correct.
@@ -1484,19 +1500,36 @@ const App: FC = () => {
     location.reload();
   };
 
+  // This polls while PLAYING too, which it did not used to. status.json is the
+  // page's only view of the server once the engine has the screen, and without
+  // it a map change is completely invisible: the lobby overlay is hidden, the
+  // canvas sits on the engine's loading screen, and nothing anywhere says a
+  // word about what is happening or whether it is going to finish. That is
+  // what stranded the 2026-09-04 session - see docs/troubleshooting.md.
+  //
+  // `at` is when the payload last CHANGED, not when it was last fetched.
+  // statusjson.amxx writes the file from a server frame every 5s and the
+  // clocks inside it always move, so identical bytes for half a minute mean
+  // the sim has stopped - while the fetch itself keeps succeeding and every
+  // number in the file keeps reading perfectly healthy.
+  const statusSeenRef = useRef<{ text: string; at: number }>({ text: "", at: 0 });
+  const [serverFrozen, setServerFrozen] = useState(false);
   useEffect(() => {
-    if (playing) return;
     let cancelled = false;
     const poll = () => {
       const t0 = performance.now();
       fetch("/status.json", { cache: "no-store" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((s: ServerStatus | null) => {
-          if (!cancelled && s?.map) {
-            setServerStatus(s);
-            setPing(Math.round(performance.now() - t0));
-            setPollTick((n) => n + 1);
-          }
+        .then((r) => (r.ok ? r.text() : null))
+        .then((text) => {
+          if (cancelled || text === null) return;
+          const s = JSON.parse(text) as ServerStatus;
+          if (!s?.map) return;
+          if (text !== statusSeenRef.current.text)
+            statusSeenRef.current = { text, at: Date.now() };
+          setServerFrozen(Date.now() - statusSeenRef.current.at > STATUS_FROZEN_MS);
+          setServerStatus(s);
+          setPing(Math.round(performance.now() - t0));
+          setPollTick((n) => n + 1);
         })
         .catch(() => {});
       fetch("/info.json", { cache: "no-store" })
@@ -1512,7 +1545,62 @@ const App: FC = () => {
       cancelled = true;
       window.clearInterval(t);
     };
-  }, [playing]);
+  }, []);
+
+  // --- carrying over into a new map --------------------------------------
+  //
+  // A map change keeps everyone connected: the engine reconnects the client
+  // to the same server on the new level, and the player is supposed to land
+  // in it a second or two later. When that handshake stalls the client is
+  // stuck on a loading screen the page cannot see, the server is fine and
+  // still talking (so the drop watchdog never fires), and the slot is held
+  // for the full sv_timeout - which is how six people spent a session
+  // watching nothing on 2026-09-04.
+  //
+  // The tell is in status.json: the server's map name changed, and this
+  // player is NOT in its player list. That list is written from
+  // get_players(), which only counts clients that have actually spawned in,
+  // so "my name is missing from the new map" is the server saying it has not
+  // seen us arrive - not a guess made in the page.
+  const myNameRef = useRef("");
+  // the map we have been confirmed present in; null until the first poll
+  const inMapRef = useRef<string | null>(null);
+  // the map we are being carried into but have not been seen in yet
+  const [changing, setChanging] = useState<string | null>(null);
+  useEffect(() => {
+    const alias = myNameRef.current;
+    // no alias, no way to find ourselves on a scoreboard - say nothing rather
+    // than assume the worst about every map change (play() always sets one,
+    // this is only here so a future path that does not can never show a card
+    // that will never clear)
+    if (!playing || !alias || !serverStatus?.map) return;
+    const map = serverStatus.map;
+    // whatever map the first poll of a session finds is the one we joined
+    if (inMapRef.current === null) {
+      inMapRef.current = map;
+      return;
+    }
+    // the engine hands out "Name (1)" when an alias is already taken, so a
+    // prefix match is the honest test rather than an exact one
+    const here = serverStatus.players.some(
+      (p) => !p.bot && (p.name === alias || p.name.startsWith(`${alias} (`)),
+    );
+    if (here) {
+      inMapRef.current = map;
+      setChanging(null);
+    } else if (map !== inMapRef.current) {
+      setChanging(map);
+    }
+  }, [serverStatus, playing]);
+
+  // a carry-over that has not landed in this long is not slow, it is stuck
+  const [changeStuck, setChangeStuck] = useState(false);
+  useEffect(() => {
+    setChangeStuck(false);
+    if (!changing) return;
+    const t = window.setTimeout(() => setChangeStuck(true), CHANGE_STUCK_MS);
+    return () => window.clearTimeout(t);
+  }, [changing]);
 
   // the standings file is weekly data - one fetch, no poll. Absent file
   // (fresh box, script never run) just leaves the panel unrendered.
@@ -1615,6 +1703,9 @@ const App: FC = () => {
       return;
     }
     startedRef.current = true;
+    // the alias the server will know us by, which is how the page recognises
+    // itself in status.json's player list - see the carry-over effect above
+    myNameRef.current = playerName;
     // the Play gesture also covers the fullscreen request
     enterFullscreen();
     localStorage.setItem("ff-name", playerName);
@@ -1716,6 +1807,12 @@ const App: FC = () => {
   // each mode broadcasts in its own signal colour; classic acid until the
   // live mode is known (or an unmatched future mod runs)
   const themeMode = DEBUG_MODE ?? liveMode?.key ?? "classic";
+  // What the carry-over cards below paint, in one place: the live state, or
+  // whatever the ?mapload debug params ask for. Both stand down for the match
+  // menu, which the player opened on purpose.
+  const loadingMap = DEBUG_MAPLOAD ?? (playing && !paused ? changing : null);
+  const loadingStuck = DEBUG_MAPLOAD ? DEBUG_MAPSTATE !== null : changeStuck;
+  const loadingFrozen = DEBUG_MAPLOAD ? DEBUG_MAPSTATE === "frozen" : serverFrozen;
 
   return (
     <>
@@ -2380,6 +2477,54 @@ const App: FC = () => {
               {slotClock.tail}
             </span>
           )}
+        </div>
+      )}
+      {/* Carrying over into a new map. Two states, and the split matters: a
+          healthy carry-over is a second or two, so it gets a banner that never
+          covers the game or takes the pointer; one that has stopped being
+          loading gets the full sheet, because at that point there is nothing
+          to play behind it and there IS something to press. Both outside
+          .overlay - that is hidden while playing - and both stand down for the
+          match menu, which the player opened on purpose. */}
+      {loadingMap && !loadingStuck && (
+        <div className="mapload" role="status" aria-live="polite">
+          <span className="mapload__label">loading</span>
+          <span className="mapload__map">{loadingMap}</span>
+          <span className="mapload__label">you keep your slot</span>
+        </div>
+      )}
+      {loadingMap && loadingStuck && (
+        <div
+          className="pause"
+          data-mode={themeMode}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Map change stuck"
+        >
+          <div className="pause__card">
+            <p className="pause__title">still loading</p>
+            <p className="pause__mapname">{loadingMap}</p>
+            {/* Which of the two it is, said plainly, because the fix differs:
+                a frozen server needs someone to restart it and nothing the
+                player does will help, while a live server the player has not
+                rejoined is fixed by going back and coming in again. The page
+                can tell them apart - status.json either keeps moving or it
+                does not - so it should not fudge them into one message. */}
+            {loadingFrozen ? (
+              <p className="pause__note">
+                the server has stopped answering - it is not going to finish loading until someone
+                restarts it. nothing here is your end.
+              </p>
+            ) : (
+              <p className="pause__note">
+                the map is up and the server is running, but your game has not come back from the
+                change. rejoining reloads the page and hands your slot back.
+              </p>
+            )}
+            <button className="join pause__resume" onClick={leaveMatch} autoFocus>
+              {loadingFrozen ? "back to the lobby" : "rejoin"}
+            </button>
+          </div>
         </div>
       )}
       {playing && paused && (

@@ -2280,6 +2280,54 @@ th.standings__num {
 
 /* Escape menu, over the live canvas. Sits above the screen furniture, and
    outside .overlay because that is hidden while playing. */
+/* --- carrying over into a new map -------------------------------------- */
+
+/* A map change keeps everyone connected, and the page used to say nothing at
+   all about it: the lobby overlay is hidden while playing, the canvas holds
+   the engine's loading screen, and the drop watchdog stays quiet because the
+   server is fine and still talking. This is the quiet half of the answer -
+   which map is coming, and that the slot is kept. Same furniture as the slot
+   clock (hangs off the top edge, never takes the pointer) because a healthy
+   carry-over is over in a second or two and must not land on the game. The
+   loud half is the .pause sheet below, which appears only once the carry-over
+   has taken long enough to be stuck rather than slow.
+
+   No data-mode colours: this is deliberately not in the mode palette table,
+   so it keeps the root accent in every mode rather than adding a seventh
+   selector to six colour blocks for a banner that is on screen for seconds. */
+.mapload {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.85rem 0.34rem;
+  pointer-events: none;
+  background: var(--ink-deep);
+  border: 1px solid var(--bevel-light);
+  border-top: 0;
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  color: var(--text-mute);
+}
+
+.mapload__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.mapload__map {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
 .pause {
   position: fixed;
   inset: 0;
@@ -2327,6 +2375,17 @@ th.standings__num {
   margin: 0 0 0.3rem;
   font-size: 0.78rem;
   color: var(--text-mute);
+}
+
+/* the map on the stuck-carry-over sheet, where it is the subject of the card
+   rather than a line of furniture */
+.pause__mapname {
+  width: min(21rem, 100%);
+  margin: -0.45rem auto 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent);
 }
 
 /* the card is wide enough for two keymap columns, but the buttons keep the

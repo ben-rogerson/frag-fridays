@@ -55,6 +55,11 @@ type State = {
   pipe: boolean;
   mode: string | null;
   status: Status | null;
+  // age of status.json, written every 5s from a server frame. Frozen = the sim
+  // has stopped, and every number in `status` is a photograph of when it did.
+  // null where the box sent no Last-Modified: unknown, not fresh.
+  statusAgeMs: number | null;
+  statusStale: boolean;
   maps: string[];
   mods: string[];
   job: Job | null;
@@ -76,6 +81,20 @@ const MOD_LABEL: Record<string, string> = {
 // mods whose image bakes teambalance.amxx in - the Teams panel is dead
 // weight anywhere else (mirrors TEAM_MODS in server/mcp/src/actions.js)
 const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
+
+// Slots the bot fill must leave alone, mirroring yb_autovacate_keep_slots in
+// every mod's yapb.cfg. Filling to the very last slot is what turned a slow
+// map carry-over into a server nobody could rejoin through on 2026-09-04:
+// stalled clients hold their slots for sv_timeout, the bots take the rest, and
+// every reload is refused. yb_quota also survives a changelevel
+// (yb_ignore_cvars_on_changelevel), so a quota pushed to the ceiling once
+// stays there until the container is restarted - which is exactly what had
+// happened that night.
+const BOT_RESERVE = 4;
+// 16 is also the API's own ceiling for a fill (server/mcp/src/admin.js), so a
+// bigger server never lets the panel ask for something that would be refused
+const botCapOf = (maxplayers: number | undefined) =>
+  Math.min(16, Math.max(1, (maxplayers ?? 16) - BOT_RESERVE));
 
 class AuthError extends Error {}
 
@@ -249,7 +268,9 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
       // YaPB's fill mode that number IS the quota's effect, so it starts
       // honest instead of at some default that would yank the server
       if (!quotaTouched.current && s.status)
-        setQuota(Math.min(16, s.status.humans + s.status.bots));
+        setQuota(
+          Math.min(botCapOf(s.status.maxplayers), s.status.humans + s.status.bots),
+        );
     } catch (err) {
       if (err instanceof AuthError) return onLock();
       setStateError((err as Error).message);
@@ -262,9 +283,20 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const act = async (key: string, path: string, body: unknown, label: string) => {
-    if (pending) return;
-    setPending(key);
+  // `urgent` skips the one-at-a-time gate and never claims `pending`. Only the
+  // restart uses it: a verified map change now holds the panel for ~15s, and
+  // the restart is precisely what an admin reaches for when a map change is
+  // going wrong. Being told to wait for the thing that is failing is the
+  // position this panel exists to avoid.
+  const act = async (
+    key: string,
+    path: string,
+    body: unknown,
+    label: string,
+    urgent = false,
+  ) => {
+    if (pending && !urgent) return;
+    if (!urgent) setPending(key);
     try {
       const res = await call<{ detail?: string; output?: string }>(token, path, body);
       say(res.detail ? `${label} - ${res.detail}` : label);
@@ -275,7 +307,7 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
       if (err instanceof AuthError) return onLock();
       say(`${label} failed - ${(err as Error).message}`, true);
     } finally {
-      setPending(null);
+      if (!urgent) setPending(null);
       refresh();
     }
   };
@@ -288,6 +320,7 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
   const bots = status?.players.filter((p) => p.bot) ?? [];
   const busy = Boolean(pending) || jobRunning;
   const teams = Boolean(state && TEAM_MODS.includes(state.mod));
+  const botCap = botCapOf(status?.maxplayers);
   const session = state?.session ?? null;
   // the kickoff has been moved iff the file carries what to put back
   const early = Boolean(session && session.scheduled !== undefined);
@@ -338,6 +371,16 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
         </p>
       )}
       {stateError && state && <p className="war__warn">{stateError}</p>}
+      {/* The sim can stop while the container, the page and the scoreboard all
+          stay green - see docs/troubleshooting.md. When it does, the panel is
+          painting a photograph, the command pipe is not being read, and the
+          only thing that helps is the restart button below. Say so. */}
+      {state?.statusStale && (
+        <p className="war__warn">
+          The scoreboard has not moved for {Math.round((state.statusAgeMs ?? 0) / 1000)}s - the sim
+          is not running. Commands will not be executed. Restart the server.
+        </p>
+      )}
       {job && (
         <p className={`war__job ${job.finishedAt ? (job.ok ? "war__job--ok" : "war__job--bad") : ""}`}>
           {jobRunning
@@ -460,10 +503,10 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
             <button
               type="button"
               className="war__btn war__btn--step"
-              disabled={busy || !pipe || quota >= 16}
+              disabled={busy || !pipe || quota >= botCap}
               onClick={() => {
                 quotaTouched.current = true;
-                setQuota((q) => Math.min(16, q + 1));
+                setQuota((q) => Math.min(botCap, q + 1));
               }}
             >
               +
@@ -478,7 +521,13 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
             </button>
           </div>
           <p className="war__hint">
-            Total players, not bots: each human who joins takes a bot's slot. {quota === 0 ? "Zero means an empty server." : ""}
+            {/* the gap is worked out rather than printed as BOT_RESERVE: on a
+                24-slot mod the API's own ceiling of 16 is the binding one and
+                the free slots are 8, not 4 */}
+            Total players, not bots: each human who joins takes a bot's slot. Stops at {botCap},
+            not {status?.maxplayers ?? 16} - the last {(status?.maxplayers ?? 16) - botCap} slots
+            stay free so anyone reloading mid-map-change has somewhere to land.{" "}
+            {quota === 0 ? "Zero means an empty server." : ""}
           </p>
           <button
             type="button"
@@ -534,15 +583,20 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
                   type="button"
                   className={`war__map ${m === status?.map ? "war__map--live" : ""}`}
                   disabled={busy || !pipe || m === status?.map}
-                  onClick={() => act(`map-${m}`, "/map", { map: m }, `Changed map to ${m}`)}
+                  onClick={() => act(`map-${m}`, "/map", { map: m }, `Map to ${m}`)}
                 >
                   <span>{m}</span>
                   {m === status?.map && <span className="war__now">on now</span>}
+                  {pending === `map-${m}` && <span className="war__now">changing...</span>}
                 </button>
               </li>
             ))}
           </ul>
-          <p className="war__hint">Changing map keeps everyone connected.</p>
+          <p className="war__hint">
+            Warns the server, changes, then waits to see the new map come up with its players still
+            on it - about 15 seconds before it answers. If it comes back red, the map change did
+            not carry the players and the restart button is the fix.
+          </p>
         </Panel>
 
         <Panel title="Mode" note="drops everyone">
@@ -598,14 +652,19 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               {pending === "command" ? "..." : "Run"}
             </button>
           </form>
+          {/* deliberately NOT gated on `busy`: this is the way out of a
+              wedged sim, and a map change going wrong is when it is wanted */}
           <Arm
             label="Restart server"
             armed="Drop everyone?"
-            disabled={busy}
-            onFire={() => act("restart", "/restart", {}, "Restarting the server")}
+            disabled={jobRunning}
+            onFire={() => act("restart", "/restart", {}, "Restarting the server", true)}
           />
           <p className="war__hint">
-            restart/quit/exit are refused by the pipe - they segfault this engine build.
+            Drops everyone; they come back through the page's reconnect button, and the zip is
+            already cached so it is quick. It is the only fix for a sim that has stopped, or for a
+            map change that left players on the loading screen. restart/quit/exit are refused by
+            the pipe - they segfault this engine build.
           </p>
         </Panel>
 

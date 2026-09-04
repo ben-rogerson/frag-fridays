@@ -937,3 +937,115 @@ TGA is a fixed size, so valve.zip does not grow).
 
 The image only reaches players after `pnpm run clientcfg` rebuilds valve.zip,
 and then only after a hard refresh - the old payload is cached.
+## The map button verifies, and the page says a map is loading (2026-09-04)
+
+Two war-room map changes stranded a session on its loading screen (the full
+diagnosis is in [troubleshooting.md](troubleshooting.md)). The map changes
+themselves ran; what broke was every client's carry-over into the new level,
+and neither end of the system said a word about it. The admin was told
+"Changed map to de_nuke" while nobody could see de_nuke, and the players had
+a frozen canvas with no message on it at all. Both halves are worth fixing
+separately from whatever the underlying engine fault turns out to be.
+
+**The admin API now checks its own work.** `changeMap()` in
+`server/mcp/src/actions.js` warns, waits, changes, then polls `status.json`
+for the new map name and finally for the players still being on it. It is the
+only action here that does this, and it earns it: it is the only one that has
+stranded a session, and it is the one whose failure mode looks exactly like
+success from the outside (the map really does come up, the scoreboard really
+does refill - with bots). The cost is that the button takes ~15s to answer
+instead of returning the moment the pipe is written. That is the right
+trade: an admin who has to guess whether a button worked will press it again,
+which is precisely what happened on the night.
+
+Two supporting rules fell out of it:
+
+- **The restart button is never disabled by another action.** It is the way
+  out of everything on this stack, and a 15-second map change is exactly when
+  someone reaches for it. `act()` in the panel grew an `urgent` flag that
+  skips the one-at-a-time gate; the restart is the only caller.
+- **`status.json` gets read for its AGE, not just its contents.** The file
+  reads perfectly healthy when the sim behind it has stopped - a full
+  scoreboard, a map name, a clock. `serverState()` now reports
+  `statusAgeMs`/`statusStale` off the Last-Modified header (this process and
+  the game container share a clock, so there is no skew to argue about), the
+  panel warns when the scoreboard has stopped moving, and `changeMap` refuses
+  to send a change into a sim that is not running. A server that sends no
+  Last-Modified reports `null`, which every caller reads as "unknown" - never
+  as fresh, and never as stale.
+
+**The page polls `status.json` while playing.** It only ever polled in the
+lobby, which meant that once the engine had the screen the page's model of
+the server was frozen and a map change was invisible by construction. Now a
+change puts a banner at the top of the canvas (which map, and that the slot
+is kept) and, if the player's own alias has not appeared in the new map's
+player list after 30 seconds, a card with a rejoin button.
+
+Two things make this honest rather than a guess. `status.json`'s player list
+comes from `get_players()`, which only counts clients that have actually
+spawned in, so "my name is not on the new map" is the server saying it has
+not seen this player arrive. And the page can tell a stuck client from a
+stopped server, because a sim that is running rewrites `status.json` every
+five seconds with clocks that move - identical bytes for thirty seconds means
+the server stopped, and the card says so, because "restart it" and "rejoin"
+are not the same advice.
+
+The banner deliberately does not cover the game or take the pointer: a
+healthy carry-over is one to three seconds and the page must not be a
+five-second obstacle every map. Only the stuck state gets the full sheet, by
+which point there is nothing to play behind it.
+
+## The bots wait for the humans at a map change (2026-09-04)
+
+The same incident, one layer down. When the carry-over into the new map
+stalled, the thing that made it unrecoverable was not the stall - it was that
+YaPB reached the new map first and closed it. Side by side:
+
+    FAILED   bots enter 03:34:10-13, "Maximum players reached (16/16)" at :13,
+             no human ever enters, reloads at :18-:27 hit a full server
+    HEALTHY  humans enter 04:11:42-43, bots fill the remainder at :46-:48,
+             and YaPB keeps kicking its own bots as more humans arrive
+
+Every 16-player mod shipped `yb_autovacate_keep_slots "1"` and
+`yb_join_delay "5.0"`. One reserved slot cannot absorb a session's worth of
+people coming back at once, and five seconds is shorter than a slow
+carry-over - so the failure gets WORSE the more people are playing, which is
+exactly the wrong way round for an event.
+
+**`yb_join_delay` 5 -> 20** (YaPB's max is 30) in all six mods with a bot
+tree. This is the ordering fix and it is the important one: for the first
+twenty seconds of a new map the only thing that can take a slot is a person.
+The cost is a visibly thinner server for those twenty seconds, on a
+ten-minute map, with everyone who matters already in it.
+
+**`yb_autovacate_keep_slots` 1 -> 4** in the five 16-player `fill` mods. Four
+landing slots, always. A returning player gets in, `yb_kick_after_player_
+connect` frees a bot slot behind them, and a queue of eight drains instead of
+deadlocking. It is free in normal operation - it implies a 12-player ceiling
+and the quota is 10 - so it only ever bites when the server is genuinely
+near-full, which is precisely when it should.
+
+`aim` is deliberately excluded from the second change and gets only the join
+delay. It runs `maxplayers 24` with a fixed 16 bots and `yb_autovacate "0"`,
+so it already holds 8 slots free by arithmetic - a bigger reserve than the
+one being added elsewhere - and switching autovacate on there would change
+how many bots an aim session runs, which is a mode design decision and not a
+bug fix.
+
+None of this touches the behaviour README.md describes ("bots hold the slots
+and step out one at a time as humans arrive"): with quota 10 under a 12
+ceiling, `fill` mode and autovacate work exactly as before.
+
+The war room's bot fill now stops at `maxplayers - 4` instead of the last
+slot. That is the belt to the reserve's braces, and it earns its place for a
+second reason: `yb_quota` is in `yb_ignore_cvars_on_changelevel`, so a quota
+raised at runtime survives every map change and is never re-read from
+yapb.cfg. The live server was filling to 16 on the night against a config
+that says 10, because someone had raised it at some point and it had stuck.
+A ceiling in the panel is the only place that can be prevented, since the
+file is not authoritative once the container is running.
+
+`yb_join_delay` and `yb_autovacate_keep_slots` are deliberately NOT added to
+`yb_ignore_cvars_on_changelevel`: being re-read from the file at every
+changelevel is the property that makes them reliable here, since a
+changelevel is the only moment they do anything.

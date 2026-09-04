@@ -38,6 +38,36 @@ async function fetchJson(path) {
   }
 }
 
+// status.json plus HOW OLD it is, which is the one thing the file itself does
+// not say: statusjson.amxx writes it every 5s from a server frame, so a
+// timestamp that stops moving means the sim stopped running - the file's
+// CONTENTS still read perfectly healthy (a full scoreboard, a map name) while
+// nothing behind them is alive. Age comes off Last-Modified because this
+// process and the game container share the host clock, so there is no skew to
+// argue about; a server that sends no Last-Modified gives ageMs null, which
+// every caller must read as "unknown", never as "fresh" and never as "stale".
+export async function statusSnapshot() {
+  try {
+    const res = await fetch(GAME_ORIGIN + '/status.json', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!res.ok) return { status: null, ageMs: null }
+    const lm = Date.parse(res.headers.get('last-modified') ?? '')
+    return {
+      status: await res.json(),
+      ageMs: Number.isFinite(lm) ? Math.max(0, Date.now() - lm) : null,
+    }
+  } catch {
+    return { status: null, ageMs: null }
+  }
+}
+
+// Anything older than this and the plugin has missed at least two of its own
+// 5s writes - a map load can eat one, nothing healthy eats three.
+const STATUS_STALE_MS = 20_000
+export const statusStale = (ageMs) => ageMs !== null && ageMs > STATUS_STALE_MS
+
 // docker logs of the game container, last `lines`, decoded to plain text
 export async function tailContainerLogs(container, args, lines) {
   const { stdout, stderr } = await docker(['logs', ...args, container])
@@ -74,12 +104,23 @@ export async function requirePipe() {
 // own blurb - both are served next to the web client, so they come over http.
 export async function serverState() {
   const { container, mod } = await requireGame()
-  const [ps, status, info] = await Promise.all([
+  const [ps, snap, info] = await Promise.all([
     psLine(container),
-    fetchJson('/status.json'),
+    statusSnapshot(),
     fetchJson('/info.json'),
   ])
-  return { container, ps, mod, pipe: CMDPIPE_MODS.has(mod), mode: info?.mode ?? null, status }
+  return {
+    container,
+    ps,
+    mod,
+    pipe: CMDPIPE_MODS.has(mod),
+    mode: info?.mode ?? null,
+    status: snap.status,
+    // how stale the scoreboard is, so the panel can say "these numbers are
+    // from four minutes ago" instead of painting them as live
+    statusAgeMs: snap.ageMs,
+    statusStale: statusStale(snap.ageMs),
+  }
 }
 
 // The live rotation, read from the CONTAINER rather than the repo: the mod
@@ -242,6 +283,89 @@ export async function runCommands(commands, { wait = 3500, lines = 25 } = {}) {
   await sleep(wait)
   const since = `${Math.ceil(wait / 1000) + 3}s`
   return { serial, container, mod, output: await tailContainerLogs(container, ['--since', since], lines) }
+}
+
+// --- changing the map ----------------------------------------------------
+// This is the one action that has actually stranded a session (2026-09-04,
+// see docs/troubleshooting.md), so it is the one action that checks its own
+// work instead of reporting "sent" and walking away.
+//
+// Two things are deliberate here:
+//
+// 1. The warning and the changelevel are TWO pipe writes with a gap, which is
+//    the shape scripts/nextmap.sh has always used and never broken. They used
+//    to be one write, and cmdpipe.amxx runs every line of a write in the same
+//    server frame - so `amx_csay` broadcast a HUD message to every client and
+//    `changelevel` tore the level down before that frame ended. Both times
+//    that ran against a full server, every carried-over client stalled in the
+//    engine's resource handshake and never spawned. One write is the only
+//    thing that path did which the (always-fine) rotation changelevel does
+//    not, so it is not something to keep for tidiness.
+// 2. It waits for status.json to say the new map is up AND that the humans
+//    are still there. When clients stall, the map itself comes up perfectly:
+//    the server logs a clean Spawn Server, the panel's scoreboard refills
+//    with bots, and the only tell is that the humans are gone from it. An
+//    admin told "Changed map to de_nuke" in that state has been told the
+//    opposite of what happened.
+const MAP_WARN_MS = 4000 // players get the csay before the screen goes
+const MAP_LAND_MS = 20_000 // a big map spawns in ~3s; this is the give-up point
+const MAP_SETTLE_MS = 8000 // clients that are coming back are back inside this
+
+export async function changeMap(map) {
+  await requirePipe()
+  const before = await statusSnapshot()
+  // A sim that has stopped writing status.json has also stopped reading the
+  // cmdpipe, so the command would be accepted and never run. Say so rather
+  // than queue a change into a server that cannot make it.
+  if (statusStale(before.ageMs))
+    throw new ActionError(
+      `The server has not updated its scoreboard for ${Math.round(before.ageMs / 1000)}s - the sim is not running, so a map change would not be executed. Restart the server first.`,
+      409,
+    )
+  const humansBefore = before.status?.humans ?? 0
+
+  const send = async (commands) => {
+    try {
+      return await sendCommands(commands)
+    } catch (e) {
+      throw new ActionError(e.message, 400)
+    }
+  }
+  await send([`amx_csay green Changing map to ${map}...`])
+  await sleep(MAP_WARN_MS)
+  const serial = await send([`changelevel ${map}`])
+
+  const deadline = Date.now() + MAP_LAND_MS
+  let snap = before
+  while (Date.now() < deadline) {
+    await sleep(1500)
+    snap = await statusSnapshot()
+    if (snap.status?.map === map) break
+  }
+  if (snap.status?.map !== map) {
+    // No status.json at all is not evidence of a failed map change - it is a
+    // mod with no statusjson plugin, or a web dir that is not being served.
+    // Say what is actually known rather than reporting a failure that did not
+    // happen; an unverifiable change is still better news than a wrong one.
+    if (!snap.status)
+      return { serial, map, humansBefore, humansAfter: null, verified: false }
+    throw new ActionError(
+      `Sent "changelevel ${map}" (#${serial}) but the server is still on ${snap.status.map} after ${MAP_LAND_MS / 1000}s. The command pipe or the sim is wedged - restart the server.`,
+      409,
+    )
+  }
+
+  if (humansBefore === 0) return { serial, map, humansBefore, humansAfter: 0 }
+
+  await sleep(MAP_SETTLE_MS)
+  const after = await statusSnapshot()
+  const humansAfter = after.status?.humans ?? 0
+  if (humansAfter === 0)
+    throw new ActionError(
+      `${map} is up, but all ${humansBefore} players are stuck on the loading screen - they never rejoined, and their slots stay held for 10 minutes while the bots fill the rest, so nobody can get back in either. Restart the server.`,
+      409,
+    )
+  return { serial, map, humansBefore, humansAfter }
 }
 
 // ff_rebalance / ff_swapteams both answer on the console with one [tag] line;

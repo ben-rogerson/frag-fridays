@@ -16,6 +16,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { Router } from 'express'
 import {
   ActionError,
+  changeMap,
   mapcycle,
   readSession,
   rebalanceTeams,
@@ -187,16 +188,26 @@ export function adminRouter() {
     return ok(`announced (#${serial})`)
   }))
 
+  // The slowest button in the room, on purpose: changeMap warns, changes, and
+  // then WAITS to see the new map come up with its players still on it before
+  // it answers. ~15s in the normal case. This used to return the moment the
+  // pipe was written and say "changing to X", which on 2026-09-04 told an
+  // admin twice that a map change had worked while every player sat on a
+  // loading screen. A failure here is a real failure and reads as one in the
+  // feed; the message names the fix (restart) because that is what it is.
   router.post('/map', handle(async (req) => {
     const map = mapName(req.body?.map)
     log('map', map)
-    // warn first, then change - same courtesy as scripts/nextmap.sh, but the
-    // 5s gap is one pipe write so a slow HTTP round trip can't split them
-    const { serial } = await runCommands(
-      [`amx_csay green Changing map to ${map}...`, `changelevel ${map}`],
-      { wait: 0 },
+    const { serial, humansBefore, humansAfter, verified } = await changeMap(map)
+    log('map ok', `${map} (#${serial}) ${humansAfter}/${humansBefore} players`)
+    if (verified === false) return ok(`sent, but this mod publishes no scoreboard to check it against (#${serial})`)
+    // the ratio, not just a tick: some carried over and some did not is a real
+    // outcome and the only place it can be seen is here
+    return ok(
+      humansBefore
+        ? `${map} is up, ${humansAfter}/${humansBefore} players came over (#${serial})`
+        : `${map} is up (#${serial})`,
     )
-    return ok(`changing to ${map} (#${serial})`)
   }))
 
   router.post('/kick', handle(async (req) => {
