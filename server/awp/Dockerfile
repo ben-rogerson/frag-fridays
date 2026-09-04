@@ -33,11 +33,34 @@ RUN printf 'sv_timeout 600\n' >> cstrike/server.cfg
 # trip Game_idle_kick otherwise
 RUN printf 'mp_autokick 0\n' >> cstrike/server.cfg
 # rate ceilings for the client rates userconfig.cfg asks for (rate 100000,
-# cl_updaterate 102). These are SERVER cvars - they did nothing in
+# cl_updaterate 60). These are SERVER cvars - they did nothing in
 # userconfig.cfg, which only ever reaches the browser client.
 # sv_maxcmdrate/sv_mincmdrate are not cvars in this engine (verified against
 # xash.wasm); cl_cmdrate is clamped by the engine itself.
-RUN printf 'sv_maxrate 100000\nsv_minrate 25000\nsv_maxupdaterate 102\nsv_minupdaterate 30\n' >> cstrike/server.cfg
+#
+# sv_maxupdaterate 60, not 102 - measured 2026-09-04, see docs/netcode.md.
+# The browser client's frame loop is rAF-driven, so it can never present more
+# than one snapshot per display refresh; at 102 the server was building and
+# sending ~76 snapshots/sec per client that the client could only throw away.
+# The cap belongs HERE and not in userconfig.cfg because this cvar clamps
+# whatever a client asks for: it needs no valve.zip rebuild, and it covers
+# players whose saved-settings snapshot replays an old cl_updaterate over the
+# shipped one. With 6 clients on fy_iceworld the server's own ping column went
+# from p50 45-48ms / p95 73-104ms to p50 43-48ms / p95 47-48ms. The median
+# barely moved; the TAIL collapsed, and the tail is what players read as
+# rubber banding. Engine CPU on the box fell 45.6% -> 40.0% of a core.
+RUN printf 'sv_maxrate 100000\nsv_minrate 25000\nsv_maxupdaterate 60\nsv_minupdaterate 30\n' >> cstrike/server.cfg
+# sys_ticrate 200, not the stock 100 - measured 2026-09-04, docs/netcode.md.
+# sys_ticrate is what actually governs the dedicated loop on this engine
+# (fps_max does NOT - setting it to 30 or 500 moved the measured frame cadence
+# by exactly zero, so the fps_max 72 the server reports is a red herring).
+# At 100 the loop does not track its own target; raising it to 200 took the
+# server's ping column from p50 44ms / p95 53ms to p50 39ms / p95 50ms with
+# six clients on fy_iceworld, back-to-back runs.
+# The surprise, and the reason this is worth the line: it costs LESS CPU, not
+# more - 39-45% of a core at 100 against 32-37% at 200. Whatever the loop does
+# when it undershoots its target is more expensive than just running faster.
+RUN printf 'sys_ticrate 200\n' >> cstrike/server.cfg
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \

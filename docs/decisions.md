@@ -1103,3 +1103,44 @@ gained a pentagram inside the shield it already had - the only mark in the set
 with something inside it, five points for the five a side. The copy states the
 ruleset flatly and makes no claim about being serious; the ruleset is the
 claim.
+## Server ping: capped sv_maxupdaterate at the browser's refresh rate (2026-09-04)
+
+Players reported ping "up around 100, fluctuating between 30 and 100" and a
+rubber-banding feel, worst on `fy_iceworld` with six to eight humans.
+
+The server was sending each client ~76 snapshots a second. A browser client
+presents at most one per rendered frame and the frame loop is rAF-driven, so
+everything above the display refresh was built, compressed, pushed through
+pion and delta-decoded purely to be thrown away - and the cost of doing that
+for every client showed up as a long, unstable ping tail for all of them.
+
+`sv_maxupdaterate` 102 -> 60 in every mod Dockerfile and in
+`vanilla/server.cfg`. Measured with six connected browser clients on
+`fy_iceworld`: the ping column's p95 went from 73-104ms to 47-48ms while the
+median barely moved (45-48 -> 43-48), and engine CPU fell from 44-47% to
+39-41% of a core. Run twice each way; the baseline's own p95 varied by 30ms
+between identical runs and the capped config's did not, which is the actual
+complaint - the spread, not the median.
+
+Deliberately a SERVER cvar rather than a `userconfig.cfg` one: it clamps
+whatever a client asks for, so it needs no `valve.zip` rebuild and it also
+covers players whose saved-settings snapshot replays an old `cl_updaterate`
+over the shipped default. `cl_updaterate` was moved to 60 to match, but that
+half is tidiness only.
+
+Three suspects were measured and cleared, which is the more useful half of
+the record: the WebRTC data channels are already `ordered=false` /
+`maxRetransmits=0` (no head-of-line blocking to fix), `ex_interp` is already
+0.1 which is the engine's own hard ceiling, and `yb_quota_mode fill` means
+eight humans leaves two bots, so bot CPU was never in it. The internet path
+itself is clean - 0% loss on a game-shaped UDP probe - and the box adds
+0.66ms. Full numbers and method in docs/netcode.md.
+
+**Follow-up the same day:** `sys_ticrate` 100 -> 200 as well. `sys_ticrate`,
+not `fps_max`, is what governs the dedicated loop on this engine (fps_max 30
+and fps_max 500 both moved the measured frame cadence by zero), and at 100 the
+loop does not track its own target. Back-to-back six-client runs: p50 44 -> 39ms,
+p95 53 -> 50ms, and - the surprise - CPU 39-45% -> 32-37% of a core. Running
+the loop faster is cheaper than letting it undershoot. Combined with the
+update-rate cap the final numbers are p50 39ms, p95 50ms, max 51ms against a
+baseline of p50 45-48ms, p95 73-104ms, max 74-116ms.
