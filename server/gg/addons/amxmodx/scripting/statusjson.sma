@@ -1,6 +1,7 @@
-// Frag Fridays status JSON - live server snapshot for the web loading screen.
+// Frag Fridays status JSON - live server snapshot for the web loading screen
+// and, since the client draws its own tab screen, for the scoreboard too.
 //
-// Writes ../public/status.json every 5s. The game server and the Go web
+// Writes ../public/status.json every second. The game server and the Go web
 // server share the container and /xashds is the working dir, so the AMXX
 // relative path "cstrike/../public/" lands in the statically-served dir -
 // same origin as the loading page, no CORS, no extra mounts. The target
@@ -10,25 +11,39 @@
 // exposes it; -1 means "no live round timer" (none seen yet this map, or the
 // last one expired with no new round - see task_write) and the frontend
 // hides it.
+//
+// The per-player block carries deaths, team and ping as well as frags because
+// this file IS the scoreboard now: the browser client draws its own tab screen
+// over the canvas and unbinds the engine's (see launch.ts), so it has no other
+// way to know what the server thinks the score is. Same reason the cadence is
+// 1s and not the 5s the loading screen was happy with - a scoreboard trailing
+// the kill feed by five seconds reads as broken.
+//
+// The file is truncated in place (compose mounts it by inode, so no
+// write-then-rename), which means a read landing mid-write gets half a
+// document. The client keeps its last good snapshot and skips the tick; that
+// is the whole handling this needs.
 
 #include <amxmodx>
+// cs_get_user_deaths - deaths live on CBasePlayer, not in entvars
+#include <cstrike>
 
 new g_roundtime;
 new Float:g_roundEnd;
 
 public plugin_init()
 {
-	register_plugin("Frag Fridays Status JSON", "0.1.0", "frag-friday");
+	register_plugin("Frag Fridays Status JSON", "0.2.0", "frag-friday");
 
 	g_roundtime = get_cvar_pointer("mp_roundtime");
 	register_logevent("logev_round_start", 2, "1=Round_Start");
 
-	set_task(5.0, "task_write", 0, "", 0, "b");
+	set_task(1.0, "task_write", 0, "", 0, "b");
 }
 
 public plugin_cfg()
 {
-	// fresh file at map start rather than a 5s-stale one from the last map
+	// fresh file at map start rather than a 1s-stale one from the last map
 	task_write();
 }
 
@@ -83,8 +98,17 @@ public task_write()
 		get_user_name(id, name, charsmax(name));
 		json_escape(name, esc, charsmax(esc));
 
-		fprintf(fp, "%s{^"name^":^"%s^",^"frags^":%d,^"bot^":%s}",
-			i ? "," : "", esc, get_user_frags(id), is_user_bot(id) ? "true" : "false");
+		// team: 1 = T, 2 = CT, 3 = spectator, 0 = still picking. The web
+		// scoreboard splits on it under Classic; every other mode reads one
+		// combined list ordered by kills, so it ignores the field there.
+		// Bots report a ping of 0 - the client prints BOT in that column
+		// instead, the way 1.6's own scoreboard does.
+		new ping, loss;
+		get_user_ping(id, ping, loss);
+
+		fprintf(fp, "%s{^"name^":^"%s^",^"frags^":%d,^"deaths^":%d,^"team^":%d,^"ping^":%d,^"bot^":%s}",
+			i ? "," : "", esc, get_user_frags(id), cs_get_user_deaths(id),
+			get_user_team(id), ping, is_user_bot(id) ? "true" : "false");
 	}
 
 	fprintf(fp, "]}");

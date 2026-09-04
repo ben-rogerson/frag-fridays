@@ -839,6 +839,22 @@ export async function launchGame(
   (window as unknown as { __xash?: Xash3DWebRTC }).__xash = x;
   x.Cmd_ExecuteString("_vgui_menus 0");
   x.Cmd_ExecuteString("gl_max_size 128");
+  // The page draws the scoreboard now (see TabScreen.tsx), so the engine must
+  // not draw its own on the same key. Suppressing it at the source beats
+  // covering it up: the vgui-less board lays rows out at fixed spacing while
+  // scaling their text with hud_fontscale, so above 1 it sprawls, and no
+  // overlay can be trusted to hide a thing whose size is not knowable.
+  //
+  // Unbind rather than rebind: an unknown command on a key prints a console
+  // warning on every press, and there is no reliable no-op to bind instead.
+  // The page reads the raw Tab keypress itself, which needs no bind at all -
+  // and the Escape menu's keymap appends the row by hand (see keymapRows),
+  // since there is no longer a bind for it to read.
+  //
+  // Runs BEFORE the baseline snapshot so it counts as a shipped default: with
+  // both sides unbound, persistSettings sees no diff and never writes a bind
+  // line about Tab into the player's saved settings.
+  x.Cmd_ExecuteString('unbind "TAB"');
   // baseline BEFORE the saved diff replays: userconfig.cfg has already
   // applied inside main() (verified - replayed values are never overwritten
   // afterwards), so this is the shipped defaults for this valve.zip build
@@ -856,6 +872,10 @@ export async function launchGame(
       x.Cmd_ExecuteString(cmd);
     }
   }
+  // ...and again after the replay, in case a settings snapshot written before
+  // this existed carries a Tab bind of its own. Idempotent, and matching the
+  // baseline it still produces no diff.
+  x.Cmd_ExecuteString('unbind "TAB"');
   if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
     x.Cmd_ExecuteString("touch_enable 1");
   }

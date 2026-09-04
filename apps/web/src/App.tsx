@@ -13,6 +13,11 @@ import {
 import type { SavedSetting } from "./launch";
 import { Xash3DWebRTC } from "./webrtc";
 import type { DropKind } from "./webrtc";
+// the tab screen owns the /status.json and /info.json shapes: it is by far
+// their biggest consumer, and it is the reason the feed carries deaths, team
+// and ping at all
+import { TabScreen } from "./TabScreen";
+import type { ModeInfo, ServerStatus } from "./TabScreen";
 import "@fontsource/black-ops-one";
 import "./App.css";
 
@@ -87,20 +92,6 @@ const PLAYLIST_ID = "PLvwKS1s3ePT9xTAxDVGON6RAutiBm4hoZ";
 const VIDEO_SHIM = "https://frag-friday-bg.floral-math-a059.workers.dev";
 
 const mb = (bytes: number) => Math.round(bytes / 1048576);
-
-// each mod's compose mounts its own /info.json next to the client
-type ModeInfo = { mode: string; tagline?: string; bullets?: string[] };
-
-// written every 5s by the statusjson.amxx plugin into the served public/ dir
-type ServerStatus = {
-  map: string;
-  maxplayers: number;
-  humans: number;
-  bots: number;
-  mapTimeLeft: number; // seconds; 0 = no timelimit
-  roundTimeLeft: number; // seconds; -1 = no live round timer (none yet, or expired with no new round)
-  players: { name: string; frags: number; bot: boolean }[];
-};
 
 type WeekPlayer = {
   name: string;
@@ -406,6 +397,12 @@ const DEBUG_KICKOFF = (() => {
 // QA override: ?mode=dm previews that mode's signal colours on any week.
 // Theme only - the card still reads real content from info.json.
 const DEBUG_MODE = new URLSearchParams(window.location.search).get("mode");
+
+// QA override: ?tab draws the tab screen over the page with no game behind it.
+// Its whole job is holding up at any window size, and joining a server to look
+// at it is both slow and impossible to do at eight resolutions in a row.
+// ?tab=classic / ?tab=combined force a shape regardless of the live mod.
+const DEBUG_TAB = new URLSearchParams(window.location.search).get("tab");
 
 // A Date whose local fields mimic Sydney wall time. Fine for a countdown:
 // it's recomputed from scratch every tick, so DST edges self-correct.
@@ -926,7 +923,7 @@ const CONTROLS: Control[] = [
     cvar: "hud_fontscale",
     label: "hud text size",
     def: "1",
-    note: "bigger than normal overlaps the scoreboard rows on tab",
+    note: "medium is a soft half-step - the font stretches, whole sizes stay sharp",
     kind: "choice",
     options: [
       { value: "1", label: "normal" },
@@ -1138,7 +1135,8 @@ const KEYMAP: { label: string; cmds: string[] }[] = [
   { label: "last weapon", cmds: ["lastinv"] },
   { label: "drop weapon", cmds: ["drop"] },
   { label: "buy menu", cmds: ["buy"] },
-  { label: "scoreboard", cmds: ["+showscores"] },
+  // no scoreboard row here: TAB is unbound at boot and the page draws the
+  // board itself, so there is no bind to read. It is appended below instead.
   { label: "chat, team chat", cmds: ["messagemode", "messagemode2"] },
   { label: "radio", cmds: ["radio1", "radio2", "radio3"] },
   { label: "spray", cmds: ["impulse 201"] },
@@ -1191,7 +1189,9 @@ const keymapRows = (binds: Map<string, string[]>): { label: string; keys: string
       .filter((k): k is string => Boolean(k))
       .map((k) => KEYCAPS[k] ?? k.toLowerCase()),
   })).filter((row) => row.keys.length > 0);
-  // ours, not the engine's - the page reads Escape itself (see the pause state)
+  // ours, not the engine's - the page reads these keys itself. Tab is unbound
+  // in the engine (see launchGame) and Escape was never bound to anything.
+  rows.push({ label: "scoreboard", keys: ["tab"] });
   rows.push({ label: "this menu", keys: ["esc"] });
   return rows;
 };
@@ -1318,9 +1318,12 @@ const App: FC = () => {
     });
   };
 
-  // live server snapshot while waiting - stops once in-game. info.json rides
-  // the same poll so a mod swap updates the match panel on an already-open
-  // page. Parse failures (mid-write reads, plugin absent) just skip the tick.
+  // Live server snapshot. It used to stop once in-game; it now carries the tab
+  // screen too, so it keeps running through a match - see pollEvery below for
+  // the cadence. info.json rides the same poll so a mod swap updates the match
+  // panel (and the tab screen's briefing) on an already-open page. Parse
+  // failures (mid-write reads, plugin absent) just skip the tick and the last
+  // good snapshot stands.
   const playing = stage.id === "playing";
 
   // The session clock is on screen only while Tab is down. Tab is where a
@@ -1471,8 +1474,13 @@ const App: FC = () => {
     location.reload();
   };
 
+  // Poll cadence, in ms. The lobby wants a heartbeat; a match wants the
+  // scoreboard to be true when it is asked for, and nothing in between - so
+  // the feed idles at 15s during play and only quickens while Tab is down.
+  // (The plugin writes the file every second, so 1s is as live as it gets.)
+  const pollEvery = !playing ? 5000 : tabHeld ? 1000 : 15_000;
+
   useEffect(() => {
-    if (playing) return;
     let cancelled = false;
     const poll = () => {
       const t0 = performance.now();
@@ -1494,12 +1502,12 @@ const App: FC = () => {
         .catch(() => {});
     };
     poll();
-    const t = window.setInterval(poll, 5000);
+    const t = window.setInterval(poll, pollEvery);
     return () => {
       cancelled = true;
       window.clearInterval(t);
     };
-  }, [playing]);
+  }, [pollEvery]);
 
   // the standings file is weekly data - one fetch, no poll. Absent file
   // (fresh box, script never run) just leaves the panel unrendered.
@@ -1703,6 +1711,17 @@ const App: FC = () => {
   // each mode broadcasts in its own signal colour; classic acid until the
   // live mode is known (or an unmatched future mod runs)
   const themeMode = DEBUG_MODE ?? liveMode?.key ?? "classic";
+
+  // Which shape the tab screen takes. Classic is the only mode where the two
+  // teams are the story; gungame, dm, aim, source maps, fight yard and sniper
+  // are all effectively free-for-alls in team clothing, and the table anyone
+  // there actually reads is one list ordered by kills. An unknown mod
+  // (info.json missing) keeps the teams, which is what stock 1.6 would do.
+  const classicBoard =
+    DEBUG_TAB === "combined"
+      ? false
+      : DEBUG_TAB === "classic" || (liveMode?.key ?? "classic") === "classic";
+  const modeName = liveMode?.name ?? modeInfo?.mode ?? "Frag Fridays";
 
   return (
     <>
@@ -2368,6 +2387,20 @@ const App: FC = () => {
             </span>
           )}
         </div>
+      )}
+      {/* The scoreboard. Ours, not the engine's - launchGame unbinds TAB, so
+          +showscores never fires and this is the only board in the build. Same
+          key, same moment, laid out in CSS so it holds at any resolution. */}
+      {((playing && tabHeld) || DEBUG_TAB !== null) && (
+        <TabScreen
+          status={serverStatus}
+          info={modeInfo}
+          modeName={modeName}
+          themeMode={themeMode}
+          classic={classicBoard}
+          you={name}
+          mapLeft={mapClock}
+        />
       )}
       {playing && paused && (
         <div
