@@ -325,6 +325,13 @@ get back in. Note what does NOT happen on a healthy change: at 04:11:49 YaPB
 starts kicking its own bots back out as the humans return. The lockout is
 self-inflicted by the bot quota and cannot clear itself for ten minutes.
 
+There is a no-restart escape from the lockout, worth knowing but not worth
+preferring: the war room's "Clear all bots" (`yb_quota 0` + `yb kickall`)
+frees every bot slot, so reloading players can get back in while the zombie
+human slots age out on their own. It leaves an empty-feeling server for a
+minute and does nothing about the stalled clients themselves. A restart is
+faster and cleaner, and it is what the failure message says.
+
 **What was different about the failed changes.** They are the only two
 changelevels of the day issued from the war room's map button, and the war
 room was the only path that wrote the warning and the changelevel as ONE
