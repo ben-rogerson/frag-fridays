@@ -3,10 +3,18 @@ services:
     image: yohimik/cs-web-server-metpamx:0.1.3
     platform: linux/386
     profiles: ["vanilla"]
+    # Classic is the 5v5 match mode, so the slot count is the format: 10 for
+    # the two teams plus 2 spare (a sub, or someone watching from spectate).
+    # Any more and "5v5" would only be a suggestion - there is no cvar that
+    # caps a team at five, only maxplayers and mp_limitteams between them.
+    #
+    # These +cvars only cover the first moments of a cold boot: server.cfg
+    # execs at map start and beats them, and it is where the ruleset lives.
+    # They are set to match it anyway, so the two never disagree on paper.
     # +sv_timeout: browsers freeze the WASM game loop in background tabs, so
     # alt-tabbed players go network-silent; the engine default (65s) kicked
     # them. Mod images bake this into server.cfg instead (their Dockerfiles).
-    command: ["+map de_dust2", "+maxplayers 14", "+mp_friendlyfire 0", "+sv_timeout 600"]
+    command: ["+map de_dust2", "+maxplayers 12", "+mp_friendlyfire 1", "+sv_timeout 600"]
     restart: unless-stopped
     environment:
       PORT: 27018
@@ -32,15 +40,30 @@ services:
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
+      # ...and the repo takes ONE file back off that box-side configs dir.
+      # AMXX execs configs/amxx.cfg at every map start, AFTER server.cfg, so
+      # whatever is in it beats server.cfg - and the box copy used that to hold
+      # Classic's old casual values (16k money, 2.5 min rounds, 10 min maps),
+      # invisibly outranking the config in this repo. The repo copy sets no
+      # gameplay cvar at all, which leaves server.cfg unopposed as the single
+      # source of truth for the ruleset. Docker applies bind mounts
+      # deepest-path-last, so this file wins over the directory mount above.
+      - "./vanilla/amxx.cfg:/xashds/cstrike/addons/amxmodx/configs/amxx.cfg:ro"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "./cmdpipe:/xashds/cstrike/cmdpipe:ro"
-      # YaPB bots (mod images bake these in; vanilla mounts them). Seeded
-      # BOX-SIDE like the rest of mods/: /opt/cs16/mods/yapb is a copy of
-      # gg/addons/yapb with yb_quota 0 (bots are added manually via rc, e.g.
-      # "yb add_t"), chown 1000; mods/metamod-plugins.ini = the image's stock
-      # Metamod plugins.ini (amxmodx line) + the yapb registration line.
+      # YaPB bots (mod images bake these in; vanilla mounts them). The tree is
+      # seeded BOX-SIDE like the rest of mods/: /opt/cs16/mods/yapb is a copy
+      # of gg/addons/yapb, chown 1000; mods/metamod-plugins.ini = the image's
+      # stock Metamod plugins.ini (amxmodx line) + the yapb registration line.
       # yapb dir stays writable - YaPB downloads graphs into data/ at map start.
       - "./mods/yapb:/xashds/cstrike/addons/yapb"
+      # ...and the repo owns the one setting that decides whether Classic is a
+      # match: yb_quota 0, so a cold start has zero bots and all 10 playing
+      # seats stay open for people. Bots are still fully supported (war room
+      # Bots panel, or `pnpm run rc "yb_quota 4"`); YaPB re-reads this file on
+      # load, so every restart lands back on zero. Same deepest-path-last rule
+      # as amxx.cfg above.
+      - "./vanilla/yapb.cfg:/xashds/cstrike/addons/yapb/conf/yapb.cfg:ro"
       - "./mods/metamod-plugins.ini:/xashds/cstrike/addons/metamod/plugins.ini:ro"
       # HL kill logs (log on + mp_logfile in vanilla/server.cfg) - persisted
       # for the recap; mod images do the same via their Dockerfiles

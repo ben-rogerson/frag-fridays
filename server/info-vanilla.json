@@ -1,5 +1,12 @@
 {
   "mode": "Classic",
-  "tagline": "Stock Counter-Strike 1.6 - buy your kit, win the round, don't fall in the dust2 pit.",
-  "bullets": ["2.5 min rounds · 10 min maps", "16k start money · 35s C4", "10 map rotation"]
+  "tagline": "The match mode. Five a side on the competition rules of the CPL and ESL era - no bots, no respawn, one life a round.",
+  "bullets": [
+    "MR15 · 15 rounds a half · first to 16",
+    "1:45 rounds · 15s freeze · $800 start",
+    "35s c4 · friendly fire on · no team balance",
+    "no bots · 12 slots · fixed teams",
+    "dead players fade to black - no ghosting",
+    "knife round for sides · live on three"
+  ]
 }

@@ -325,3 +325,58 @@ restarts it, but that cycles the map for everyone). Decision write-up and
 removal note in decisions.md. If spectating comes back, start from the
 constraint that the server is WebRTC-only: no HLTV/A2S UDP netchannel, so
 any spectator must reuse the browser client stack.
+
+## 16. Classic match plugin - not built (2026-09-04)
+
+Classic now plays by the era's competition rules
+([classic-rules.md](classic-rules.md)), but the *match* around those rules is
+still run by hand: knife round, live-on-3, half-time side swap, and keeping
+the two halves' scores on the same piece of paper. A match plugin
+(`ffmatch.sma`: `.ready` / `.knife` / `.stay` / `.swap`, a half-time swap, a
+HUD score across halves) is the obvious next piece.
+
+The blocker is not the plugin, it is where it would live. Classic runs the
+**stock image, unbuilt** - it has no Dockerfile, so nothing compiles `.sma`
+for it, and the plugins it does load are pre-compiled `.amxx` binaries
+hand-placed in `/opt/cs16/mods/zp/plugins` that no part of `server/` syncs.
+Two honest options, both bigger than a plugin:
+
+1. **Give Classic its own mod dir** (`server/vanilla/` gains a Dockerfile +
+   compose the way `gg/` has, and `vanilla` joins `DIR_MODS` in deploy.sh).
+   Then it compiles its own plugins, bakes its own configs, and `mods/zp`
+   stops mattering. This is the right answer and it also fixes item 17.
+2. Compile the plugin in a throwaway container and `docker cp` the `.amxx`
+   into `mods/zp/plugins` box-side. Fast, and it keeps the box-only pile
+   growing - the exact hazard item 17 is about.
+
+Two smaller wins available on the same path, both currently missing on
+Classic and both already compiled inside the mod images:
+`chatrestart.amxx` (`!restart` from chat - useful for a botched knife round)
+and `teambalance.amxx` (`ff_swapteams`, which would make the half-time swap a
+war room button instead of ten people rejoining by hand).
+
+## 17. Vanilla's box-only plugins and configs (2026-09-04)
+
+`/opt/cs16/mods/` is the one directory the repo feeds a running container but
+does not own. `deploy.sh` only `mkdir -p`s it; its contents were hand-seeded
+on the box (cmdpipe + statusjson 2026-08-03, YaPB 2026-08-13). Anything
+changed there is invisible to version control and dies with the box.
+
+Two files have been pulled back by mounting repo copies over the box tree
+(`server/vanilla/amxx.cfg`, `server/vanilla/yapb.cfg`, 2026-09-04). Still
+box-only: `mods/zp/plugins/*.amxx`, `mods/zp/configs/{plugins.ini,users.ini,
+maps/}`, `mods/metamod-plugins.ini`. The `.amxx` binaries genuinely cannot
+live in the repo while Classic is unbuilt - nothing can rebuild them - which
+is why option 1 in item 16 is the real fix. Until then, the mount-over trick
+is how anything that starts mattering gets rescued, and
+[server/README.md](../server/README.md) lists what is still exposed.
+
+## 18. de_prodigy for the Classic pool (2026-09-04)
+
+`de_prodigy` was in the CPL and CAL rotations of the era and is a stock CS 1.6
+map, so the `.bsp` is already in `/opt/cs16/cs/cstrike/maps` and the
+screenshot is already in `apps/web/src/assets/maps/`. It is out of the Classic
+pool only because it is in no mod's `mapcycle.txt`, and the valve.zip
+keep-list is the union of those - adding it costs every player the extra
+download and needs `pnpm run clientcfg` on top of the deploy. Worth doing if
+Classic gets used enough to want a ninth map; not worth the payload otherwise.

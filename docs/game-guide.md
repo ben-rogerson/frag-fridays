@@ -48,7 +48,7 @@ One mod runs at a time; the URL never changes.
 |---|---|---|
 | gg | GunGame - new weapon every kill, first to gold knife wins. Deathmatch respawn is on (`gg_dm 1`). | `pnpm run deploy gg` |
 | dm | Deathmatch - instant respawn, pick your gun, aim practice (`frag_dm.sma`, ours) | `pnpm run deploy dm` |
-| vanilla | Stock CS 1.6 rounds | `pnpm run deploy vanilla` |
+| vanilla | Classic - 5v5 competition rules, no bots by default. The match mode; full ruleset and sources in [classic-rules.md](classic-rules.md) | `pnpm run deploy vanilla` |
 
 ### DM gun selection (chat commands)
 
@@ -89,6 +89,33 @@ Config lives per mod in `server/<mod>/addons/yapb/conf/yapb.cfg`. It is
 baked into the image, so changes need `pnpm run deploy <mod>` (rebuild +
 restart) to take effect. The two mods deliberately have separate copies -
 dm runs `yb_csdm_mode 1` (respawn-aware bots), gg does not.
+
+### Classic is the exception: zero bots
+
+Classic is a 5v5 match mode, so its copy (`server/vanilla/yapb.cfg`) ships
+`yb_quota "0"` and nothing else differs from gg's. Bots are fully supported
+there, just not on by default:
+
+- **Add them:** war room Bots panel (`/#/warroom`), or `pnpm run rc
+  "yb_quota 6"`. Quota is a total headcount in `fill` mode, so 6 means six
+  players including whoever is already in.
+- **Take them away:** the panel's "Clear all bots", or `pnpm run rc
+  "yb_quota 0; yb kickall"`.
+- **A restart always lands back on zero.** `yb_quota` is a live cvar with no
+  persistence of its own, and YaPB re-reads `conf/yapb.cfg` when it loads, so
+  a container restart, a redeploy or a box reboot all return to an empty
+  server. There is no state anywhere that can leave bots in a match.
+- `yb_ignore_cvars_on_changelevel "yb_quota,yb_autovacate"` means a quota set
+  live SURVIVES a map change - deliberate, so a practice fill is not undone
+  mid-session. Only a restart clears it.
+- Classic runs 12 slots (`+maxplayers 12` in the root compose): 5v5 plus two
+  spare. With quota 0 no bot can ever be holding a seat when the tenth person
+  arrives.
+
+Vanilla mounts the YaPB tree from `/opt/cs16/mods/yapb` rather than baking it
+(it runs the stock image unbuilt), and the root compose mounts
+`server/vanilla/yapb.cfg` over `conf/yapb.cfg` so the zero default is under
+version control rather than a hand-edit on the box.
 
 ### Difficulty
 
@@ -162,8 +189,12 @@ zip):
 - dm: fy_pool_day, dust2, dust, assault, nuke, cbble, cs_office,
   fy_iceworld, aim_map, scoutzknivez, de_rats, de_train,
   cs_prospeedball, cs_deagle5
-- vanilla: dust2, dust, italy, assault, cs_office, inferno, aztec, cbble,
-  nuke, de_train, cs_prospeedball, cs_deagle5
+- vanilla (Classic): dust2, inferno, nuke, de_train, cbble, aztec, dust - the
+  era's competition pool, cut to maps already in the client payload (no
+  hostage map was ever in one; the CPL and CEVO customs are not on this box).
+  Every map it dropped (italy, assault, cs_office, cs_prospeedball,
+  cs_deagle5) is still in gg's and dm's cycles, so the valve.zip keep-list
+  (the union) is unchanged and this needed no `clientcfg`.
 
 scoutzknivez runs at `sv_gravity 250` / `sv_airaccelerate 100` via an AMXX
 per-map config; every other map resets to stock 800/10 (mechanism in
@@ -178,7 +209,10 @@ kit with the map's weapon and strips anything else the moment it is
 deployed. On vanilla, restmenu.amxx (enabled box-side in
 `mods/zp/configs/plugins.ini`) blocks the buy commands via
 `amx_restrict on` in per-map configs, reset by `amx_restrict off` in
-amxx.cfg every map start.
+amxx.cfg every map start. Neither one-weapon map is in Classic's pool any
+more, but the `amx_restrict off` reset stays in `server/vanilla/amxx.cfg`
+because a restriction left set by a per-map config would otherwise follow
+the server into the next map.
 
 The boot map is the compose `command:` (`+map ...`) - keep it matching line 1
 of that mod's mapcycle.txt so the rotation flows on from it.
@@ -187,10 +221,14 @@ Custom (non-Steam) maps live in `server/maps/` and reach the server via a
 compose mount (`cs/cstrike/maps` -> `custom/maps` in the container), so
 adding one needs no image rebuild - just the deploy + clientcfg pair.
 
-Maps rotate at `mp_timelimit` (30 min; vanilla runs 10 min for three maps
-per half-hour slot, plus quick-round cvars - 16k start money, 2.5-min
-rounds, 5s freezetime, 35s c4 - via box-side `mods/zp/configs/amxx.cfg`,
-which is exec'd every map start and overrides the stock server.cfg).
+Maps rotate at `mp_timelimit` (30 min) on every mode except **Classic**,
+which runs `mp_timelimit 0` - no map clock at all, because a match must not
+be cut off mid-half. Its map changes when the half ends
+(`mp_maxrounds 15`); see [classic-rules.md](classic-rules.md). Classic's
+cvars used to come from box-side `mods/zp/configs/amxx.cfg`, which is exec'd
+every map start and silently overrode `server/vanilla/server.cfg`; the repo
+now mounts an `amxx.cfg` that sets no gameplay cvar, so server.cfg is the
+ruleset.
 AMXX's end-of-map vote
 (`mapchooser`) is enabled and fires shortly before the limit - whether the
 vote menu renders in the browser client is untested. All players can use

@@ -9,7 +9,8 @@ gets hand-edited on the server.
 
 | Path | On the VPS | Purpose |
 |---|---|---|
-| `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile vanilla` runs stock CS 1.6 (service bind-mounts `mods/`, which is currently empty). The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
+| `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile vanilla` runs Classic, the 5v5 match mode, off the stock image. The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
+| `vanilla/` | `/opt/cs16/vanilla/` | Classic's config, mounted (not baked) because vanilla runs the stock image unbuilt: `server.cfg`, `amxx.cfg` (the match ruleset - execs last, so it wins), `yapb.cfg` (`yb_quota 0`), `mapcycle.txt`. See [docs/classic-rules.md](../docs/classic-rules.md) |
 | `gg/` | `/opt/cs16/gg/` | GunGame (working) - Dockerfile compiles `addons/` plugin source at build time, appends to `plugins.ini` |
 | `dm/` | `/opt/cs16/dm/` | Deathmatch (working) - our `frag_dm.sma` compiled at build time; CSDM itself is dead on this stack (see docs/troubleshooting.md) |
 | `css/` | `/opt/cs16/css/` | Source Maps - dm's rules on CS:S/CS:GO maps remade for 1.6 (`css_*` + `de_bank_csgo`) |
@@ -30,6 +31,17 @@ gets hand-edited on the server.
   name in `DIR_MODS`) can never land on it.
 - SteamCMD internals at `/opt/cs16/` root (`linux32/`, `package/`, `steamcmd.sh`, ...).
 - `.env` - stays on the box, holds only `PUBLIC_IP` for the root compose.
+- **`/opt/cs16/mods/` - the one real hazard.** vanilla runs the stock image
+  unbuilt, so it cannot compile or bake anything; the root compose feeds it
+  AMXX plugins, AMXX configs and the YaPB tree out of `mods/`, which was
+  hand-seeded on the box and which `deploy.sh` only ever `mkdir -p`s. Nothing
+  in `server/` syncs it, so a change made there is invisible here and dies
+  with the box. Two files have been pulled back under repo control by mounting
+  over it (`vanilla/amxx.cfg`, `vanilla/yapb.cfg`) - do the same for anything
+  else that starts mattering, rather than editing `mods/` in place. Still
+  box-only: `mods/zp/plugins/*.amxx` (compiled binaries - nothing can rebuild
+  them for vanilla), `mods/zp/configs/{plugins.ini,users.ini,maps/}` and
+  `mods/metamod-plugins.ini`.
 
 ## Rules (learned the hard way - see docs/troubleshooting.md)
 
