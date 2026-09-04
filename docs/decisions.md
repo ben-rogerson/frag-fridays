@@ -917,3 +917,12 @@ the record: the WebRTC data channels are already `ordered=false` /
 eight humans leaves two bots, so bot CPU was never in it. The internet path
 itself is clean - 0% loss on a game-shaped UDP probe - and the box adds
 0.66ms. Full numbers and method in docs/netcode.md.
+
+**Follow-up the same day:** `sys_ticrate` 100 -> 200 as well. `sys_ticrate`,
+not `fps_max`, is what governs the dedicated loop on this engine (fps_max 30
+and fps_max 500 both moved the measured frame cadence by zero), and at 100 the
+loop does not track its own target. Back-to-back six-client runs: p50 44 -> 39ms,
+p95 53 -> 50ms, and - the surprise - CPU 39-45% -> 32-37% of a core. Running
+the loop faster is cheaper than letting it undershoot. Combined with the
+update-rate cap the final numbers are p50 39ms, p95 50ms, max 51ms against a
+baseline of p50 45-48ms, p95 73-104ms, max 74-116ms.

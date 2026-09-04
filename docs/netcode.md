@@ -10,26 +10,42 @@ not, it says so - that half of the record is the useful half.
 
 ## The short version
 
-The server was never the slow part. It was sending each browser client ~76
-snapshots a second that the client could not possibly draw, and the cost of
-building and pushing them showed up as a long, unstable ping tail for
-everyone on the server. Capping `sv_maxupdaterate` at 60 collapsed that tail
-and left the median alone.
+Two cvars, both server-side:
+
+- **`sv_maxupdaterate` 102 -> 60.** The server was sending each browser
+  client ~76 snapshots a second that the client could not possibly draw. The
+  cost of building and pushing them showed up as a long, unstable ping tail
+  for everyone on the server.
+- **`sys_ticrate` 100 -> 200.** The dedicated loop does not track its own
+  target at 100. Raising it lowered the median ping *and* lowered CPU.
 
 | | before | after |
 |---|---|---|
-| server ping column, p50 | 45-48ms | 43-48ms |
-| server ping column, p95 | **73-104ms** | **47-48ms** |
-| server ping column, max | 74-116ms | 48ms |
+| server ping column, p50 | 45-48ms | **39ms** |
+| server ping column, p95 | **73-104ms** | **50ms** |
+| server ping column, max | 74-116ms | 51ms |
 | snapshots/sec per client | 76.5 | 48.9 |
-| engine CPU (of one core) | 44-47% | 39-41% |
+| engine CPU (of one core) | 44-47% | **32-37%** |
 
-Six connected browser clients on `fy_iceworld`, 150s sampling, the server's
-own `status` ping column (the number a player reads off the scoreboard).
-Baseline was run twice: p95 came out 73 then 104. The capped config was also
-run twice: 47 then 48. That instability across identical baseline runs *is*
-the "fluctuating between 30 and 100" - the fix is that the second table
-column does not move.
+Six connected browser clients on `fy_iceworld`, 140-150s sampling, the
+server's own `status` ping column (the number a player reads off the
+scoreboard).
+
+The baseline was run twice and its p95 came out 73 then 104. The fixed config
+run twice came out 50 and 47. That instability across identical baseline runs
+*is* the "fluctuating between 30 and 100" - the point is not just that the
+numbers are lower, it is that they stop moving.
+
+Contribution of each, all with six clients:
+
+| sv_maxupdaterate | sys_ticrate | p50 | p95 | max | CPU |
+|---|---|---|---|---|---|
+| 102 (shipped) | 100 (shipped) | 45-48 | 73-104 | 74-116 | 44-47% |
+| 60 | 100 | 43-48 | 47-53 | 48-53 | 39-45% |
+| **60** | **200** | **39** | **50** | **51** | **32-37%** |
+
+The last two rows were run back to back against the same clients, so the
+tick-rate row is not drift.
 
 ## Where the latency actually accumulates
 
@@ -122,6 +138,24 @@ Capping on the **server** rather than in `userconfig.cfg` matters twice over:
 the client stops asking for something it cannot use. That half is tidiness and
 needs a `pnpm run clientcfg`; the server cap is what does the work.
 
+**`sys_ticrate` 100 -> 200**, same files.
+
+`sys_ticrate` is what governs the dedicated loop on this engine. `fps_max`
+does not, despite the server reporting `fps_max 72`: setting it to 30, to 500,
+and setting `fps_override 1` and `host_framerate 0.005`, all moved the
+measured frame cadence by exactly zero, while `sys_ticrate 500` took a
+throwaway container's cadence from 52.5ms to 2.28ms. That makes `fps_max 72`
+on a dedicated server a red herring worth not chasing again.
+
+At 100 the loop does not track its own target. Raising it to 200 took the ping
+column from p50 44ms / p95 53ms to p50 39ms / p95 50ms in back-to-back runs.
+
+The surprise, and the reason it is worth writing down: **it costs less CPU,
+not more** - 39-45% of a core at 100 against 32-37% at 200, with the same six
+clients minutes apart. Whatever the loop does when it undershoots its target
+is more expensive than simply running faster. 200 was picked over 500 because
+500 has only been measured on an idle container, never under real clients.
+
 ## What was tried and did nothing
 
 - **`cl_updaterate 60` on the client alone**, with the server still at 102:
@@ -138,6 +172,9 @@ needs a `pnpm run clientcfg`; the server cap is what does the work.
   reconciliation, and nobody reported hit-reg problems.
 - **Anything on the Cloudflare hop**: it is not in the game path. Confirmed by
   the selected ICE candidate pair, not assumed from the Worker source.
+- **`fps_max` on the server**: does nothing to the dedicated loop. See above.
+- **Bot count**: not touched. `yb_quota` is in `fill` mode, so a busy Friday
+  is the same ten players as a quiet one, and bot CPU is ~0.1% of a core each.
 
 ## Caveats on these numbers
 
@@ -151,11 +188,18 @@ needs a `pnpm run clientcfg`; the server cap is what does the work.
 - `sv_maxupdaterate` was not swept below 60. 60 is justified by the display
   refresh rather than by a search, and going lower starts coarsening
   interpolation for no known gain.
-- AMXX's `server_frame()` forward is **not** once per engine frame on this
-  stack - it fires at ~19Hz regardless of load, so it cannot be used to
-  measure the sim tick. The usable proxy is the snapshot rate a real client
-  receives: 76/s with the cap at 102 puts the sim comfortably above 76Hz,
-  consistent with `sys_ticrate 100`.
+- The sim tick was measured with a throwaway AMXX plugin counting
+  `server_frame()` in an isolated container, and that container had **no
+  connected clients** - only bots, which are server-side. It read a flat
+  52.5ms cadence from 0 to 16 bots on both `fy_iceworld` and `de_dust2`, with
+  zero long frames, so: no tick drops under bot load, and **`fy_iceworld` is
+  not worse than `de_dust2`** (marginally better, if anything). But 52.5ms
+  cannot be the populated server's rate, because a real client measurably
+  receives 76 snapshots/sec. Read those numbers as characterising a
+  client-less server. The usable proxy for a live one is the client's own
+  received snapshot rate.
+- Bot CPU is roughly +0.1% of a core per bot over a ~1.7% floor, and the host
+  stayed 70-98% idle at every bot count. Bots are not the expensive thing.
 
 ## Re-measuring
 
