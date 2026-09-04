@@ -841,6 +841,10 @@ type Control = ControlBase &
 // between a track and a row of chips at every column.
 const CONTROLS: Control[] = [
   {
+    // Deliberately NOT narrowed to the 0-2 the volume and brightness dials sit
+    // in: the shipped default is 2.0, so a slider that stopped at 2 would pin
+    // every player at its maximum and cut off anyone running high sens. 0.5-4
+    // is the band 1.6 players actually live in.
     cvar: "sensitivity",
     label: "mouse sensitivity",
     def: "2.0",
@@ -860,11 +864,20 @@ const CONTROLS: Control[] = [
     step: 0.05,
   },
   { cvar: "xhair_size", label: "crosshair size", def: "2", kind: "range", min: 1, max: 6, step: 1 },
-  { cvar: "brightness", label: "brightness", def: "1", kind: "range", min: 0, max: 3, step: 0.1 },
+  // Was 0-3. Past 2 the picture goes flat grey rather than brighter, so the
+  // slider stops there and spends its travel on the range that does something;
+  // shipped 1 then sits mid-track. A value above 2 saved before this (or typed
+  // into the console) still shows its real number in the readout, with the
+  // thumb parked at the end.
+  { cvar: "brightness", label: "brightness", def: "1", kind: "range", min: 0, max: 2, step: 0.1 },
   {
+    // 1 is the engine's maximum, so this stays a 0-1 slider (shown as 0-100%)
+    // rather than the 0-2 the rest of the dials use. def tracks the shipped
+    // `volume 0.2` - loud enough at a desk, quiet enough not to announce the
+    // game to the room.
     cvar: "volume",
     label: "game volume",
-    def: "0.8",
+    def: "0.2",
     kind: "range",
     min: 0,
     max: 1,
