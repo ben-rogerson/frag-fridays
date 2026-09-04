@@ -362,10 +362,18 @@ does not own. `deploy.sh` only `mkdir -p`s it; its contents were hand-seeded
 on the box (cmdpipe + statusjson 2026-08-03, YaPB 2026-08-13). Anything
 changed there is invisible to version control and dies with the box.
 
-Two files have been pulled back by mounting repo copies over the box tree
-(`server/vanilla/amxx.cfg`, `server/vanilla/yapb.cfg`, 2026-09-04). Still
-box-only: `mods/zp/plugins/*.amxx`, `mods/zp/configs/{plugins.ini,users.ini,
-maps/}`, `mods/metamod-plugins.ini`. The `.amxx` binaries genuinely cannot
+Three files have been pulled back by mounting repo copies over the box tree
+(`server/vanilla/{amxx.cfg,maps.ini,yapb.cfg}`, 2026-09-04). Still box-only:
+`mods/zp/plugins/*.amxx`, `mods/zp/configs/{plugins.ini,users.ini,maps/}`,
+`mods/metamod-plugins.ini`.
+
+The 2026-09-04 audit of what those box files actually held is worth reading
+before the next rescue: the box `amxx.cfg` carried `amx_default_access "z"`,
+the vote ratios, the CS stats settings and a rewritten `amx_imessage` that
+none of the docs mentioned, and the box `yapb.cfg` was a STALE copy of gg's
+(`yb_quota_mode normal`, `yb_join_delay 5.0`) rather than the current one.
+Neither would have survived a hand-written replacement. Take the box copy
+verbatim and subtract. The `.amxx` binaries genuinely cannot
 live in the repo while Classic is unbuilt - nothing can rebuild them - which
 is why option 1 in item 16 is the real fix. Until then, the mount-over trick
 is how anything that starts mattering gets rescued, and

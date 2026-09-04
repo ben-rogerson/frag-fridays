@@ -200,6 +200,43 @@ Engine console output does not reach the browser console, and `waitLog`/
 verify cvar state with `host_writeconfig` + reading back
 `/rodir/cstrike/config.cfg`.
 
+## server.cfg execs ONCE; amxx.cfg execs every map (2026-09-04)
+
+Long assumed the other way round in this repo, and it cost Classic its whole
+ruleset for a month. Measured in a throwaway container:
+
+| File | When it runs |
+|---|---|
+| compose `command:` `+cvars` | container start, first |
+| `cstrike/server.cfg` | container start, straight after. **Not on changelevel.** |
+| `addons/amxmodx/configs/amxx.cfg` | **every map start**, AMXX does it itself |
+| `addons/amxmodx/configs/maps/<map>.cfg` | every map start, after amxx.cfg |
+
+Two consequences, both of which have bitten:
+
+- **Anything in `amxx.cfg` beats `server.cfg` permanently.** On the first map
+  it wins by running later; on every map after that it wins by running at all.
+  Classic's box-side `amxx.cfg` held casual round values that outranked the
+  `server.cfg` in this repo for the life of every container.
+- **A cvar changed live persists until the container restarts**, because
+  nothing re-reads `server.cfg`. If you want a config re-asserted per map, it
+  has to be reachable from `amxx.cfg`.
+
+Server-side `exec` DOES work (unlike the browser client's - see above), so
+`server/vanilla/amxx.cfg` ends with `exec server.cfg`: one file holds the
+ruleset and it is re-applied every map. Verified by setting `mp_roundtime 5`
+live, changing map, and reading `1.75` back.
+
+Side effect worth knowing before you think the logger is broken: `server.cfg`
+ends with `log on`, and re-running that closes the current kill log and opens
+a new one, so a mod doing this writes **two `L*.log` files per map** - cvar
+dump in the first, rounds and kills in the second. `standings.sh` cats every
+`L*.log` in filename order, so nothing is lost.
+
+How to check exec order yourself: `docker logs <c> | grep -c "Executing AMX"`
+counts amxx.cfg runs, and a cvar you set live and then read back after a
+`changelevel` tells you whether server.cfg ran again.
+
 ## Base image must stay pinned - and signalling dialects differ across tags
 
 `yohimik/cs-web-server-metpamx:0.1.3` (tagged `latest` since 2026-08-02)

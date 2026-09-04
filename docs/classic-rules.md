@@ -188,15 +188,37 @@ GoldSrc never resets a cvar at a map change.
 
 `sv_maxspeed 320`, `sv_gravity 800`, `sv_airaccelerate 10`, `sv_accelerate 5`,
 `sv_friction 4`, `sv_stopspeed 75`, `sv_stepsize 18`, `edgefriction 2`,
-`sv_aim 0`, `sv_cheats 0`, `mp_autocrosshair 0`, `mp_consistency 1`,
-`mp_flashlight 1`, `mp_footsteps 1` - all shipped by CAL and WCG, and all
-either matched or unset elsewhere. `sv_unlag 1` / `sv_maxunlag 0.5` is CAL's
-and WCG's lag-compensation pair, which matters more here than it did on a LAN.
+`sv_aim 0`, `sv_cheats 0`, `mp_consistency 1`, `mp_flashlight 1`,
+`mp_footsteps 1` - all shipped by CAL and WCG, and all either matched or unset
+elsewhere. `sv_unlag 1` / `sv_maxunlag 0.5` is CAL's and WCG's
+lag-compensation pair, which matters more here than it did on a LAN.
 
 Classic keeps sprays working (`sv_allowupload 1`, `sv_allowdownload 1`,
 `sv_send_logos 1`, `decalfrequency 60`) as CAL, CEVO and ESL did. The LANs ran
 uploads off; this server has a spray feature and the era's reason for killing
 them was bandwidth, which is gone.
+
+### Three of the era's cvars do not exist here
+
+This stack's game DLL is a reimplementation, not the Valve one, and three
+cvars every league config sets are simply absent from it. Verified in a
+throwaway container on 2026-09-04 - each printed `Unknown command` at boot and
+`cvarlist <prefix>` returned nothing:
+
+- **`mp_autocrosshair`** - `cvarlist mp_auto` returns only `mp_autokick`,
+  `mp_autokick_timeout` and `mp_autoteambalance`.
+- **`mp_decals`** - the per-client decal cap. `decalfrequency` is an engine
+  cvar and does exist.
+- **`sv_proxies`** - the HLTV proxy allowance, moot anyway on a WebRTC-only
+  server with no A2S or rcon netchannel.
+
+All three are out of `server.cfg`, with a comment where each was, rather than
+left in to warn on every map start.
+
+One quirk worth knowing before you go looking for a bug: **`mp_c4timer`
+exists but reads back blank.** Typing it in the console prints nothing at all
+- not a value, not a warning - while `cvarlist mp_c4` reports it as a real
+cvar. It is set; it just cannot be echoed.
 
 `pausable 0` (CAL, CPL from Winter 2004, WCG; ESL, CEVO and TG09 ran 1). There
 is no console in the browser client to type `pause` into either way.
@@ -380,16 +402,89 @@ map change but never a restart. Full detail in [game-guide.md](game-guide.md).
 
 Not where you would expect, and this has bitten before. Classic runs the stock
 image, so nothing is baked; the root `docker-compose.yml` mounts every config
-in from `/opt/cs16`. Exec order at map start is
-**`server.cfg` → `amxx.cfg` → `configs/maps/<map>.cfg`**, each beating the one
-before it, and the compose's `+cvars` come before all three.
+in from `/opt/cs16`.
+
+**The exec order is not what this repo used to believe, and the difference is
+the whole bug.** Measured on the box 2026-09-04:
+
+- the compose's `+cvars` run first, at container start;
+- `server.cfg` execs **once**, at container start, straight after them. A
+  changelevel does **not** re-run it;
+- `amxx.cfg` is exec'd by AMXX at **every** map start, followed by
+  `configs/maps/<map>.cfg` for that map only.
+
+So on the first map `amxx.cfg` beat `server.cfg` by running after it, and on
+every map after that it beat it by running at all. A box-side `amxx.cfg`
+holding casual round values was therefore re-applying them for the life of the
+container while the repo's `server.cfg` never got another turn.
 
 `server/vanilla/amxx.cfg` therefore sets **no gameplay cvar at all**. It used
-to be a box-only file holding Classic's casual quick-round values, silently
-outranking the `server.cfg` in this repo - which is why the config that looks
-like the server's config was not the one deciding how Classic played. With
-`amxx.cfg` neutral, `server.cfg` is unopposed and IS the ruleset. Do not put
-an `mp_` cvar in `amxx.cfg`.
+to be a box-only file holding Classic's casual quick-round values
+(`mp_startmoney 16000`, `mp_roundtime 2.5`, `mp_freezetime 5`, `mp_c4timer 35`,
+`mp_timelimit 10`, added 2026-08-11), silently outranking the `server.cfg` in
+this repo - which is why the config that looks like the server's config was
+not the one deciding how Classic played. With `amxx.cfg` neutral, `server.cfg`
+is unopposed and IS the ruleset. Do not put an `mp_` cvar in `amxx.cfg`.
+
+What `amxx.cfg` does end with is `exec server.cfg`. That gives the ruleset the
+same per-map re-assertion the casual values used to have, out of the one file
+that holds it - so a cvar changed live (an overtime `mp_startmoney 10000`,
+say) returns to the ruleset at the next map instead of persisting for the life
+of the container. Verified on the box: setting `mp_roundtime 5` and
+`mp_startmoney 16000` live, then changing map, put both back to `1.75` and
+`800`.
+
+It has one visible side effect. `server.cfg` ends with `log on`, and re-running
+that closes the current kill log and opens a new one, so **each map writes two
+`L*.log` files** instead of one - the first holding that map's cvar dump, the
+second its rounds and kills. Harmless: `standings.sh` cats every `L*.log` in
+filename order, so nothing is lost or reordered. It is only surprising if you
+are counting files.
+
+The repo copy is the box copy **verbatim** as of 2026-09-04 apart from those
+five lines, so nothing AMX Mod X was relying on went missing when the mount
+went over it. Two things in it are not stock AMXX and are kept deliberately:
+the scrolling advert (`amx_scrollmsg`) had already been deleted, and
+`amx_imessage` had been rewritten from the AMX Mod X plug to
+`"Welcome to %hostname%"`, which still prints centre-screen every
+`amx_freq_imessage` (180) seconds - i.e. during a live round. If that turns
+out to be unwanted in a match, deleting the `amx_imessage` line is the whole
+change.
+
+`configs/maps.ini` is mounted from the repo for the same reason. It is the
+list `mapchooser` offers in the end-of-map vote, the mod Dockerfiles
+regenerate it from `mapcycle.txt` so a vote can never offer a map that is not
+in `valve.zip`, and Classic - having no build step - had been missed: its box
+copy still listed `de_prodigy` and `cs_militia`, neither of which is in the
+client payload at all. Keep `server/vanilla/maps.ini` equal to
+`server/vanilla/mapcycle.txt`.
+
+### What the boot test proved (2026-09-04)
+
+A throwaway container on the live image, this config bind-mounted, its own
+command pipe and no published ports:
+
+- **Zero bots on a cold start.** `status` returns an empty scoreboard,
+  `yb_quota` reads `0`, and the log has no `Connecting Bot` line.
+  `12 player server started`, so the slot count took.
+- **`amxx.cfg` no longer overrides.** `mp_startmoney` reads `800`, not
+  `16000`; `mp_timelimit` reads `0`, not `10`; `mp_roundtime` `1.75`, not
+  `2.5`. These are read back *after* a map start, i.e. after `amxx.cfg` has
+  had its turn.
+- **The nested mounts apply.** A file bind-mounted inside a directory bind
+  mount does win: `yb_quota_mode` reads `fill` where the box file says
+  `normal`, and `yb_join_delay` reads `20.0` where the box file says `5.0`.
+- The netcode work's `sv_maxupdaterate 60` and `sys_ticrate 200` survive
+  `amxx.cfg` too, reading back correctly after a map start.
+- Adding bots live still works on Classic: `yb_quota 4` over the pipe
+  connected four bots within a second.
+- `mp_maxrounds` really does end the map with `mp_timelimit 0`: set to 2, the
+  server played two rounds and changed level. One quirk, pre-existing and
+  mild - AMXX's `nextmap` reports the FIRST map of the cycle as next during
+  the first map after a container start, so the boot map plays twice before
+  the rotation advances properly.
+- `sv_restart` and `sv_restartround` both exist as cvars on this DLL, so the
+  knife-round and live-on-three procedure works.
 
 ## Contradictions in the sources
 
