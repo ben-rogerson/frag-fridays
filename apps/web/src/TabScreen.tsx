@@ -62,6 +62,18 @@ const byScore = (a: Row, b: Row) =>
 const isYou = (row: Row, you: string) =>
   !row.bot && !!you && row.name.trim().toLowerCase() === you.trim().toLowerCase();
 
+// The side tag for a row of the combined list. team 0 is a real value, not a
+// gap - it is "connected, still on the join screen", which the whole server
+// reads as during warm-up - and so is a row from a box whose plugin sends no
+// team for that player. Both are "no side yet", and the board already spells
+// that "-" in the deaths and ping columns, so it spells it that way here too.
+const sideTag = (p: Row) => {
+  const side = p.team === 1 ? "t" : p.team === 2 ? "ct" : null;
+  return (
+    <div className={`tabscreen__tag${side ? ` tabscreen__tag--${side}` : ""}`}>{side ?? "-"}</div>
+  );
+};
+
 const PAGES = ["scoreboard", "briefing"] as const;
 
 // One wheel notch on a mouse is 100+ deltaY; a trackpad flick is a spray of
@@ -113,7 +125,15 @@ export const TabScreen: FC<TabScreenProps> = ({
   // A box still running the pre-0.2.0 statusjson sends no team at all. Falling
   // back to the combined list there beats a team split that would pile every
   // player onto one side and leave the other reading "no players".
-  const splitTeams = classic && players.some((p) => p.team !== undefined);
+  const hasTeams = players.some((p) => p.team !== undefined);
+  const splitTeams = classic && hasTeams;
+  // The combined list is one ranking by kills and stays that way, but in a
+  // deathmatch-family mode the side still decides who you are shooting - and
+  // with mp_autoteambalance off in dm it is not even a safe guess from the
+  // ordering. So each row carries a side tag. Same fallback as above: no team
+  // data anywhere means the column is not drawn at all, rather than a stripe
+  // of dashes down a board that never had sides to begin with.
+  const sideTags = !splitTeams && hasTeams;
 
   // Does the briefing fit under the board, or does it need its own page?
   //
@@ -191,6 +211,8 @@ export const TabScreen: FC<TabScreenProps> = ({
   const band = (label: string, score: number, ranked: boolean) => (
     <div className="tabscreen__band">
       {ranked && <div className="tabscreen__rank" />}
+      {/* the side column needs no heading - the tags say what they are */}
+      {ranked && sideTags && <div />}
       <div className="tabscreen__side">
         {label} <strong>{score}</strong>
       </div>
@@ -208,6 +230,7 @@ export const TabScreen: FC<TabScreenProps> = ({
       key={`${p.name}-${rank ?? ""}`}
     >
       {rank !== undefined && <div className="tabscreen__rank">{rank}</div>}
+      {rank !== undefined && sideTags && sideTag(p)}
       <div className="tabscreen__name">{p.name}</div>
       <div className="tabscreen__num">{p.frags}</div>
       <div className="tabscreen__num">{p.deaths ?? "-"}</div>
@@ -284,7 +307,11 @@ export const TabScreen: FC<TabScreenProps> = ({
                   {teamBlock(1, "terrorists", "t")}
                 </>
               ) : (
-                <div className="tabscreen__team tabscreen__team--all">
+                <div
+                  className={`tabscreen__team tabscreen__team--all${
+                    sideTags ? " tabscreen__team--sides" : ""
+                  }`}
+                >
                   {band("players", players.length, true)}
                   {players.length ? (
                     [...players].sort(byScore).map((p, i) => row(p, i + 1))

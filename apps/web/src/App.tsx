@@ -1403,19 +1403,43 @@ const App: FC = () => {
   // good snapshot stands.
   const playing = stage.id === "playing";
 
-  // The session clock is on screen only while Tab is down. Tab is where a
-  // player already looks for match state, so the number is asked for rather
-  // than played around - and the rest of the time the screen is the game's.
-  // Read-only in the same way the Escape handler is: capture phase so nothing
-  // can hide the event from us, but no preventDefault and nothing swallowed -
-  // the engine still draws its own scoreboard on the very same keypress.
+  // The scoreboard and the session clock are on screen only while Tab is down.
+  // Tab is where a player already looks for match state, so the number is
+  // asked for rather than played around - and the rest of the time the screen
+  // is the game's.
+  //
+  // Unlike the Escape handler below, this one SWALLOWS the key, and has to.
+  // Holding a key is auto-repeat: the browser fires keydown tens of times a
+  // second for as long as it is held, and a scoreboard is held for seconds at
+  // a time. Ignoring `repeat` keeps that out of React, but not out of the
+  // engine - capture phase means we see the event first, which is not the same
+  // as stopping it, and SDL's own window-level handlers were still taking
+  // every one of those repeats and feeding them to the engine, where they were
+  // retriggering sound. (launchGame unbinds TAB, so the engine has nothing
+  // useful to do with the key - but "nothing useful" is not "nothing".)
+  // stopImmediatePropagation is what actually stops SDL seeing it, the same
+  // reason the fullscreenchange handler above needs it; preventDefault stops
+  // the browser walking focus off the canvas on the way past. Both keydown and
+  // keyup are swallowed, because a lone keyup is an event into the engine too.
+  //
+  // Not while the pause menu is open: that is an ordinary dialog with
+  // focusable buttons, so Tab there is the browser's business, not ours.
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || paused) return;
+    const swallow = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
     const down = (e: KeyboardEvent) => {
-      if (e.key === "Tab" && !e.repeat) setTabHeld(true);
+      if (e.key !== "Tab") return;
+      swallow(e);
+      // a held key is one state change, not a hundred
+      if (!e.repeat) setTabHeld(true);
     };
     const up = (e: KeyboardEvent) => {
-      if (e.key === "Tab") setTabHeld(false);
+      if (e.key !== "Tab") return;
+      swallow(e);
+      setTabHeld(false);
     };
     // the keyup that never comes: alt-tab away holding Tab, or the browser
     // moving focus out of the page on that very press
@@ -1431,7 +1455,7 @@ const App: FC = () => {
       document.removeEventListener("visibilitychange", clear);
       setTabHeld(false);
     };
-  }, [playing]);
+  }, [playing, paused]);
 
   // Capture phase on window so nothing can stop the event before we see it -
   // but we only READ it. No preventDefault (the browser still exits
