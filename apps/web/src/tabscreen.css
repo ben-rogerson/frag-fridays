@@ -384,6 +384,9 @@
   color: var(--text-faint);
 }
 
+/* The board's footer: who is on the server but not in a side. Two lines can
+   appear here - "joining" (picked nothing yet) above "spectating" - and they
+   are one thought, so they sit close to each other and away from the board. */
 .tabscreen__specs {
   margin: 0.9em 0 0;
   font-size: 0.82em;
@@ -391,6 +394,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tabscreen__specs + .tabscreen__specs {
+  margin-top: 0.25em;
 }
 
 /* --- the briefing ------------------------------------------------------- */
