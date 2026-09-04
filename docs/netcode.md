@@ -16,8 +16,11 @@ Two cvars, both server-side:
   client ~76 snapshots a second that the client could not possibly draw. The
   cost of building and pushing them showed up as a long, unstable ping tail
   for everyone on the server.
-- **`sys_ticrate` 100 -> 200.** The dedicated loop does not track its own
-  target at 100. Raising it lowered the median ping *and* lowered CPU.
+- **`sys_ticrate` 100 -> 200 -> 1000.** The dedicated loop does not track its
+  own target below 250. 200 was the first improvement; the later sweep found
+  the loop tops out near 425Hz and that any target at or above that ceiling
+  stops the engine busy-waiting, which is where the CPU goes. See "How fast the
+  loop actually runs" below - that section supersedes the 200 numbers here.
 
 | | before | after |
 |---|---|---|
@@ -46,6 +49,10 @@ Contribution of each, all with six clients:
 
 The last two rows were run back to back against the same clients, so the
 tick-rate row is not drift.
+
+`sys_ticrate` was swept properly later the same day and moved on to 1000; the
+ping column turned out not to be the thing it changes. See "How fast the loop
+actually runs".
 
 ## Where the latency actually accumulates
 
@@ -138,7 +145,10 @@ Capping on the **server** rather than in `userconfig.cfg` matters twice over:
 the client stops asking for something it cannot use. That half is tidiness and
 needs a `pnpm run clientcfg`; the server cap is what does the work.
 
-**`sys_ticrate` 100 -> 200**, same files.
+**`sys_ticrate` 100 -> 200**, same files. (Superseded the same day by
+200 -> 1000; the reasoning below is still correct as far as it goes, and the
+section "How fast the loop actually runs" explains why 200 was a local
+minimum rather than the answer.)
 
 `sys_ticrate` is what governs the dedicated loop on this engine. `fps_max`
 does not, despite the server reporting `fps_max 72`: setting it to 30, to 500,
@@ -154,7 +164,168 @@ The surprise, and the reason it is worth writing down: **it costs less CPU,
 not more** - 39-45% of a core at 100 against 32-37% at 200, with the same six
 clients minutes apart. Whatever the loop does when it undershoots its target
 is more expensive than simply running faster. 200 was picked over 500 because
-500 has only been measured on an idle container, never under real clients.
+500 had only been measured on an idle container, never under real clients.
+That gap is what the later sweep closed.
+
+## How fast the loop actually runs (2026-09-04, later the same day)
+
+Ben asked whether `sys_ticrate 1000` - the competitive standard on Linux HLDS,
+where league servers ran 1000 and sometimes 10000 - would cause problems here.
+It does not, and the reason is not the one the folklore gives.
+
+**The loop never reaches 1000. It tops out at about 425Hz.** Measured with a
+throwaway container (own cmdpipe, no published ports) running a plugin that
+counts `server_frame()` and histograms the `get_gametime()` deltas, ten bots on
+`fy_iceworld`:
+
+| `sys_ticrate` | achieved | achieved/target | frame gap p50 | p99 | engine CPU |
+|---|---|---|---|---|---|
+| 100 | 27/s | **0.27** | 52.5ms | 53.5ms | 11% |
+| 200 (was shipped) | 122/s | **0.61** | 4.5ms | **52.5ms** | 32% |
+| 250 | 251/s | 1.00 | 3.5ms | 3.5ms | 45% |
+| 300 | 300/s | 1.00 | 3.0ms | 3.5ms | 34% |
+| 400 | 391/s | 0.98 | 2.5ms | 3.5ms | 16% |
+| 450 | 419/s | 0.93 | 2.0ms | 3.5ms | 9% |
+| 500 | 419/s | 0.84 | 2.0ms | 3.5ms | 9% |
+| **1000** | **426/s** | **0.43** | **2.0ms** | **3.0ms** | **9%** |
+| 2000 | 434/s | 0.22 | 2.0ms | 3.0ms | 8% |
+| 10000 | 424/s | 0.043 | 2.0ms | 3.0ms | 10% |
+
+Two things fall out of that table and both matter more than the ping numbers.
+
+**The engine busy-waits the gap between its own frame cost and the ticrate
+period.** A frame costs it about 2.3ms of real work. Spin per second is then
+roughly `(period - 2.3ms) x achieved rate`, and that predicts the measured CPU
+almost exactly: at 250 it is `(4.0-2.3) x 251 = 427ms/s` against 45% measured,
+at 300 `(3.33-2.3) x 300 = 309ms/s` against 34%, at 200 `(5.0-2.3) x 122 =
+329ms/s` against 32%. At 450 and above the period is at or under the frame
+cost, there is nothing left to wait for, and the spin disappears entirely.
+
+So CPU against `sys_ticrate` is **not monotonic**. It peaks around 250 and then
+falls off a cliff. This is the same non-linearity that made 200 cheaper than
+100 in the first investigation, seen properly for the first time: the cheap
+configurations are the very slow one and the ones at or past the ceiling, and
+everything in between pays for waiting.
+
+**Below 250 the loop also stalls.** At 100 and 200 the frame-gap p99 is 52.5ms
+while the p50 is 4.5ms - the loop runs a burst of fast frames and then stops
+dead for 52ms. That 52.5ms is the flat cadence the first investigation saw and
+could not place. At 250 and above it never happens again. The shipped 200 was
+therefore delivering about **120Hz of simulation, not 200**, with a 52ms hitch
+in the tail of every hundred frames.
+
+### What that is worth on the live server
+
+Six real browser clients on `fy_iceworld`, the server's own `status` ping
+column, paired back-to-back runs, `sv_maxupdaterate 60` throughout:
+
+| `sys_ticrate` | run | ping p50 | p95 | max | engine CPU (of one core) | snapshots/s per client |
+|---|---|---|---|---|---|---|
+| 200 | a | 37 | 42 | 43 | 34.5% | 45.6 |
+| 200 | b | 36 | 42 | 45 | 31.5% | 46.0 |
+| 200 | c (drift re-check, ran last) | 43 | 47 | 50 | 40.9% | 47.3 |
+| 500 | a | 38 | 44 | 46 | 18.6% | 44.7 |
+| 500 | b | 37 | 45 | 48 | 19.6% | 43.8 |
+| 1000 | a | 36 | 43 | 44 | 17.6% | 43.5 |
+| 1000 | c | 45 | 51 | 51 | 15.4% | 44.2 |
+| 1000 | d | 38 | 44 | 48 | 16.7% | 46.0 |
+| 10000 | a | 43 | 51 | 51 | 15.7% | 44.2 |
+| 10000 | b | 43 | 48 | 49 | 16.4% | 45.0 |
+
+**The ping column does not move.** The spread within one ticrate is as wide as
+the spread between ticrates: 200 gave p50 36 to 43 across three runs and 1000
+gave p50 36 to 45. The drift re-check is the point - run last, after the
+extremes, 200 came back at p50 43 / p95 47, which is indistinguishable from
+what 1000 and 10000 had just produced. On ping alone the honest answer is **no
+measurable difference**.
+
+What *is* clean and repeatable is CPU: 200 costs roughly twice what anything at
+or past the ceiling costs, in every pairing, including the two runs an hour
+apart. And snapshots per client sit at 44-47/s at every single value, so a
+faster loop does **not** put more packets on the wire. `sv_maxupdaterate 60`
+holds, exactly as intended.
+
+### The ten-client tail is the harness, not the box
+
+Worth writing down because it looks alarming and is not. Four clean ten-client
+runs:
+
+| run | `sys_ticrate` | ping p50 | p95 | max | engine CPU |
+|---|---|---|---|---|---|
+| H200 | 200 | 48 | 96 | 175 | 32.5% |
+| H1000 | 1000 | 43 | 117 | 174 | 22.4% |
+| K200ten | 200 | 42 | **50** | 60 | 28.9% |
+| CMB | 1000 | 41 | **49** | 50 | 20.1% |
+
+Two of the four have a large tail and two have none, at both ticrates, minutes
+apart. It is episodic, not a load threshold. Four things place it on the Mac:
+
+- When it appears it is **common mode** - every client's ping rises in the same
+  status poll and falls again together, rather than a few slow clients dragging
+  a percentile. All ten clients' own frame loops were identical and healthy
+  through it (rAF p50 26ms, out 35/s each).
+- Through the worst episode the **engine CPU never moved**: flat 19-22% of a
+  core, box steal 0.1%, run queue never above 5. The box was never busy.
+- During it the **server-to-client** snapshot rate collapsed 37/s to 19/s while
+  each client's **client-to-server** rate held at 36-38/s. Packets were not
+  arriving; the server was not failing to send them.
+- An independent game-shaped **UDP echo probe** run from the same Mac over the
+  same uplink during a ten-client run, touching no game code and no engine
+  thread, showed 0% loss and a rock-steady 25ms p50 but single-packet
+  excursions to 60-170ms scattered right through the window. That path produces
+  excursions the size of the whole "tail" on its own.
+
+So: ten headless Chromes on one laptop behind one domestic uplink is not ten
+players on ten machines on ten links, and the tail should not be projected onto
+a real session. Do not re-chase it. The defensible ten-client numbers are the
+clean pair, p50 41-42 / p95 49-50, which is the same as six.
+
+### What was changed, and why 1000 and not 500
+
+**`sys_ticrate` 200 -> 1000**, in every mod Dockerfile and
+`server/vanilla/server.cfg`.
+
+Not because the loop runs at 1000. It runs at about 425. The value is chosen to
+sit **above the achievable ceiling under every load measured**, because that is
+the condition under which the engine stops busy-waiting. 500 works today and
+measured 18-20% against 1000's 15-18%, a small residual that is exactly what
+the spin model predicts for a target only 18% above the ceiling. 1000 has
+margin: if the box is ever quieter, or a future image is faster, 500 could fall
+back inside the spin band and 1000 will not. 10000 measures identically to 1000
+and buys nothing, so there is no case for it beyond novelty.
+
+Net effect, six clients: simulation rate about 120Hz -> about 425Hz, engine CPU
+31-41% -> 15-18% of a core, ping unchanged.
+
+### What was tried and did nothing, this round
+
+- **Raising the ticrate to improve ping.** It does not. Every value from 200 to
+  10000 lands inside the run-to-run noise on the server's ping column. The win
+  is simulation rate and CPU headroom, not latency. Anyone re-testing this
+  should not expect the ping number to move.
+- **10000.** Achieves the same 424/s as 1000 at the same CPU. The "10000 fps
+  server" of the HLDS era has no analogue here; this engine's ceiling is a
+  frame cost, not a scheduler granularity.
+- **Reading the plugin's own `cpupct`.** `tickcount()` is not wall clock on
+  this build, so that column is not a CPU measure. All CPU figures above come
+  from `/proc/<pid>/stat` utime+stime over a fixed window.
+- **Blaming round transitions for the ten-client tail.** Rounds fired every
+  ~11s straight through both the spiking polls and the clean ones, so they are
+  not it.
+
+### Two traps that cost real runs
+
+- **A live cvar does not survive a container restart, and `mp_timelimit 0` does
+  not either.** A restart mid-investigation put the map back into rotation, so
+  later runs were on `fy_pool_day` rather than `fy_iceworld`. Re-assert both
+  after any restart and check `status.json`'s map before trusting a run.
+- **Reused client aliases silently mix live and dead slots.** When a client
+  drops and rejoins, the engine suffixes the name (`probe3` comes back as
+  `probe3 (1)`) while the ghost holds the original for `sv_timeout` (600s). Two
+  ten-client runs were really about eight live clients plus ghosts, and the
+  ping column counted both. Give every run a unique alias prefix, and grep the
+  captured `status` rows for `(1)` before believing a percentile.
+
 
 ## What was tried and did nothing
 
@@ -242,7 +413,7 @@ Both server cvars are already set on the running container, applied through
 `rc.sh` during the measurements and left there:
 
 ```sh
-pnpm run rc "sv_maxupdaterate 60" "sys_ticrate 200"
+pnpm run rc "sv_maxupdaterate 60" "sys_ticrate 1000"
 ```
 
 A live `rc` set survives a `changelevel` but **not** a container restart -

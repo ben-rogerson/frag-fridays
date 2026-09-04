@@ -50,17 +50,25 @@ RUN printf 'mp_autokick 0\n' >> cstrike/server.cfg
 # barely moved; the TAIL collapsed, and the tail is what players read as
 # rubber banding. Engine CPU on the box fell 45.6% -> 40.0% of a core.
 RUN printf 'sv_maxrate 100000\nsv_minrate 25000\nsv_maxupdaterate 60\nsv_minupdaterate 30\n' >> cstrike/server.cfg
-# sys_ticrate 200, not the stock 100 - measured 2026-09-04, docs/netcode.md.
+# sys_ticrate 1000, not the stock 100 - measured 2026-09-04, docs/netcode.md.
 # sys_ticrate is what actually governs the dedicated loop on this engine
 # (fps_max does NOT - setting it to 30 or 500 moved the measured frame cadence
 # by exactly zero, so the fps_max 72 the server reports is a red herring).
-# At 100 the loop does not track its own target; raising it to 200 took the
-# server's ping column from p50 44ms / p95 53ms to p50 39ms / p95 50ms with
-# six clients on fy_iceworld, back-to-back runs.
-# The surprise, and the reason this is worth the line: it costs LESS CPU, not
-# more - 39-45% of a core at 100 against 32-37% at 200. Whatever the loop does
-# when it undershoots its target is more expensive than just running faster.
-RUN printf 'sys_ticrate 200\n' >> cstrike/server.cfg
+# 1000 is NOT a claim that the loop runs at 1000: it tops out near 425Hz on
+# this box. It is set above that ceiling on purpose. The engine busy-waits the
+# gap between its ~2.3ms frame cost and the sys_ticrate period, so cost is
+# roughly (period - 2.3ms) x achieved rate - which means CPU against ticrate is
+# NOT monotonic. It peaks around 250 (45% of a core) and collapses once the
+# period reaches the frame cost. Any target at or above the ceiling removes the
+# wait entirely.
+# Measured, six browser clients on fy_iceworld: at the previous 200 the loop
+# achieved only ~120Hz (with a 52ms hitch at p99) for 31-41% of a core; at 1000
+# it achieves ~425Hz for 15-18%. The ping column does not move - the win is
+# simulation rate and CPU headroom, not latency, and anyone re-testing this
+# should not expect ping to change. 500 also works but sits only ~18% above the
+# ceiling; 1000 keeps margin if the box is ever quieter. 10000 measures
+# identically to 1000 and buys nothing.
+RUN printf 'sys_ticrate 1000\n' >> cstrike/server.cfg
 RUN cd cstrike/addons/amxmodx/scripting \
  && chmod +x compile.sh amxxpc \
  && ./compile.sh \
