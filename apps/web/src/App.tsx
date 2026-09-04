@@ -61,7 +61,7 @@ const NEWS: { label: string; items: string[] }[] = [
     items: [
       "changing map no longer strands everyone on the loading screen - the page names the map it is loading, tells you your slot is held, and says so plainly if your game does not come back",
       "the netcode is retuned: with six players on, the worst pings came down from about 100ms to 50ms, which was most of the rubber banding. your ping is now on screen",
-      "bots wait 20 seconds at the top of a new map and four slots are always kept free, so anyone still loading has somewhere to land",
+      "bots wait 20 seconds at the top of a new map, and if a change does lock people out the server clears the bots out of the way so your reload lands",
       "tab draws its own scoreboard now - it scales to your screen instead of overlapping its own rows, and carries the mode's rules. every mode but classic is one list ordered by kills",
       "classic is the 5v5 match mode: cpl and esl era rules, friendly fire on, no bots, $800 start, and dead players fade to black until the round ends",
       "the game starts at 20% volume instead of full",
