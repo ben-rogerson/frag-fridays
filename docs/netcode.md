@@ -201,6 +201,33 @@ is more expensive than simply running faster. 200 was picked over 500 because
 - Bot CPU is roughly +0.1% of a core per bot over a ~1.7% floor, and the host
   stayed 70-98% idle at every bot count. Bots are not the expensive thing.
 
+## The on-screen readout
+
+`net_graph` is now shipped on (`net_graph 3`, `net_graphpos 2` in
+`server/config/userconfig.cfg`), with an off/ping/graph control on the
+settings page. The earlier note there - "a permanent stats overlay is noise
+for a casual game" - was right about the graph and wrong about the numbers: a
+player who can read their own ping turns "it feels laggy" into "I'm on 180",
+and that is the difference between a report we can act on and one we cannot.
+
+The values are inverted from what the names suggest on this build, which is
+worth writing down because guessing gets it backwards. Read off in-game
+screenshots, 2026-09-04:
+
+| | draws |
+|---|---|
+| `net_graph 1` | three lines of text plus a scrolling bar strip |
+| `net_graph 2` | a large filled area graph on top of all of that - very busy |
+| `net_graph 3` | four lines of text only, and the only one printing loss/choke |
+
+So 3 is simultaneously the most informative and the least cluttered.
+`net_graphpos 2` centres it along the bottom edge, clear of the ammo and
+health numbers; pos 1 (the engine default) drops it on top of the ammo
+counter.
+
+`net_graph` prints its own fps, so the shipped `cl_showfps 1` is redundant
+while it is on. It stays as the fallback for players who turn the graph off.
+
 ## Re-measuring
 
 The server's own ping column is the honest metric and needs no client

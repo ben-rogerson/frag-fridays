@@ -934,6 +934,28 @@ const CONTROLS: Control[] = [
       { value: "2", label: "big" },
     ],
   },
+  {
+    // Shipped on (net_graph 3 in userconfig.cfg) after the 2026-09-04 lag
+    // session - see docs/netcode.md. A player who can read their own ping
+    // turns "it feels laggy" into "I'm on 180", which is a report worth
+    // acting on; this control is for the people who would rather not see it.
+    //
+    // The values are inverted from what the names suggest on this build, and
+    // these were read off in-game screenshots rather than assumed: 3 is four
+    // lines of TEXT ONLY (fps, ping in ms, in/out kb/s, loss and choke) and
+    // is the least cluttered of the three, while 2 stacks a large filled area
+    // graph on top of the same text. 1 sits between them and is dropped -
+    // three chips, and it adds nothing 3 does not already say.
+    cvar: "net_graph",
+    label: "network stats",
+    def: "3",
+    kind: "choice",
+    options: [
+      { value: "0", label: "off" },
+      { value: "3", label: "ping" },
+      { value: "2", label: "graph" },
+    ],
+  },
 ];
 
 const CONTROL_BY_CVAR = new Map(CONTROLS.map((c) => [c.cvar, c]));
