@@ -593,27 +593,19 @@ const MODES: ModeEntry[] = [
     key: "classic",
     match: /classic|vanilla/i,
     name: "Classic",
-    blurb: "5v5 on competition rules - no bots, one life a round",
+    blurb: "5v5 on match rules - no bots, no respawn",
     rules: [
       "five a side, humans only",
       "15 rounds a half, first to 16",
-      "knife round decides sides",
-      "friendly fire on",
+      "1:45 rounds, $800 start, friendly fire on",
+      "dead players see black until the round ends",
     ],
     emblem: ClassicEmblem,
     tournament: true,
-    // the era's rotation, cut to maps this server already ships (see
-    // docs/classic-rules.md for what was in the CPL and CAL pools)
-    pool: [
-      "de_dust2",
-      "de_inferno",
-      "de_nuke",
-      "de_train",
-      "de_cbble",
-      "de_aztec",
-      "cs_italy",
-      "cs_assault",
-    ],
+    // the era's pool, cut to maps this server already ships. dust2, inferno,
+    // nuke, train and cbble are in every league's rotation for the whole
+    // decade; aztec and dust come and go. docs/classic-rules.md has the years.
+    pool: ["de_dust2", "de_inferno", "de_nuke", "de_train", "de_cbble", "de_aztec", "de_dust"],
   },
   {
     key: "gungame",

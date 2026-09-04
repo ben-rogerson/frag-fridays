@@ -36,7 +36,9 @@ who already know the game. None of that is true here, so:
   restrictions, gravity, round timers pitched at a 30-minute
   session rather than a whole evening.
 - **Never an empty server.** YaPB bots hold the slots and step out one at a
-  time as humans arrive, prefixed `[BOT]` and tuned to be beatable.
+  time as humans arrive, prefixed `[BOT]` and tuned to be beatable. Classic
+  is the exception and ships zero: it is the 5v5 match mode, and its ten
+  seats are for people.
 - **It handles the browser being a browser.** Backgrounded tabs freeze the
   game loop, so the timeouts on both ends are set to survive an alt-tab
   rather than kicking you. A dropped connection returns to the lobby with a
@@ -78,6 +80,7 @@ that does something else entirely.
 
 - [Runbook](docs/runbook.md) - the Friday procedure, start to finish
 - [Game guide](docs/game-guide.md) - the modes, chat commands, bot tuning
+- [Classic rules](docs/classic-rules.md) - the 5v5 match ruleset, with sources
 - [Setup](docs/setup.md) - rebuilding the VPS from scratch
 - [Troubleshooting](docs/troubleshooting.md) - this stack fails silently; verify, don't assume
 - [Decisions](docs/decisions.md) - why things are the way they are

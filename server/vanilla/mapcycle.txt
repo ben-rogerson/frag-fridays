@@ -4,5 +4,4 @@ de_nuke
 de_train
 de_cbble
 de_aztec
-cs_italy
-cs_assault
+de_dust

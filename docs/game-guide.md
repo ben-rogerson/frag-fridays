@@ -176,9 +176,10 @@ zip):
 - dm: fy_pool_day, dust2, dust, assault, nuke, cbble, cs_office,
   fy_iceworld, aim_map, scoutzknivez, de_rats, de_train,
   cs_prospeedball, cs_deagle5
-- vanilla (Classic): dust2, inferno, nuke, de_train, cbble, aztec, italy,
-  assault - the era's competition pool, cut to maps already in the client
-  payload. Every map it dropped (dust, cs_office, cs_prospeedball,
+- vanilla (Classic): dust2, inferno, nuke, de_train, cbble, aztec, dust - the
+  era's competition pool, cut to maps already in the client payload (no
+  hostage map was ever in one; the CPL and CEVO customs are not on this box).
+  Every map it dropped (italy, assault, cs_office, cs_prospeedball,
   cs_deagle5) is still in gg's and dm's cycles, so the valve.zip keep-list
   (the union) is unchanged and this needed no `clientcfg`.
 
@@ -207,10 +208,14 @@ Custom (non-Steam) maps live in `server/maps/` and reach the server via a
 compose mount (`cs/cstrike/maps` -> `custom/maps` in the container), so
 adding one needs no image rebuild - just the deploy + clientcfg pair.
 
-Maps rotate at `mp_timelimit` (30 min; vanilla runs 10 min for three maps
-per half-hour slot, plus quick-round cvars - 16k start money, 2.5-min
-rounds, 5s freezetime, 35s c4 - via box-side `mods/zp/configs/amxx.cfg`,
-which is exec'd every map start and overrides the stock server.cfg).
+Maps rotate at `mp_timelimit` (30 min) on every mode except **Classic**,
+which runs `mp_timelimit 0` - no map clock at all, because a match must not
+be cut off mid-half. Its map changes when the half ends
+(`mp_maxrounds 15`); see [classic-rules.md](classic-rules.md). Classic's
+cvars used to come from box-side `mods/zp/configs/amxx.cfg`, which is exec'd
+every map start and silently overrode `server/vanilla/server.cfg`; the repo
+now mounts an `amxx.cfg` that sets no gameplay cvar, so server.cfg is the
+ruleset.
 AMXX's end-of-map vote
 (`mapchooser`) is enabled and fires shortly before the limit - whether the
 vote menu renders in the browser client is untested. All players can use
