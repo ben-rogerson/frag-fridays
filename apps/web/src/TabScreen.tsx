@@ -134,6 +134,22 @@ export const TabScreen: FC<TabScreenProps> = ({
   // data anywhere means the column is not drawn at all, rather than a stripe
   // of dashes down a board that never had sides to begin with.
   const sideTags = !splitTeams && hasTeams;
+  // Classic splits by side, so a player who has not got one belongs to neither
+  // block - and used to fall through both and vanish off the board completely.
+  // That is not a rare state: team 0 is "connected, still on the join screen",
+  // which is what everybody looks like for the first seconds after joining and
+  // therefore most of warm-up, which is exactly when people hold Tab to see
+  // who has turned up. On the mode whose board is the match record, a player
+  // silently missing is the worst possible failure.
+  //
+  // They get a line rather than a third block. A block would need a side band
+  // and a team total, and both would say they are a team when the whole point
+  // is that they have not picked one; they also have no score worth a column
+  // yet, having not started. So: the same furniture as the spectators line
+  // directly under it, which is already the board's way of saying "on the
+  // server, not in a side right now". Only for the split shape - the combined
+  // list already ranks everybody.
+  const joining = splitTeams ? players.filter((p) => p.team !== 1 && p.team !== 2) : [];
 
   // Does the briefing fit under the board, or does it need its own page?
   //
@@ -319,6 +335,11 @@ export const TabScreen: FC<TabScreenProps> = ({
                     <div className="tabscreen__empty">no players</div>
                   )}
                 </div>
+              )}
+              {joining.length > 0 && (
+                <p className="tabscreen__specs">
+                  joining: {joining.map((p) => p.name).join(", ")}
+                </p>
               )}
               {spectators.length > 0 && (
                 <p className="tabscreen__specs">
