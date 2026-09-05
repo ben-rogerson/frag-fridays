@@ -232,8 +232,10 @@ list_files() {
     # A skyname can carry a subdirectory - de_dust2_2020_se ships its faces as
     # gfx/env/de_dust2_2020/Dust2020*.tga and names the sky
     # "de_dust2_2020/Dust2020". So strip back to gfx/env/, not to the
-    # basename: on a basename this map's faces matched no keepsky entry and
-    # were silently trimmed out of the payload, leaving the map skyless.
+    # basename: matched on a basename, those six faces hit no keepsky entry
+    # and were trimmed out of the payload, leaving the map skyless.
+    # (No apostrophes in here - this whole awk program is one single-quoted
+    # shell string, and one in a comment ends it.)
     tolower($0) ~ /^(valve|cstrike)\/gfx\/env\// {
       n = tolower($0); sub(/^.*\/gfx\/env\//, "", n)
       if (n ~ /(bk|dn|ft|lf|rt|up)\.(tga|bmp|pcx)$/) {
