@@ -66,6 +66,7 @@ const NEWS: { label: string; items: string[] }[] = [
       "classic is the 5v5 match mode: cpl and esl era rules, friendly fire on, no bots, $800 start, and dead players fade to black until the round ends",
       "holding tab no longer sets the sound off - the key was firing at the engine dozens of times a second the whole time you held it",
       "if you ever set ex_interp yourself, following a rates guide or an old habit, it was quietly costing you half your shots on moving targets - the page now clears it and the server never sees it again",
+      "if your tab crashes and you come back, you get your own name and your own seat back instead of turning up as \"you (1)\" beside a frozen copy of yourself",
       "the game starts at 20% volume instead of full",
       "the loading screen carries the frag fridays logo and what the server runs on, instead of being a blue screen",
     ],
