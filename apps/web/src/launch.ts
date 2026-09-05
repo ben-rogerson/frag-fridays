@@ -343,7 +343,18 @@ function settingKey(line: string): string | null {
 // followed the usual "ex_interp 0" rates-guide advice is healed on next load.
 // Deliberately not offered on the settings page either: there is no value a
 // player could pick that beats 0.1, and several that quietly halve their damage.
-const ENGINE_OWNED = new Set(["cl_cmdrate", "cl_dlmax", "ex_interp"]);
+//
+// touch_config_file arrives the same way as the rates pair, one step later in
+// the boot: the baseline is read before `touch_enable 1` (see launchGame), so
+// touch.cfg does not exist yet and its baseline map is empty. Enabling touch
+// inits the touch subsystem, which archives its profile pointer - a name like
+// touch_profiles/phone_ahsim.cfg, the engine's own, nothing we ship - and the
+// next persist tick diffed that against nothing and saved it as a deliberate
+// change. Every touch-capable device got a chip nobody set (phones, and any
+// laptop with a touchscreen: maxTouchPoints > 0 is the whole test). Replay was
+// harmless - the profile file is not in MEMFS, so touch falls back to defaults
+// - but it sat in the panel forever claiming to be the player's.
+const ENGINE_OWNED = new Set(["cl_cmdrate", "cl_dlmax", "ex_interp", "touch_config_file"]);
 
 function loadSaved(): Record<string, string> {
   try {
