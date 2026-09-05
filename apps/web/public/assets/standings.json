@@ -1,41 +1,68 @@
 {
- "generated": "2026-08-30T02:54:29+00:00",
+ "generated": "2026-09-05T08:57:04+00:00",
  "season": [
   {
    "name": "ZenBot",
-   "sessions": 4,
-   "kills": 296,
-   "deaths": 181,
-   "kd": 1.64,
+   "sessions": 5,
+   "kills": 420,
+   "deaths": 262,
+   "kd": 1.6,
    "plants": 0,
-   "time": 5449
+   "time": 7485
   },
   {
    "name": "Reversons",
-   "sessions": 4,
-   "kills": 272,
-   "deaths": 86,
-   "kd": 3.16,
+   "sessions": 5,
+   "kills": 419,
+   "deaths": 156,
+   "kd": 2.69,
    "plants": 1,
-   "time": 4913
-  },
-  {
-   "name": "Bot 1 (easy)",
-   "sessions": 2,
-   "kills": 101,
-   "deaths": 102,
-   "kd": 0.99,
-   "plants": 0,
-   "time": 2521
+   "time": 6984
   },
   {
    "name": "Al",
-   "sessions": 2,
-   "kills": 68,
-   "deaths": 71,
-   "kd": 0.96,
+   "sessions": 3,
+   "kills": 156,
+   "deaths": 151,
+   "kd": 1.03,
    "plants": 0,
-   "time": 2545
+   "time": 4605
+  },
+  {
+   "name": "Bot 1 (easy)",
+   "sessions": 3,
+   "kills": 156,
+   "deaths": 166,
+   "kd": 0.94,
+   "plants": 0,
+   "time": 4510
+  },
+  {
+   "name": "_vicentEYyyo",
+   "sessions": 2,
+   "kills": 154,
+   "deaths": 67,
+   "kd": 2.3,
+   "plants": 0,
+   "time": 3663
+  },
+  {
+   "name": "CantAim",
+   "sessions": 3,
+   "kills": 64,
+   "deaths": 56,
+   "kd": 1.14,
+   "plants": 0,
+   "time": 2376
+  },
+  {
+   "name": "Mauro",
+   "sessions": 2,
+   "kills": 63,
+   "deaths": 83,
+   "kd": 0.76,
+   "plants": 0,
+   "time": 3457
   },
   {
    "name": "Cem",
@@ -47,22 +74,13 @@
    "time": 1926
   },
   {
-   "name": "_vicentEYyyo",
-   "sessions": 1,
-   "kills": 50,
-   "deaths": 18,
-   "kd": 2.78,
-   "plants": 0,
-   "time": 1601
-  },
-  {
-   "name": "CantAim",
-   "sessions": 2,
+   "name": "professorx",
+   "sessions": 3,
    "kills": 41,
-   "deaths": 33,
-   "kd": 1.24,
+   "deaths": 142,
+   "kd": 0.29,
    "plants": 0,
-   "time": 2029
+   "time": 3208
   },
   {
    "name": "Quan",
@@ -83,6 +101,24 @@
    "time": 1058
   },
   {
+   "name": "TTVGOGY5432",
+   "sessions": 1,
+   "kills": 29,
+   "deaths": 41,
+   "kd": 0.71,
+   "plants": 0,
+   "time": 1158
+  },
+  {
+   "name": "Tdog",
+   "sessions": 1,
+   "kills": 27,
+   "deaths": 66,
+   "kd": 0.41,
+   "plants": 0,
+   "time": 1713
+  },
+  {
    "name": "professorsx",
    "sessions": 1,
    "kills": 25,
@@ -101,24 +137,6 @@
    "time": 1254
   },
   {
-   "name": "Mauro",
-   "sessions": 1,
-   "kills": 21,
-   "deaths": 34,
-   "kd": 0.62,
-   "plants": 0,
-   "time": 1384
-  },
-  {
-   "name": "professorx",
-   "sessions": 2,
-   "kills": 20,
-   "deaths": 60,
-   "kd": 0.33,
-   "plants": 0,
-   "time": 2348
-  },
-  {
    "name": "HaiBot",
    "sessions": 1,
    "kills": 17,
@@ -135,6 +153,15 @@
    "kd": 0.78,
    "plants": 0,
    "time": 772
+  },
+  {
+   "name": "Rhys",
+   "sessions": 1,
+   "kills": 12,
+   "deaths": 69,
+   "kd": 0.17,
+   "plants": 0,
+   "time": 1962
   },
   {
    "name": "ViteJS",
@@ -425,41 +452,240 @@
      "time": 1033
     }
    ]
+  },
+  {
+   "date": "2026-09-04",
+   "mvp": "Reversons",
+   "kills": 147,
+   "players": [
+    {
+     "name": "Reversons",
+     "kills": 147,
+     "deaths": 70,
+     "kd": 2.1,
+     "plants": 0,
+     "time": 2071
+    },
+    {
+     "name": "ZenBot",
+     "kills": 124,
+     "deaths": 81,
+     "kd": 1.53,
+     "plants": 0,
+     "time": 2036
+    },
+    {
+     "name": "_vicentEYyyo",
+     "kills": 104,
+     "deaths": 49,
+     "kd": 2.12,
+     "plants": 0,
+     "time": 2062
+    },
+    {
+     "name": "Al",
+     "kills": 88,
+     "deaths": 80,
+     "kd": 1.1,
+     "plants": 0,
+     "time": 2060
+    },
+    {
+     "name": "Bot 1 (easy)",
+     "kills": 55,
+     "deaths": 64,
+     "kd": 0.86,
+     "plants": 0,
+     "time": 1989
+    },
+    {
+     "name": "Mauro",
+     "kills": 42,
+     "deaths": 49,
+     "kd": 0.86,
+     "plants": 0,
+     "time": 2073
+    },
+    {
+     "name": "TTVGOGY5432",
+     "kills": 29,
+     "deaths": 41,
+     "kd": 0.71,
+     "plants": 0,
+     "time": 1158
+    },
+    {
+     "name": "Tdog",
+     "kills": 27,
+     "deaths": 66,
+     "kd": 0.41,
+     "plants": 0,
+     "time": 1713
+    },
+    {
+     "name": "CantAim",
+     "kills": 23,
+     "deaths": 23,
+     "kd": 1.0,
+     "plants": 0,
+     "time": 347
+    },
+    {
+     "name": "professorx",
+     "kills": 21,
+     "deaths": 82,
+     "kd": 0.26,
+     "plants": 0,
+     "time": 860
+    },
+    {
+     "name": "Rhys",
+     "kills": 12,
+     "deaths": 69,
+     "kd": 0.17,
+     "plants": 0,
+     "time": 1962
+    }
+   ]
   }
  ],
  "practice": [
   {
-   "name": "Reverson",
-   "kills": 86,
-   "deaths": 49,
-   "kd": 1.76,
-   "plants": 0,
-   "time": 3994
-  },
-  {
    "name": "Reversons",
-   "kills": 32,
-   "deaths": 22,
-   "kd": 1.45,
-   "plants": 0,
-   "time": 1247
+   "kills": 260,
+   "deaths": 39,
+   "kd": 6.67,
+   "plants": 1,
+   "time": 4064
   },
   {
-   "name": "esctest",
+   "name": "TTVGOGY5432",
+   "kills": 28,
+   "deaths": 35,
+   "kd": 0.8,
+   "plants": 0,
+   "time": 1434
+  },
+  {
+   "name": "RadioTest",
+   "kills": 5,
+   "deaths": 17,
+   "kd": 0.29,
+   "plants": 0,
+   "time": 621
+  },
+  {
+   "name": "fpsprobe3",
+   "kills": 3,
+   "deaths": 4,
+   "kd": 0.75,
+   "plants": 0,
+   "time": 124
+  },
+  {
+   "name": "db-p1-0",
+   "kills": 1,
+   "deaths": 15,
+   "kd": 0.07,
+   "plants": 0,
+   "time": 839
+  },
+  {
+   "name": "dbsmoke",
    "kills": 0,
    "deaths": 1,
    "kd": 0.0,
    "plants": 0,
-   "time": 155
+   "time": 82
   },
   {
-   "name": "CrashProbe",
+   "name": "vibprobe",
    "kills": 0,
-   "deaths": 6,
+   "deaths": 2,
    "kd": 0.0,
    "plants": 0,
-   "time": 257
+   "time": 70
+  },
+  {
+   "name": "vibdust",
+   "kills": 0,
+   "deaths": 8,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 464
+  },
+  {
+   "name": "dbprobeC",
+   "kills": 0,
+   "deaths": 2,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 38
+  },
+  {
+   "name": "fpsprobe",
+   "kills": 0,
+   "deaths": 1,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 146
+  },
+  {
+   "name": "dbprobeE",
+   "kills": 0,
+   "deaths": 2,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 88
+  },
+  {
+   "name": "fpsprobe2",
+   "kills": 0,
+   "deaths": 3,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 98
+  },
+  {
+   "name": "db-p1-300",
+   "kills": 0,
+   "deaths": 15,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 435
+  },
+  {
+   "name": "db-p1-4096",
+   "kills": 0,
+   "deaths": 16,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 435
+  },
+  {
+   "name": "db-p2-4096",
+   "kills": 0,
+   "deaths": 4,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 433
+  },
+  {
+   "name": "db-p2-300",
+   "kills": 0,
+   "deaths": 10,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 434
+  },
+  {
+   "name": "db-p2-0n",
+   "kills": 0,
+   "deaths": 11,
+   "kd": 0.0,
+   "plants": 0,
+   "time": 431
   }
  ],
- "practiceSince": "2026-08-28"
+ "practiceSince": "2026-09-04"
 }
