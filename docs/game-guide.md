@@ -312,3 +312,25 @@ which rebuilds the websocket + WebRTC session from scratch (cheap: on the
 https origin valve.zip re-reads from Cache Storage, no re-download).
 Any answered retry re-earns trust, so a later unrelated drop starts with
 the fast in-engine path again.
+
+## Coming back after a crash
+
+Close the tab normally and the page hands the slot back straight away
+(`leaveServer()` on `pagehide`). Kill the browser, force-quit, or lose the
+machine and it cannot - the engine holds that session, its slot and its name
+for `sv_timeout` (600s), which is why a rejoin used to arrive as
+`Reversons (1)` next to a motionless copy of you.
+
+`ff_rejoin.amxx` (gg/dm/aim/css/fy/awp, not Classic) closes that: on a join it
+looks for another client with the same base name, and if that client has sent
+nothing for `ff_rejoin_quiet` seconds it drops it and renames the newcomer back
+to the plain name. It takes about a second, so the suffix flashes up and then
+goes. Two knobs, both live over `pnpm run rc`:
+
+| cvar | default | what it does |
+|---|---|---|
+| `ff_rejoin_drop` | `1` | `0` stops it dropping anything (it still logs what it would have done) |
+| `ff_rejoin_quiet` | `10.0` | seconds of silence before a same-named client counts as a ghost |
+
+Someone genuinely playing under your alias is never dropped - they are sending
+packets, and that is the whole test.

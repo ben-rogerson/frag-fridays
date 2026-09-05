@@ -37,11 +37,26 @@ SYD = ZoneInfo("Australia/Sydney")
 UTC = ZoneInfo("UTC")
 
 TS = r"(\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2})"
-PLAYER = r'"(.+?)<\d+><(.*?)><(.*?)>"'
+PLAYER = r'"(.+?)<(\d+)><(.*?)><(.*?)>"'
 KILL_RE = re.compile(rf"{TS}: {PLAYER} killed {PLAYER} with \"(.+?)\"")
 SUICIDE_RE = re.compile(rf"{TS}: {PLAYER} committed suicide")
 MAP_RE = re.compile(rf'{TS}: Started map "(.+?)"')
 PATH_RE = re.compile(r"^(?:.*?/)?logs/([^/]+)/[^:]*\.log:")
+
+# A player whose tab crashes keeps their slot and their name for sv_timeout
+# (600s), so the engine hands them "Name (1)" when they come back and the
+# session sees two people with half the frags each. server/*/addons/.../
+# ff_rejoin.sma fixes it at the source from the moment it ships; this folds the
+# suffix back so the archive - and the ~1s window before the plugin renames
+# them - still reads as one player. Same rule as scripts/standings.py.
+# The cost: someone whose alias genuinely ends in " (2)" merges with the same
+# name without it. Nobody in data/logs/ has ever used one, and every "(N)" in
+# the archive is a known player's crash-rejoin, so the trade is one-sided.
+DUPE_RE = re.compile(r"\s*\(\d+\)$")
+
+
+def canon(name):
+    return DUPE_RE.sub("", name)
 
 MODES = {"gg": "gungame", "dm": "deathmatch", "vanilla": "classic",
          "aim": "aim", "zp": "zombie"}
@@ -90,13 +105,14 @@ def main():
             continue
         m = KILL_RE.search(line)
         if m:
-            ts, killer, kauth, _, victim, vauth, _, weapon = m.groups()
-            events.append((parse_ts(ts), "kill", (killer, kauth, victim, vauth, weapon)))
+            ts, killer, kuid, kauth, _, victim, vuid, vauth, _, weapon = m.groups()
+            events.append((parse_ts(ts), "kill",
+                           (canon(killer), kuid, kauth, canon(victim), vuid, vauth, weapon)))
             continue
         m = SUICIDE_RE.search(line)
         if m:
-            ts, name, auth, _ = m.groups()
-            events.append((parse_ts(ts), "suicide", (name, auth)))
+            ts, name, _uid, auth, _ = m.groups()
+            events.append((parse_ts(ts), "suicide", (canon(name), auth)))
     events.sort(key=lambda e: e[0])
 
     maps = []  # ordered segments: {"map": str, "mode": str, "players": {name: stats}}
@@ -120,8 +136,10 @@ def main():
             seg("(unknown map)")
         players = current["players"]
         if kind == "kill":
-            killer, kauth, victim, vauth, weapon = data
-            if (killer, kauth) == (victim, vauth):  # self-kill logged as kill line
+            killer, kuid, kauth, victim, vuid, vauth, weapon = data
+            # compare userids, not names: folding "(1)" away would otherwise
+            # make a player fragging their own ghost look like a suicide
+            if kuid == vuid:  # self-kill logged as kill line
                 players[victim]["deaths"] += 1
                 players[victim]["bot"] = vauth == "BOT"
             else:

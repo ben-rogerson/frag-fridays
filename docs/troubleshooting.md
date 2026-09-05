@@ -932,11 +932,82 @@ Lowering `sv_timeout` is NOT the fix - it exists at 600s precisely because a
 backgrounded tab freezes the game loop and goes network-silent, and a short
 timeout would drop alt-tabbed players mid-session.
 
-Dropping the ghost server-side is not available to us: the transport-close
-line (`websocket: close 1001`) is logged by the Go layer inside the
-prebuilt image and names no player, and every browser client shares one
-auth id (`ID_7dea362b...`, the hash of an absent steamid), so there is
-nothing to dedupe on.
+Dropping the ghost on a timer is still not available to us: the
+transport-close line (`websocket: close 1001`) is logged by the Go layer
+inside the prebuilt image and names no player, and there is no per-player
+identity to key on (below). What IS available is dropping it at the moment
+the same player comes back - see the next entry.
+
+## A crashed player comes back as "Name (1)", and there is no identity to dedupe on but the name
+
+The other half of the ghost problem, and the one people actually notice.
+Because the ghost holds the NAME as well as the slot for `sv_timeout`, the
+engine hands the returning player `Reversons (1)`. That is cosmetic on the
+scoreboard and not cosmetic at all in the kill logs: `scripts/standings.py`
+and the recap parser count players by name, so a crash-rejoin splits one
+person into two with half the frags each, and can hand away an MVP.
+
+**What identity means on this stack** (measured 2026-09-05 in a throwaway
+container with a real browser client, and corroborated by every
+`connected, address` line in `data/logs/`):
+
+| signal | what it actually is | usable? |
+|---|---|---|
+| `get_user_authid` | `ID_7dea362b3fac8e00956a4952a3d4f47` for every browser client ever seen - the hash of an absent steamid | no, it is a constant |
+| `get_user_ip` | `0.87.11.9:1000`, `1.94.234.160:1000`, `5.235.128.164:1000` - the Go/WebRTC layer fabricates an address per CONNECTION, port always 1000; the same person gets a different one every join | no, not real and not stable |
+| name | the player's own alias | the only signal there is |
+
+So `ff_rejoin.sma` (gg/dm/aim/css/fy/awp) matches on the base name, and
+protects live players a different way: **the ghost is the one that is not
+sending.** `FM_CmdStart` fires once per usercmd received, so it is a direct
+"packets still arriving" signal - a live client ticks ~60/s, and a crashed
+one froze its counter instantly and stayed frozen for the whole seven
+minutes the engine held the slot. `get_user_ping`/loss do NOT work for this:
+the ghost's ping stayed pinned at its last value (27ms) and loss stayed 0
+the entire time. `get_players()` does still list the ghost (`conn=1`), so
+enumeration is fine.
+
+Two more things established on the rig, both of which shape the plugin:
+
+- **The engine uniquifies before AMXX sees anything.** At `client_connect`
+  the incoming name is ALREADY `Reversons (1)`. There is no hook early
+  enough to prevent the suffix, so the plugin drops the ghost and then puts
+  the base name back with `set_user_info` (~1s after the join).
+- **A kick is synchronous.** `server_cmd("kick #<uid>")` + `server_exec()`
+  runs the engine's drop inside the call - `client_disconnect` fires before
+  `server_exec()` returns. That is why the plugin does its work from a task
+  0.5s after `client_putinserver` rather than inline in the connect path.
+
+The kick is only safe because every mod that ships this plugin also ships
+the `fragfridays-sv-dropclient.txt` gamedata override (see the SV_DropClient
+entry above) - without it a programmatic drop goes straight through the
+detour that killed the server eight times. **Classic/vanilla was running
+without that override** - it has no build step, so it kept the stock image's
+gamedata while gg/dm/aim were fixed on 2026-08-28. The root compose now
+mounts `./vanilla/gamedata` into its `common.games/custom/` so Classic
+carries the same override as everything else. Classic still does not run
+`ff_rejoin.amxx`: its plugins live box-side at `/opt/cs16/mods/zp/plugins/`
+where `deploy.sh` never reaches, so the compiled `.amxx` has to be copied in
+and registered by hand.
+
+Verified end to end 2026-09-05 in a throwaway dm container: join, crash the
+renderer, rejoin inside the timeout window - ghost dropped, name back to
+`Reversons`, slot count unchanged (3 before, 3 after), `RestartCount=0`,
+zero `Crash: signal` lines across the whole run. A second live client under
+the same alias was correctly left alone (`still sending (0.0s)`), and a
+`changelevel` with a live client produced no kick.
+
+**The memory-read recipe above no longer discriminates.** Reading
+`SV_DropClient_` at `0x0855a120` on the current base image gives the real
+prologue (`55 57 56 53 ...`) whether the override is present, masked, or
+absent, while the `Cvar_DirectSet` control does read `ff 25 ...` - so AMXX
+is attached and hooking, and the entry-point patch is simply not how this
+build's `SV_DropClient` hook shows up any more. The signal that still works
+is the AMXX line `client_disconnected and client_remove forwards have been
+disabled - check your gamedata files.`: it appears at map start in the mod
+images and does not appear when the override directory is masked. Vanilla's
+console is too quiet to log it either way, which is why its override is
+shipped defensively rather than confirmed by log.
 
 ## Client prediction can trap on a stale brush model (`memory access out of bounds`)
 

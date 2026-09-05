@@ -83,6 +83,12 @@ RUN grep -qx 'chatrestart.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
 RUN grep -qx 'teambalance.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'teambalance.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 
+# a crashed player's old session holds their slot AND their name for
+# sv_timeout (600s), so they come back as "Name (1)" and the standings and
+# the recap count them as two people - see scripting/ff_rejoin.sma
+RUN grep -qx 'ff_rejoin.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'ff_rejoin.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
+
 # live status for the web loading screen - see scripting/statusjson.sma.
 # The plugin writes into the statically-served public/ dir; pre-create the
 # file writable so the dir itself can stay root-owned.

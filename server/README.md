@@ -58,6 +58,12 @@ gets hand-edited on the server.
 - Use `restart: unless-stopped`, never `restart: always`.
 - A `.amxx` in `plugins/` does nothing unless listed in `plugins.ini`. Modules
   (like CSDM's `.so`) register in `modules.ini` instead.
+- **Classic (vanilla) gets nothing from this repo's `addons/`.** It runs the
+  stock image and mounts `/opt/cs16/mods/zp/{plugins,configs}`, which `deploy.sh`
+  never touches - a new plugin has to be compiled and copied in by hand. It also
+  keeps the stock `gamedata/`, so the AMXX `SV_DropClient` detour is still
+  installed there: anything that drops a client programmatically (`ff_rejoin.amxx`)
+  must not go to Classic until `fragfridays-sv-dropclient.txt` is mounted too.
 - `valve.zip` root must contain only `valve/` and `cstrike/`.
 - Wads and sounds are render-side, but **studio models and env_sprites load
   server-side** - a map using them needs the `models/`/`sprites/` compose
