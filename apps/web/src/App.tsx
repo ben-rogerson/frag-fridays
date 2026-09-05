@@ -18,6 +18,9 @@ import type { DropKind } from "./webrtc";
 // and ping at all
 import { TabScreen } from "./TabScreen";
 import type { ModeInfo, ServerStatus } from "./TabScreen";
+// A page-level display setting rather than a cvar, so it owns its own storage
+// and its own tile - see Vibrance.tsx for why it is not in CONTROLS.
+import { VibranceTweak } from "./Vibrance";
 import "@fontsource/black-ops-one";
 import "./App.css";
 
@@ -1133,6 +1136,11 @@ const SettingsPanel: FC = () => {
         </div>
 
         <div className="tweaks__grid">
+          {/* First because the grid groups by shape (sliders, then pick-one
+              rows) and this is a slider - not because it outranks sensitivity.
+              It is the only control here that is the page rather than the
+              engine, so it is not in CONTROLS and renders itself. */}
+          <VibranceTweak />
           {CONTROLS.map((c) => {
             const raw = savedValue(c);
             const value = raw ?? c.def;

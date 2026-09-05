@@ -1261,3 +1261,75 @@ which `deploy.sh` never touches, so the compiled `.amxx` goes in by hand.
 The log parsers fold `Name (1)` back to `Name` anyway (standings.py already
 did; the recap parser now does too), because the plugin only helps from the
 moment it ships and the archive is full of already-split sessions.
+
+## Digital vibrance: a CSS filter on the canvas, on a slider (2026-09-05)
+
+"Digital vibrance" is an NVIDIA control-panel setting, not a game one. There is
+no cvar for it and there never was - it is a saturation boost the display
+driver applies after the game has finished drawing, and 1.6 players have run it
+at 60-100% since the CPL era because the maps are sand and concrete and so are
+the player models.
+
+The engine draws into a canvas element in a web page here, so the page can do
+the driver's old job: `filter: saturate(N)` on `#canvas`, driven by a
+`--ff-vibrance` custom property that `Vibrance.tsx` writes on the root element.
+Same operation at the same point in the pipeline - on the composited output, on
+the GPU, after the frame is drawn and before it is presented. The engine is
+never told.
+
+**It costs nothing, measured.** In a live match the number is useless: on this
+Mac the display is 120Hz ProMotion, so with vsync on every frame gap quantises
+to 120/n and a one-millisecond difference cannot appear at all; with vsync off
+(`--disable-gpu-vsync --disable-frame-rate-limit`) the game's own variance -
+respawns, bots in view, a round ending, the wasm engine on CPU - swamps it, and
+three runs put filter-on above filter-off about as often as below. So the
+question was asked again with the game taken out of it: a WebGL canvas laid out
+exactly like the engine's (`#canvas`, fixed, 100vw/100vh, 2560x1720 drawing
+buffer), GPU-bound at ~53fps, vsync off, filter-off and filter-on blocks
+interleaved five times. Median frame 18.7ms in every condition - off,
+`saturate(1.2)` and `saturate(1.6)` alike - and the slow tail (fps p5) 51.8 off
+against 52.6 and 52.4 filtered, i.e. the filtered runs were marginally *faster*,
+which is the shape of noise, not of a cost. A compositor colour matrix on a
+surface that is already being composited is free.
+
+**`saturate()`, not a colour matrix.** NVIDIA's dial is a chroma gain in a
+YCbCr-ish space, which is an `feColorMatrix` with Rec.601 luma weights; CSS
+`saturate()` is the same operation with Rec.709 weights. Both were run over a
+real fy_pool_day frame at +20% and differ by a mean of 0.31 of 255 per channel,
+max 6 - invisible, and `saturate()` is one browser-native primitive with no SVG
+filter element to keep alive in the DOM. `contrast()` was tried alongside it and
+dropped: it darkens the corners these maps are already full of, which is the
+opposite of the point. Clipping, the usual charge against naive saturation, does
+not bite at the shipped strength either - 0.49% of that frame already clips at
+off, 0.53% at +20%, and it only reaches 1.55% at the top of the slider.
+
+**A slider, not a fixed default**, for the same reason NVIDIA made it one: it
+depends on the monitor and on taste. 1.0 (off) to 1.8, shown as the boost
+("+20%") rather than the multiplier, because +20% is the number anyone who ever
+opened that control panel already has in their head. Shipped at +20%.
+
+**It is not a cvar, so it does not live in `CONTROLS`.** Everything in that array
+is a cfg line that replays into the engine console on the next boot, and the
+saved-override chips are that diff made visible. A page-level display setting
+replayed there would be an unknown command every session and a chip nobody could
+explain, so it gets its own `ff-vibrance` localStorage key and renders its own
+tile. The tile still shows `tweak--set` when it is off the default; "clear all"
+deliberately does not touch it, because that button clears what the engine will
+be told and this is never told to the engine.
+
+**The filter goes on the canvas ELEMENT, never on a parent.** The lobby overlay,
+the tab scoreboard and the match menu are sibling page elements drawn over the
+canvas, and a filter one level up would saturate those too. Checked, not
+assumed: computed `filter` is `none` on `#root`, `body`, `html`, `.overlay` and
+`.page` with the dial at maximum, and in a live match at `saturate(4)` - far past
+anything the slider offers - the match menu's opaque chrome is pixel-identical to
+the unfiltered shot, zero differing channels over the whole Resume button. Where
+those overlays are deliberately translucent (`.tabscreen__panel` at 0.93 alpha,
+`.pause` at 0.82, both with a backdrop blur) they do show the boosted match
+through them, which is what they are for; at the shipped +20% the filter moves a
+real frame by a mean of 1.64 of 255, so at 93% opacity the scoreboard can pick up
+about a tenth of one level.
+
+Because the rule lives in the stylesheet keyed on `#canvas` rather than as an
+inline style, it also survives anything that replaces the element, and fullscreen
+is requested on the document element, so no fullscreen path can drop it.
