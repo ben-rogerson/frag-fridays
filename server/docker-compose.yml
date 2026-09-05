@@ -39,6 +39,15 @@ services:
       # Server" - the join banner); mod images bake this in their Dockerfiles
       - "./cpl/server.cfg:/xashds/cstrike/server.cfg:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
+      # studio models load SERVER-side for collision (unlike wads/sounds, which
+      # are render-only) - de_beishan and de_dust2_2020_se both carry their own
+      # props, so the models tree has to reach the container too.
+      - "./cs/cstrike/models:/xashds/cstrike/custom/models:ro"
+      # their env_sprites are precached SERVER-side and loaded from disk
+      # ("Could not load model sprites/... from disk" without this), same rule
+      # as studio models. Stock sprites are already in the image; only the
+      # custom ones live in the game tree.
+      - "./cs/cstrike/sprites:/xashds/cstrike/custom/sprites:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
       # ...and the repo takes ONE file back off that box-side configs dir.
