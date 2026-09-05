@@ -1677,9 +1677,16 @@ const App: FC = () => {
     };
     release(); // in case the overlay opened with the lock still held
     document.addEventListener("pointerlockchange", release);
+    // Freeing the lock is not the same as getting the pointer BACK: SDL has
+    // written `cursor: none` onto the canvas and that outlives the lock, so
+    // over everything the tab screen does not cover - which is most of the
+    // screen, the panel being pointer-events: none - there was nothing to
+    // aim with. The rule this attribute switches on is in index.css.
+    document.body.dataset.cursor = "free";
     return () => {
       holdCursorRef.current = false;
       document.removeEventListener("pointerlockchange", release);
+      delete document.body.dataset.cursor;
     };
   }, [cursorFree]);
 

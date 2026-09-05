@@ -33,3 +33,26 @@ body {
   z-index: 1;
   filter: var(--ff-vibrance, none);
 }
+
+/* THE CURSOR THE ENGINE TOOK AWAY.
+   SDL hides the pointer by writing `cursor: none` straight onto the canvas
+   element's inline style, and it stays written after we hand the pointer lock
+   back for an overlay. The Escape menu never noticed: it is a full-screen DOM
+   layer, so the cursor sits over IT and resolves to its own style. The tab
+   screen is pointer-events: none everywhere except the buy pad - by design, so
+   a click during a round still reaches the canvas - which means everywhere
+   else the cursor falls through to the canvas and disappears.
+
+   A stylesheet rule beats an inline one when it is !important, and SDL never
+   writes !important, so this wins and keeps winning if the engine sets the
+   cursor again while the attribute is up. Set on <body> rather than the canvas
+   because the engine owns that element's attributes; see cursorFree in
+   App.tsx for what puts it there.
+
+   Not a JS element following the pointer: that trails by at least a frame, and
+   the frame budget here belongs to a wasm game loop, so it would visibly lag
+   the real pointer it is meant to be. It would also lose the cursor theme,
+   size and accessibility settings the player has actually chosen. */
+body[data-cursor="free"] #canvas {
+  cursor: default !important;
+}
