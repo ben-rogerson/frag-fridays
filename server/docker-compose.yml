@@ -32,6 +32,13 @@ services:
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
+      # Classic was still running the STOCK gamedata, so AMX Mod X's
+      # SV_DropClient detour was installed here long after gg/dm/aim were fixed
+      # on 2026-08-28 - i.e. any player timing out could still take Classic
+      # down (docs/troubleshooting.md). The mod images COPY this override in
+      # via addons/; vanilla has no build step, so it mounts it. The image's
+      # own custom/ dir is empty, so this only ever adds the one file.
+      - "./vanilla/gamedata:/xashds/cstrike/addons/amxmodx/data/gamedata/common.games/custom:ro"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "./cmdpipe:/xashds/cstrike/cmdpipe:ro"
       # YaPB bots (mod images bake these in; vanilla mounts them). Seeded

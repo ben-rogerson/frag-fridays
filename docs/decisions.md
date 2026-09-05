@@ -884,3 +884,54 @@ Client payload cost: ~60MB of new BSPs plus ~15MB of models/sounds/sprites
 (de_bank_csgo alone is 19MB of BSP and 28MB installed). The maps are trimmed
 by mapcycle, but `models/`, `sprites/` and `sound/` ship to everyone
 regardless - worth remembering before the next big map goes in.
+
+## Rejoin after a crash: drop the ghost, then take the name back (2026-09-05)
+
+`sv_timeout` is 600 for a good reason (backgrounded tabs freeze the game loop
+and go network-silent), so a crashed player's old session keeps their slot AND
+their name for up to ten minutes. They come back as `Reversons (1)`. The
+scoreboard looks silly; the real damage is that `scripts/standings.py` and the
+recap parser count by name, so one person becomes two with half the frags each.
+
+`ff_rejoin.sma` ships in gg/dm/aim/css/fy/awp. On a join it looks for another
+client with the same base name, drops it if it has gone quiet, then renames the
+newcomer back to the base name.
+
+**Matching on the name, and only the name, is forced.** Every browser client
+reports the same `get_user_authid` (`ID_7dea362b...`, the hash of an absent
+steamid), and `get_user_ip` is a per-connection address the Go/WebRTC layer
+invents (always port 1000, different every join, not the player's real
+address). Neither survives a reconnect. The full measurements are in
+docs/troubleshooting.md.
+
+**A live player with the same alias is protected by what they are doing, not by
+who they are.** `FM_CmdStart` fires once per usercmd received, so a client that
+is still there ticks ~60/s and a ghost's counter is frozen. Only a client
+silent for `ff_rejoin_quiet` (10s) is eligible. Ping and packet loss are
+useless here - a ghost's ping stays pinned at its last value and loss stays 0
+for the whole ten minutes.
+
+The case this cannot separate is a DIFFERENT person under the same alias who is
+alt-tabbed at that instant - also silent, so they would be dropped to the lobby
+with a Reconnect button. Aliases here are people's actual names, so that is a
+trade worth making; `ff_rejoin_drop 0` over the cmdpipe turns the dropping off
+live if it ever isn't.
+
+**The suffix cannot be prevented, only undone.** The engine uniquifies the name
+before AMXX gets a look in - at `client_connect` it is already `Reversons (1)`.
+So the plugin drops the ghost first and puts the name back a beat later with
+`set_user_info`.
+
+**The kick is only safe where the gamedata override is.** `server_cmd("kick
+#uid")` runs the engine's own `SV_DropClient`, which is exactly the function
+AMXX detours and crashes on (2026-08-28). Every mod that ships this plugin also
+ships the `fragfridays-sv-dropclient.txt` override that stops the detour
+installing. Classic had been missing it since that fix - it has no build step,
+so it kept the stock image's gamedata - so the root compose now mounts
+`server/vanilla/gamedata` into its `common.games/custom/`. Classic still does
+not run the plugin: its plugins live box-side at `/opt/cs16/mods/zp/plugins/`,
+which `deploy.sh` never touches, so the compiled `.amxx` goes in by hand.
+
+The log parsers fold `Name (1)` back to `Name` anyway (standings.py already
+did; the recap parser now does too), because the plugin only helps from the
+moment it ships and the archive is full of already-split sessions.
