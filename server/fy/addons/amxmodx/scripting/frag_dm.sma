@@ -46,13 +46,55 @@ new bool:g_hinted[33];
 new const g_guns[][] = {
 	"ak",     "weapon_ak47",
 	"m4",     "weapon_m4a1",
+	"aug",    "weapon_aug",
+	"sg552",  "weapon_sg552",
+	"galil",  "weapon_galil",
+	"famas",  "weapon_famas",
 	"awp",    "weapon_awp",
+	"scout",  "weapon_scout",
 	"mp5",    "weapon_mp5navy",
 	"p90",    "weapon_p90",
-	"scout",  "weapon_scout",
+	"mac10",  "weapon_mac10",
+	"tmp",    "weapon_tmp",
+	"ump",    "weapon_ump45",
 	"shotty", "weapon_xm1014",
-	"famas",  "weapon_famas",
+	"m3",     "weapon_m3",
+	"para",   "weapon_m249",
 	"deagle", ""  // pistol only
+};
+
+// Second names for the same guns, so the /guns list stays short while the
+// words players actually reach for still land. Sourced from the logs where
+// possible (m4a4, m4a1, sniper, rifle, bullpup, aug, uzi all typed and all
+// dead) and from the common 1.6 nicknames otherwise. Resolved to a canonical
+// key before anything else looks at the verb.
+new const g_aliases[][] = {
+	"ak47",    "ak",
+	"kalash",  "ak",
+	"cv47",    "ak",
+	"m4a1",    "m4",
+	"m4a4",    "m4",
+	"colt",    "m4",
+	"bullpup", "aug",
+	"krieg",   "sg552",
+	"sg",      "sg552",
+	"sniper",  "awp",
+	"magnum",  "awp",
+	"awm",     "awp",
+	"clarion", "famas",
+	"mp5navy", "mp5",
+	"smg",     "mp5",
+	"c90",     "p90",
+	"uzi",     "mac10",
+	"ump45",   "ump",
+	"xm",      "shotty",
+	"xm1014",  "shotty",
+	"pump",    "m3",
+	"m249",    "para",
+	"de",      "deagle",
+	// too vague to pick for them - show the list instead
+	"rifle",   "guns",
+	"gun",     "guns"
 };
 
 public plugin_init()
@@ -348,6 +390,14 @@ public task_remove_wbox(taskid)
 
 // --- chat commands ----------------------------------------------------------
 
+print_gun_line(id, const line[], bool:continuation)
+{
+	if (continuation)
+		client_print(id, print_chat, "[DM] %s", line);
+	else
+		client_print(id, print_chat, "[DM] Pick a gun for your next spawn: %s", line);
+}
+
 // Split a chat line into a normalised verb and optional argument.
 //
 // Players type the same command a dozen ways, and the SHAPE rather than the
@@ -408,6 +458,30 @@ public cmd_say(id)
 	if (!verb[0])
 		return PLUGIN_CONTINUE;
 
+	for (new i = 0; i < sizeof(g_aliases) / 2; i++)
+	{
+		if (equal(verb, g_aliases[i * 2]))
+		{
+			copy(verb, charsmax(verb), g_aliases[i * 2 + 1]);
+			break;
+		}
+	}
+
+	// Pistol picks are not a thing yet, and the reason is structural rather
+	// than an oversight: ham_player_spawn hardcodes the deagle as everyone's
+	// sidearm, and /deagle is overloaded to mean "pistol only, no rifle" via
+	// an empty primary - so "which pistol" and "no rifle" are the same slot.
+	// Seven requests sit in the logs (glock, fn, five seven, g18, pistols,
+	// sidearm) and all seven died silently. Answering is cheap; a dead end
+	// that tells you it is a dead end teaches the menu's real shape.
+	if (equal(verb, "pistols") || equal(verb, "sidearm") || equal(verb, "glock")
+		|| equal(verb, "usp") || equal(verb, "p228") || equal(verb, "elite")
+		|| equal(verb, "fiveseven") || equal(verb, "fn") || equal(verb, "g18"))
+	{
+		client_print(id, print_chat, "[DM] Pistol picks aren't in yet - everyone spawns with the deagle. Say /deagle for the deagle and no rifle.");
+		return PLUGIN_CONTINUE;
+	}
+
 	// /respawn - put a dead player back in the game NOW.
 	//
 	// Without this the only verb a dead player has ever had is /restart, which
@@ -426,10 +500,23 @@ public cmd_say(id)
 
 	if (equal(verb, "guns"))
 	{
-		new list[128], pos;
+		// the list outgrew one chat line, so wrap it rather than truncate -
+		// still generated from the table so it cannot drift out of date
+		new line[96], pos;
+		new bool:wrapped = false;
 		for (new i = 0; i < sizeof(g_guns) / 2; i++)
-			pos += formatex(list[pos], charsmax(list) - pos, "/%s ", g_guns[i * 2]);
-		client_print(id, print_chat, "[DM] Pick a gun for your next spawn: %s", list);
+		{
+			if (pos && pos + strlen(g_guns[i * 2]) + 2 >= charsmax(line))
+			{
+				print_gun_line(id, line, wrapped);
+				wrapped = true;
+				pos = 0;
+				line[0] = EOS;
+			}
+			pos += formatex(line[pos], charsmax(line) - pos, "/%s ", g_guns[i * 2]);
+		}
+		if (pos)
+			print_gun_line(id, line, wrapped);
 		return PLUGIN_CONTINUE;
 	}
 

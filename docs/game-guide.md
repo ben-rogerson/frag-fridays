@@ -57,8 +57,26 @@ browser (the map vote menu proved it, 2026-08-02); it was never revisited,
 not ruled out:
 
 - `/guns` - list options
-- `/ak /m4 /awp /mp5 /p90 /scout /shotty /famas` - primary from next spawn
+- Rifles `/ak /m4 /aug /sg552 /galil /famas`, snipers `/awp /scout`,
+  SMGs `/mp5 /p90 /mac10 /tmp /ump`, shotguns `/shotty /m3`, LMG `/para` -
+  primary from next spawn
 - `/deagle` - pistol only
+- `/respawn` - back in the game now, if you are dead. Use this rather than
+  `/restart`, which restarts the round for the whole server.
+
+**Anything reasonable is accepted.** The prefix can be `/`, `!`, `.` or
+nothing at all (`ak`, `!awp`, `.m4`, `guns ak` all work), case is ignored,
+and the common second names resolve: `m4a1`/`m4a4`/`colt` to `/m4`,
+`ak47`/`kalash` to `/ak`, `sniper`/`awm` to `/awp`, `bullpup` to `/aug`,
+`krieg` to `/sg552`, `uzi` to `/mac10`, `m249` to `/para`, and so on. This
+came out of reading the logs (2026-09-05): 76 of the 254 commands players
+had ever typed did nothing, and most of them were a word we knew in a shape
+we rejected.
+
+Pistol picks (`/glock`, `/fn`) are NOT in - the deagle is hardcoded as
+everyone's sidearm and `/deagle` already means "no rifle", so the two
+meanings share one slot. Asking gets you an explanation rather than
+silence.
 - Default without choosing: your team's rifle (AK/M4) + deagle. Everyone
   spawns with full armour; ammo refills on every kill.
 - Exception: aim_map uses its own floor guns (`dm_map_guns`, per-map
