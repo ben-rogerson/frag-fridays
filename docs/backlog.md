@@ -161,7 +161,9 @@ Ben's pick) as a 48x64 255-colour `{LOGO` miptex in valve.zip as BOTH
 regenerates it from any image (Pillow for quantisation; each mip built
 from the source, not from the previous mip). Server-side checks done: the
 shipped `config.cfg` already has `bind "t" "impulse 201"`, `decalfrequency`
-is 30, and `sv_allow_upload`/`mp_decals` don't exist in this engine build -
+is 30, and `sv_allow_upload`/`mp_decals` don't exist SERVER-side in this build
+(corrected 2026-09-05: `mp_decals` very much exists on the CLIENT, and is what
+governs the decal cap from the second map onwards - see troubleshooting) -
 with an identical WAD in every client no upload path is needed anyway.
 
 Verified working in-browser (2026-08-02) after the mechanism hunt: the

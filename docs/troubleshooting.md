@@ -87,11 +87,30 @@ two look identical from the browser.
 - Use `restart: unless-stopped` in every compose file.
 - Always confirm with `docker ps` before announcing a session.
 
-## Unknown cvars are silently ignored
+## Unknown cvars are silently ignored - and "unknown" can mean "not yet"
 
-Not all cvars exist in this WASM build (`cl_himodels` and `v_dark` are
-reported unknown). Unknown cvars are ignored harmlessly - but that means you
-cannot assume a setting took effect. Verify in console.
+Not all cvars exist in this WASM build. Unknown cvars are ignored harmlessly -
+but that means you cannot assume a setting took effect. Verify in console.
+
+The sharper version, measured 2026-09-05: a cvar can be unknown at the moment
+`userconfig.cfg` runs and perfectly real thirty seconds later, because the
+module that owns it has not loaded yet. `max_shells` and `max_smokepuffs` warn
+`Unknown command` on every boot when `userconfig.cfg` sets them, and read back
+as their untouched defaults (50 and 20) once the client dll is up. **Those two
+lines have never done anything**, so they are gone from `userconfig.cfg`; the
+same trap is what makes `r_decals` behave the way the decal section below
+describes. `cl_himodels` was listed here as unknown and is not - it reads
+`"cl_himodels" is "0" ( "1" )` and takes a live set - so re-check before
+trusting an old "not in this build" note.
+
+`m_filter 0` and `m_customaccel 0` in `userconfig.cfg` warn the same way on the
+same boot and have **not** been chased down - they are either in the same
+"registered later" bucket as `max_shells` or genuinely absent. Worth ten
+minutes and a console readback next time someone is in that file; they were
+left alone here to keep a decals change a decals change.
+
+The reliable test is the one this file keeps asking for: set it, then **read it
+back at the moment you care about**, not at boot.
 
 ## Mobile browsers do not work
 
@@ -195,10 +214,92 @@ client-side, feed it through `Cmd_ExecuteString` per line.
 
 Debug aid: the client exposes the live engine as `window.__xash` in
 devtools - `__xash.Cmd_ExecuteString(...)`, `__xash.em.FS.readFile(...)`.
-Engine console output does not reach the browser console, and `waitLog`/
-`getCVar` promises never settle because no log lines flow at runtime;
-verify cvar state with `host_writeconfig` + reading back
-`/rodir/cstrike/config.cfg`.
+
+Two halves of this entry are now stale, both re-checked 2026-09-05, and both
+in the direction that makes debugging easier:
+
+- **Engine console output DOES reach the browser console.** `noteEngineLine`
+  in `launch.ts` forwards every engine line to `console.log`, so
+  `__xash.Cmd_ExecuteString("r_decals")` prints `"r_decals" is "0" ( "4096" )`
+  straight into devtools, and a CDP client can read it. That is a far better
+  cvar readback than `host_writeconfig`, and it is what the decal work below
+  was measured with. The one rule that still bites is the server-side one:
+  **one command per read**, or the echoes get lost.
+- **The boot cfg chain DOES execute.** The console prints `execing config.cfg`
+  / `execing userconfig.cfg` and the contents apply - `r_decals 0` in the
+  shipped `userconfig.cfg` is the only source of the `0` the renderer reads,
+  and the file's own `echo` line arrives. The "written into the FS before
+  `main()` is ignored" claim predates the current base image. Runtime
+  `exec <file>` has not been re-tested; `Cmd_ExecuteString` per line is still
+  what `launch.ts` does and still works.
+
+## Decals: `mp_decals` is a CEILING on `r_decals`, re-applied every level load (2026-09-05)
+
+Both cvars are real on this build and neither is redundant, which is the
+opposite of what the names suggest - and the failure they produce is the silent
+kind, because raising either one alone changes nothing at all. Measured with
+seven browser runs against the live server on `fy_pool_day`, reading every
+value back off the engine's own console
+(`__xash.Cmd_ExecuteString("r_decals")` -> devtools):
+
+| what was set, and how | `r_decals` | `mp_decals` | decals drawn |
+|---|---|---|---|
+| shipped config as-is | 0 | 0 | none |
+| `r_decals 4096` in the boot settings replay | **0** | 0 | none |
+| `r_decals 300` in the boot settings replay | **0** | 0 | none |
+| `mp_decals 300` in the boot settings replay | **0** | 300 | none |
+| `r_decals 4096` **and** `mp_decals 4096` in the replay | **4096** | 4096 | yes |
+| `r_decals 1234` + `mp_decals 777` after connect, then `changelevel` | **777** | 777 | yes |
+| `r_decals 300` + `mp_decals 4096` after connect, then `changelevel` | **300** | 4096 | yes |
+
+One rule explains all seven rows: **the effective count is
+`min(r_decals, mp_decals)`, evaluated at every level load.** `mp_decals` only
+ever pulls `r_decals` down (1234 -> 777); it never pulls it up (300 stayed 300
+under a ceiling of 4096). The two boot-replay rows that look like the replay
+being ignored are not - the replay set `r_decals` fine both times and
+`mp_decals`, still 0 from `userconfig.cfg`, clamped it to nothing.
+
+So `userconfig.cfg` ships **both, at the same value**. Ship `r_decals 4096`
+alone and every player still gets zero decals, with no warning anywhere.
+
+Two things that follow:
+
+- **`userconfig.cfg` does reach `r_decals`.** The `0` it used to read was not a
+  default (the default prints as 4096 in the same line) and `cstrike/config.cfg`
+  in valve.zip has no `r_decals` line at all, so `userconfig.cfg` was the only
+  possible source.
+- **A per-player `r_decals` is workable, downwards.** The settings snapshot
+  replays before `connect`, and anything at or below the shipped `mp_decals`
+  ceiling survives every subsequent map change - verified directly, 300 held
+  across a `changelevel` with the ceiling at 4096. That is what the decals
+  control on the settings page relies on; it can only ever reduce, which is
+  exactly what a performance control should do.
+
+Decals do not survive a map change either way - screenshot 25 seconds into the
+new map, with `mp_decals` at 777 and bots already fighting, shows completely
+clean walls. Every map starts empty and the cost re-accumulates, which is why
+these runs each began with a `changelevel`. There is no server-side cap either:
+`mp_decals` is not a cvar in this game DLL (`cvarlist mp_dec` returns nothing in
+a throwaway container), and `decalfrequency` (30) is the spray rate limit, not a
+bullet-hole limit.
+
+## Blood is engine-default ON, and it is decals that make it visible (2026-09-05)
+
+`violence_ablood`, `violence_hblood`, `violence_agibs` and `violence_hgibs` all
+exist on **both** sides and all four default to `1`: confirmed in the client
+with a console readback (`"violence_hblood" is "1" ( "1" )`) and on the server
+with `cvarlist violence` in a throwaway container. Nothing in this repo or in
+valve.zip ever turned them off.
+
+They are also the whole list. A symbol dump of the three client wasms
+(`xash-*.wasm`, `client_emscripten_wasm32-*.wasm`, `libref_webgl2-*.wasm`)
+finds no other blood or gore cvar - no "excess blood" knob exists in GoldSrc and
+none was added here. `cl_corpsestay` (600) is the only related lever and is
+already at the stock maximum.
+
+So "more blood" is not a blood setting at all: with `r_decals 0` the server
+still sends every blood effect and the client still draws the spray, but the
+splatter has nowhere to land. Turning decals on is what makes blood visible.
 
 ## server.cfg execs ONCE; amxx.cfg execs every map (2026-09-04)
 
@@ -288,6 +389,35 @@ document.documentElement.appendChild(s)
 Verified 2026-08-20: with the shim a fully hidden automation tab boots,
 connects, and shows up as a human on the server scoreboard - `pnpm run
 status`-level proof without a visible window.
+
+## Killing browser clients mid-handshake wedges the signalling layer (2026-09-05)
+
+Six headless-Chrome joiners were killed part-way through their connect over
+about twenty minutes of harness debugging. After that **no client could join at
+all**, and every symptom pointed at the client:
+
+    [13:29:52] Connecting to 127.0.0.1:8080... (retry #1)
+    [13:29:58] Connecting to 127.0.0.1:8080... (retry #2)
+    ... through retry #5, then nothing
+
+Meanwhile the server looked perfect. The sim ticked, bots fought, `status.json`
+kept updating, `cmdpipe` kept executing, there was no `Host_Error`, no core, no
+`Maximum players reached`. The only trace of each attempt was a bare
+`websocket: close 1006 (abnormal closure)` from the Go wrapper - and crucially
+**no `connected, address` line in the engine log for 25 minutes**, so the
+connect packets were not reaching the engine at all. The WebRTC session dies
+between the websocket and the engine's fake UDP peer.
+
+Things that were ruled out before the real cause was found, all worth not
+re-checking: the tab was not hidden (`document.hidden` false, `visibilityState`
+visible) and rAF was running at a full 120fps, so this is **not** the frozen-rAF
+trap above; a brand-new browser profile behaved identically, so it is not client
+state; and no ghost was holding a slot.
+
+`docker restart` on the mod container fixed it instantly - the very next join
+connected in under a second. So: if joins stop working after a run of aborted
+automation, restart the container rather than debugging the client, and prefer
+harness runs that disconnect cleanly (`disconnect`, then close) over `pkill`.
 
 ## Saved-settings snapshot replays OVER shipped userconfig defaults
 

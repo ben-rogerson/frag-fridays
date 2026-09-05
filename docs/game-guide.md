@@ -304,6 +304,10 @@ whenever the tab hides or closes, and replays them on the next launch
 - Only deviations from the shipped defaults persist. Shipping a new
   `userconfig.cfg` value reaches every returning player automatically,
   UNLESS they deliberately changed that exact setting - their change wins.
+- **A saved `r_decals` can only ever go DOWN.** The engine clamps it to
+  `mp_decals` at every level load, and `userconfig.cfg` ships that ceiling at
+  4096, so the decals control on the settings page can reduce but never raise
+  (measured 2026-09-05, see troubleshooting).
 - History: v1 (`ff-settings`) snapshotted the full `host_writeconfig`
   archive (~300 cvars), which pinned stale copies of shipped defaults -
   returning players never received `cl_bob 0` or the xhair crosshair
