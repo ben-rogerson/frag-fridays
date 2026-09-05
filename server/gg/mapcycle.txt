@@ -2,9 +2,7 @@ aim_map
 de_dust2
 cs_assault
 de_dust
-cs_italy
 de_inferno
-cs_office
 de_aztec
 de_cbble
 fy_iceworld
@@ -14,3 +12,6 @@ de_rats
 de_train
 cs_prospeedball
 cs_deagle5
+de_mirage
+de_beishan
+de_dust2_2020_se

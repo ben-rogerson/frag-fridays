@@ -228,8 +228,14 @@ list_files() {
     # and across both trees (2desert and desert live only under valve/).
     # A face in some other format is kept rather than guessed at - but list
     # every format the tree actually uses, or the rule silently keeps them all
+    #
+    # A skyname can carry a subdirectory - de_dust2_2020_se ships its faces as
+    # gfx/env/de_dust2_2020/Dust2020*.tga and names the sky
+    # "de_dust2_2020/Dust2020". So strip back to gfx/env/, not to the
+    # basename: on a basename this map's faces matched no keepsky entry and
+    # were silently trimmed out of the payload, leaving the map skyless.
     tolower($0) ~ /^(valve|cstrike)\/gfx\/env\// {
-      n = tolower($0); sub(/^.*\//, "", n)
+      n = tolower($0); sub(/^.*\/gfx\/env\//, "", n)
       if (n ~ /(bk|dn|ft|lf|rt|up)\.(tga|bmp|pcx)$/) {
         sub(/(bk|dn|ft|lf|rt|up)\.(tga|bmp|pcx)$/, "", n)
         if (!(n in keepsky)) next

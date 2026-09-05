@@ -218,22 +218,28 @@ rotation maps have bot graphs. Each mod has a curated `mapcycle.txt` in
 `pnpm run clientcfg` (the map list shapes both the image and the client
 zip):
 
-- gg: aim_map, dust2, assault, dust, italy, inferno, cs_office, aztec,
-  cbble, fy_iceworld, fy_pool_day, scoutzknivez, de_rats, de_train,
-  cs_prospeedball, cs_deagle5
-- dm: fy_pool_day, dust2, dust, assault, nuke, cbble, cs_office,
-  fy_iceworld, aim_map, scoutzknivez, de_rats, de_train,
-  cs_prospeedball, cs_deagle5
+- gg: aim_map, dust2, assault, dust, inferno, aztec, cbble, fy_iceworld,
+  fy_pool_day, scoutzknivez, de_rats, de_train, cs_prospeedball, cs_deagle5,
+  de_mirage, de_beishan, de_dust2_2020_se
+- dm: fy_pool_day, dust2, dust, assault, nuke, cbble, fy_iceworld, aim_map,
+  scoutzknivez, de_rats, de_train, cs_prospeedball, cs_deagle5, de_mirage,
+  de_beishan, de_dust2_2020_se
+- aim (Aim Prac): dust2, assault, dust, inferno, aztec, cbble, nuke,
+  de_train, de_mirage, de_beishan, de_dust2_2020_se
 - cpl (CPL Tournament): dust2, inferno, nuke, de_train, cbble, aztec, dust -
   the era's competition pool, cut to maps already in the client payload (no
-  hostage map was ever in one; the CPL and CEVO customs are not on this box).
-  Every map it dropped (italy, assault, cs_office, cs_prospeedball,
-  cs_deagle5) is still in gg's and dm's cycles, so the valve.zip keep-list
-  (the union) is unchanged and this needed no `clientcfg`.
-- classical (ClassicAl): cpl's seven plus cs_office, cs_italy and cs_assault -
-  no rulebook to answer to, and three more maps is three more things to see in
-  a 30-minute block. All ten are already in another mod's cycle, so this
-  needed no `clientcfg` either.
+  hostage map was ever in one; the CPL and CEVO customs are not on this box) -
+  plus de_mirage, de_beishan and de_dust2_2020_se, which are not era pool and
+  were added anyway. For an era-only match, use lines 1-7 of its mapcycle.
+- classical (ClassicAl): cpl's seven plus cs_assault and the same three
+  customs - no rulebook to answer to, and more maps is more to see in a
+  30-minute block.
+- css (Source Maps): css_dust2_go, css_mirage_go, css_cache, de_bank_csgo,
+  css_bycastor, css_deagle, css_overpass
+
+cs_italy and cs_office left every rotation on 2026-09-05, and the four maps
+added that day are the first rotation change that grew the keep-list rather
+than shuffling it - so it was the first that genuinely needed `clientcfg`.
 
 scoutzknivez runs at `sv_gravity 250` / `sv_airaccelerate 100` via an AMXX
 per-map config; every other map resets to stock 800/10 (mechanism in

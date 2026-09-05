@@ -669,9 +669,8 @@ const MODES: ModeEntry[] = [
     emblem: ClassicAlEmblem,
     bots: true,
     fresh: true,
-    // CPL's seven, plus the three casual maps already in gg's and dm's
-    // rotations - so the valve.zip keep-list (the union of every mapcycle) is
-    // unchanged and this needed no clientcfg.
+    // CPL's seven, plus cs_assault and the three customs every classic
+    // rotation carries (2026-09-05).
     pool: [
       "de_dust2",
       "de_inferno",
@@ -680,9 +679,10 @@ const MODES: ModeEntry[] = [
       "de_cbble",
       "de_aztec",
       "de_dust",
-      "cs_office",
-      "cs_italy",
       "cs_assault",
+      "de_mirage",
+      "de_beishan",
+      "de_dust2_2020_se",
     ],
   },
   {
@@ -701,7 +701,20 @@ const MODES: ModeEntry[] = [
     // the era's pool, cut to maps this server already ships. dust2, inferno,
     // nuke, train and cbble are in every league's rotation for the whole
     // decade; aztec and dust come and go. docs/classic-rules.md has the years.
-    pool: ["de_dust2", "de_inferno", "de_nuke", "de_train", "de_cbble", "de_aztec", "de_dust"],
+    // The three customs on the end are not era pool - they were added to every
+    // classic rotation on 2026-09-05, this one included.
+    pool: [
+      "de_dust2",
+      "de_inferno",
+      "de_nuke",
+      "de_train",
+      "de_cbble",
+      "de_aztec",
+      "de_dust",
+      "de_mirage",
+      "de_beishan",
+      "de_dust2_2020_se",
+    ],
   },
   {
     key: "gungame",
@@ -716,9 +729,7 @@ const MODES: ModeEntry[] = [
       "de_dust2",
       "cs_assault",
       "de_dust",
-      "cs_italy",
       "de_inferno",
-      "cs_office",
       "de_aztec",
       "de_cbble",
       "fy_iceworld",
@@ -728,6 +739,9 @@ const MODES: ModeEntry[] = [
       "de_train",
       "cs_prospeedball",
       "cs_deagle5",
+      "de_mirage",
+      "de_beishan",
+      "de_dust2_2020_se",
     ],
   },
   {
@@ -745,7 +759,6 @@ const MODES: ModeEntry[] = [
       "cs_assault",
       "de_nuke",
       "de_cbble",
-      "cs_office",
       "fy_iceworld",
       "aim_map",
       "scoutzknivez",
@@ -753,6 +766,9 @@ const MODES: ModeEntry[] = [
       "de_train",
       "cs_prospeedball",
       "cs_deagle5",
+      "de_mirage",
+      "de_beishan",
+      "de_dust2_2020_se",
     ],
   },
   {
@@ -772,13 +788,14 @@ const MODES: ModeEntry[] = [
       "de_dust2",
       "cs_assault",
       "de_dust",
-      "cs_italy",
-      "cs_office",
       "de_inferno",
       "de_aztec",
       "de_cbble",
       "de_nuke",
       "de_train",
+      "de_mirage",
+      "de_beishan",
+      "de_dust2_2020_se",
     ],
   },
   {
@@ -796,7 +813,15 @@ const MODES: ModeEntry[] = [
     emblem: SourceMapsEmblem,
     bots: true,
     fresh: true,
-    pool: ["css_dust2_go", "css_mirage_go", "css_cache", "de_bank_csgo", "css_bycastor", "css_deagle"],
+    pool: [
+      "css_dust2_go",
+      "css_mirage_go",
+      "css_cache",
+      "de_bank_csgo",
+      "css_bycastor",
+      "css_deagle",
+      "css_overpass",
+    ],
   },
   {
     key: "fy",

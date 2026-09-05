@@ -1380,7 +1380,8 @@ The rotation is CPL's seven plus `cs_office`, `cs_italy` and `cs_assault` -
 maps no competition pool ever had, and exactly the kind of variety a 30-minute
 block wants. All ten are already in another mod's `mapcycle.txt`, so the
 `valve.zip` keep-list (the union of every rotation) is unchanged and this
-needed no `clientcfg`.
+needed no `clientcfg`. (`cs_office` and `cs_italy` left the server on
+2026-09-05; see the map-pool entry at the end of this file.)
 
 Two things the rename touched that are worth knowing:
 

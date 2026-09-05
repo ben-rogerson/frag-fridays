@@ -4,7 +4,6 @@ de_dust
 cs_assault
 de_nuke
 de_cbble
-cs_office
 fy_iceworld
 aim_map
 scoutzknivez
@@ -12,3 +11,6 @@ de_rats
 de_train
 cs_prospeedball
 cs_deagle5
+de_mirage
+de_beishan
+de_dust2_2020_se

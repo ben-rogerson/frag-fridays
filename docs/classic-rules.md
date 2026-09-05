@@ -326,13 +326,18 @@ client - out only because adding a map to a mapcycle grows `valve.zip` and
 needs a `clientcfg` run. See backlog item 18.
 
 No hostage map was in any competition pool, which is why `cs_italy`,
-`cs_assault` and `cs_office` left Classic's rotation. They are all still in
-gg's and dm's cycles, so the `valve.zip` keep-list (the union of the
-mapcycles) is unchanged and this needed no `clientcfg`.
+`cs_assault` and `cs_office` left Classic's rotation.
 
-They are also in **ClassicAl's** pool (`server/classical/mapcycle.txt`), which
-is these seven plus those three. That mode is not bound by any rulebook, and
-three hostage maps is exactly the kind of variety a 30-minute block wants.
+`cs_italy` and `cs_office` then left the server entirely on 2026-09-05, out of
+every mode's cycle. `cs_assault` stays, and is still in **ClassicAl's** pool
+(`server/classical/mapcycle.txt`).
+
+The same day put three customs - `de_mirage`, `de_beishan` and
+`de_dust2_2020_se` - into every rotation that carries classic maps, CPL
+Tournament's included. That last one is a deliberate break with the rest of
+this file: the seven are the era's pool, the three are not, and CPL Tournament
+runs both. If a match should be played on era maps only, the pool to use is
+lines 1-7 of `server/cpl/mapcycle.txt`.
 
 ## Running a match on this stack
 

@@ -43,8 +43,8 @@ RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 #     anyone who spawned in still reading the map. Long enough that dying
 #     late and respawning next round never costs you a rifle.
 # autoteambalance stays 0: teams are still whichever side people picked.
-# hostagepenalty 0 because cs_office, cs_italy and cs_assault are in the pool
-# and a stray shot should not kick anybody.
+# hostagepenalty 0 because cs_assault is in the pool and a stray shot should
+# not kick anybody. cs_office and cs_italy were too until 2026-09-05.
 # sv_gravity/sv_airaccelerate are the baseline any per-map override resets from.
 RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_roundtime 1.75\nmp_freezetime 6\nmp_buytime 1.5\nmp_c4timer 35\nmp_startmoney 16000\nmp_maxrounds 0\nmp_winlimit 0\nmp_timelimit 10\nmp_friendlyfire 0\nmp_autoteambalance 0\nmp_limitteams 0\nmp_tkpunish 0\nmp_hostagepenalty 0\nmp_fadetoblack 0\nmp_forcecamera 0\nmp_forcechasecam 0\nallow_spectators 1\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
 # amxx.cfg ships adverts that print over the game: a scrolling HUD line, and
