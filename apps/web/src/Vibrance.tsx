@@ -140,10 +140,6 @@ export const VibranceTweak: FC = () => {
         aria-label="digital vibrance"
         onChange={(e) => setVibrance(parseFloat(e.target.value))}
       />
-      <p className="tweak__note">
-        the old nvidia dial, done by the page - pulls players off the sand.
-        brightness washes colour out as it goes up, this puts it back.
-      </p>
     </div>
   );
 };
