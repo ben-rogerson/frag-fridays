@@ -313,14 +313,37 @@ function settingKey(line: string): string | null {
 }
 
 // Net cvars the ENGINE owns, not the player. The baseline is snapshotted
-// straight after main(); these two only get their final value later, when the
-// netchan comes up on connect - userconfig.cfg asks for cl_cmdrate 105 and
-// cl_dlmax 1024, the engine writes back 100 and 1400. The next persist tick
-// diffed that against the baseline and saved it as if the player had typed it,
-// so every session opened the panel with two chips nobody had set (and replayed
-// them forever). Nothing in the panel edits these, so drop them on both sides:
-// out of new snapshots, and out of snapshots already sitting in localStorage.
-const ENGINE_OWNED = new Set(["cl_cmdrate", "cl_dlmax"]);
+// straight after main(); cl_cmdrate and cl_dlmax only get their final value
+// later, when the netchan comes up on connect - userconfig.cfg asks for
+// cl_cmdrate 105 and cl_dlmax 1024, the engine writes back 100 and 1400. The
+// next persist tick diffed that against the baseline and saved it as if the
+// player had typed it, so every session opened the panel with two chips nobody
+// had set (and replayed them forever). Nothing in the panel edits these, so
+// drop them on both sides: out of new snapshots, and out of snapshots already
+// sitting in localStorage.
+//
+// ex_interp is here for a different and much sharper reason: on this build a
+// non-default value silently breaks the player's hit registration, so no saved
+// snapshot may ever replay one. See docs/netcode.md.
+//
+// The short version. The server rewinds the world for sv_unlag by the amount
+// the CLIENT reports in each usercmd's lerp_msec field. The deployed wasm
+// predates upstream fix 1bd8513fc and computes that field wrong - it always
+// reports 100ms, whatever ex_interp actually is. So registration is correct
+// only while ex_interp is exactly 0.1 (the shipped value), where the lie
+// happens to be true. At any lower value the client draws the world at
+// now - ex_interp but still claims 100ms, the server rewinds too far, and the
+// measured cost is a median 16 units of aim error with HALF of all shots at a
+// moving target landing outside a 32-unit-wide hitbox.
+//
+// ex_interp is FCVAR_ARCHIVE, so host_writeconfig persists it and a value
+// typed into the console once would otherwise be pinned for that player
+// forever - a permanently broken aim with no visible cause. Stripping it here
+// clears it out of snapshots already saved, not just new ones, so anyone who
+// followed the usual "ex_interp 0" rates-guide advice is healed on next load.
+// Deliberately not offered on the settings page either: there is no value a
+// player could pick that beats 0.1, and several that quietly halve their damage.
+const ENGINE_OWNED = new Set(["cl_cmdrate", "cl_dlmax", "ex_interp"]);
 
 function loadSaved(): Record<string, string> {
   try {
