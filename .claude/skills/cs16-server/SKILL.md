@@ -19,10 +19,19 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
   the repo and deploy. `pnpm run pull` re-syncs repo from box.
 - Mods: `gg` (GunGame), `dm` (deathmatch, our `frag_dm.sma`), `aim` (aim
   practice), `css` (Source Maps), `fy` (Fight Yard), `awp` (Sniper),
-  `vanilla` (root compose, profile), `zp` (abandoned). One mod at a time -
-  all bind 27016. css/fy/awp are dm clones: same `frag_dm.amxx`, different
-  rotation plus a mode-defining amxx.cfg baseline (`awp` bakes
-  `dm_only "awp"`, `fy` bakes `mp_roundtime 1`).
+  `classical` (ClassicAl), `cpl` (CPL Tournament - root compose, profile),
+  `zp` (abandoned). One mod at a time - all bind 27016. css/fy/awp are dm
+  clones: same `frag_dm.amxx`, different rotation plus a mode-defining
+  amxx.cfg baseline (`awp` bakes `dm_only "awp"`, `fy` bakes
+  `mp_roundtime 1`).
+- The two Classic-family modes are the same rounds with different rules:
+  `cpl` is the 5v5 match (stock image UNBUILT, config bind-mounted from
+  `server/cpl/`, `yb_quota 0`); `classical` is the Friday version (its own
+  built image like every other mod, `mp_startmoney 16000`, no fade to black,
+  `mp_timelimit 10`, bots filling to 10). `classical` has `teambalance` and
+  `ff_rejoin`; `cpl` compiles nothing, so it has neither.
+  Renamed from `vanilla` on 2026-09-05 - `data/logs/vanilla/` is the archive
+  under the old name.
 - `/opt/cs16/cs/` = game files tree (SteamCMD install, source of truth,
   never in repo). `/opt/cs16/valve.zip` = the ONE canonical client payload,
   mounted by every mod's compose.
@@ -34,14 +43,14 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 | Status                                           | `pnpm run status`                                                                                                                                                                                                                                                                                 |
 | Logs                                             | `pnpm run logs <mod>`                                                                                                                                                                                                                                                                             |
 | Sync files only                                  | `pnpm run deploy` - refuses unless you are on a clean `main` (the syncs `--delete`, so any other tree strips the box of what it is missing). Merge first; `CS16_DEPLOY_FORCE=1` overrides in an emergency. Gates `swap` and `clientcfg` too, since both call deploy.sh                              |
-| Swap/restart mod ("swap to gg/dm/aim/css/fy/awp/vanilla") | `pnpm run swap <vanilla\|gg\|dm\|aim\|css\|fy\|awp>` - announces the switch in-game first (when the running mod has cmdpipe), then runs deploy.sh. DROPS all players - never mid-session; still check for a sibling session first (memory: concurrent-sessions). Bare `pnpm run deploy <mod>` skips the announce |
+| Swap/restart mod ("swap to gg/dm/aim/css/fy/awp/classical/cpl") | `pnpm run swap <cpl\|classical\|gg\|dm\|aim\|css\|fy\|awp>` - announces the switch in-game first (when the running mod has cmdpipe), then runs deploy.sh. DROPS all players - never mid-session; still check for a sibling session first (memory: concurrent-sessions). Bare `pnpm run deploy <mod>` skips the announce |
 | Ship client config / rebuild valve.zip           | `pnpm run clientcfg`                                                                                                                                                                                                                                                                              |
-| Live server console (all mod-dir builds, not vanilla/zp) | `pnpm run rc "<command>"`                                                                                                                                                                                                                                                                         |
+| Live server console (everything but `zp`; `cpl` gets cmdpipe from the box-side `mods/zp` mounts) | `pnpm run rc "<command>"`                                                                                                                                                                                                                                                                         |
 | Start a map vote ("votemap" / "vote map")        | `pnpm run votemap` - 4 random mapcycle picks (script-side shuffle; never hand-pick maps). Run directly - no status/log checks first                                                                                                                                                               |
 | Next map ("next map")                            | `pnpm run nextmap` - one shot: detects mod + current map, announces a 5s amx_csay warning, changelevels to the next mapcycle entry (wraps). Run directly - no status/log checks first                                                                                                             |
 | Announce ("announce <msg>" / "tell the players") | `pnpm run announce "message"` - green centre-screen HUD message to all players (amx_csay). Run directly - no status/log checks first                                                                                                                                                              |
 | Restart map ("restart map" / "restart the map")  | `pnpm run restartmap` - announces a 5s amx_csay warning, then changelevels to the current map (full reload: entities, timer, scores; players stay connected). Run directly - no status/log checks first                                                                                           |
-| Rebalance teams ("rebalance" / "even the teams") | `pnpm run rebalance` - evens the T/CT headcount now (teambalance.amxx, gg/dm only): bots move first, then lowest-frag humans; moved players respawn instantly on the new side, nobody dropped. Run directly - no status/log checks first                                                          |
+| Rebalance teams ("rebalance" / "even the teams") | `pnpm run rebalance` - evens the T/CT headcount now (teambalance.amxx - gg/dm/css/fy/awp/classical, not cpl or aim): bots move first, then lowest-frag humans; moved players respawn instantly on the new side, nobody dropped. Run directly - no status/log checks first                                                          |
 
 ## Iron rules
 
@@ -71,7 +80,8 @@ Full gotcha list: `docs/troubleshooting.md`. Session procedure:
 **Run commands on the LIVE server:** `pnpm run rc "changelevel de_dust2"`.
 No rcon exists on this stack (build answers no A2S/rcon UDP, stdin closed) -
 rc.sh writes a serial-numbered file to `/opt/cs16/cmdpipe/` which the
-`cmdpipe.amxx` plugin (baked into every mod-dir image, NOT vanilla/zp) polls every
+`cmdpipe.amxx` plugin (baked into every mod-dir image; `cpl` gets it from the
+box-side `mods/zp` mounts, `zp` itself is deaf) polls every
 second. rc.sh tails docker logs for output, but slow output (map loads) can
 outrun its 5s window - re-check with `pnpm run logs <mod>`. Map changes via
 `changelevel` don't drop players; a redeploy does.

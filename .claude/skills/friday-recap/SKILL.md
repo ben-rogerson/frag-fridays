@@ -1,6 +1,6 @@
 ---
 name: friday-recap
-description: Generate the post-session Slack recap - one exciting caster-style block per map, mode-aware (gungame/deathmatch/classic), each ending with the 🥇🥈🥉 podium. Use when asked for the recap, session summary, results post, commentary, the caster post, or "who won".
+description: Generate the post-session Slack recap - one exciting caster-style block per map, mode-aware (gungame/deathmatch/classic/classical), each ending with the 🥇🥈🥉 podium. Use when asked for the recap, session summary, results post, commentary, the caster post, or "who won".
 ---
 
 # Friday session recap
@@ -52,9 +52,16 @@ stat line means different things in different modes:
 - **deathmatch** (`dm`): instant respawn, pure frag volume. Deaths are
   cheap, so raw kills and streaks are the story, not K/D. Frame it as a
   shooting gallery where the top fragger simply out-gunned the room.
-- **classic** (`vanilla`): round-based, one life per round, buy economy.
-  Deaths are expensive here - K/D actually means something, and a high
-  ratio is worth calling out as discipline/clutch play.
+- **classic** (`cpl`, and `vanilla` in the archive): round-based, one life
+  per round, buy economy on match rules. Deaths are expensive here - K/D
+  actually means something, and a high ratio is worth calling out as
+  discipline/clutch play. If it was a real match, the story is the score
+  line across the halves, not the frag table.
+- **classical** (`classical`): the same rounds with the match rules off -
+  $16000 a round, so everybody is fully kitted and nobody is saving. Deaths
+  still cost you the round, but nothing is scarce, so call the fights rather
+  than the economy. Bots are in, so check the `bot` flag before crowning
+  anyone.
 - **aim** (`aim`): classic round rules on aim maps - no objectives, just
   rifle duels. Call the gunfights; `top_weapon` is the whole story.
 - **zombie** (`zp`): humans vs the infection. Kills are survival stats -

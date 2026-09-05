@@ -76,9 +76,6 @@ RUN cd cstrike/addons/amxmodx/scripting \
 # remote console via compose-mounted command file - see scripting/cmdpipe.sma
 RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'cmdpipe.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
-# !restart chat command - see scripting/chatrestart.sma
-RUN grep -qx 'chatrestart.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
- || echo 'chatrestart.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 # humans can only join CT - see scripting/forcect.sma
 RUN grep -qx 'forcect.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'forcect.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini

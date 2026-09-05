@@ -1261,3 +1261,132 @@ which `deploy.sh` never touches, so the compiled `.amxx` goes in by hand.
 The log parsers fold `Name (1)` back to `Name` anyway (standings.py already
 did; the recap parser now does too), because the plugin only helps from the
 moment it ships and the archive is full of already-split sessions.
+
+## The round restart left chat for the war room (2026-09-05)
+
+`chatrestart.amxx` gave every player `!restart`, an unadmin-gated
+`sv_restartround` - deliberately, because sessions run without admins and a
+round can wedge (bots camped, an objective nobody can finish, someone stuck in
+spectate) with nobody able to fix it. A 10-second ticker told anyone who had
+been dead or spectating for two ticks to type it.
+
+Reading the full log history on 2026-09-05 said what it was actually used for.
+Of 90 round restarts, **one player accounted for 57, and 45 of those were
+within a minute of joining**: they were dead, they wanted to spawn, and the
+only verb anyone had ever advertised to them restarted the round for all ten
+people. The nag is what taught it to them.
+
+So the two needs were separated:
+
+- **A player who wants to be back in the game** says `/spawn` (or `/respawn`,
+  added the same day in `frag_dm.sma`). It respawns them alone, and the ticker
+  now names it. Both moved into the plugin that owns the verb, because
+  advertising a command from a plugin that might not be loaded beside it is
+  how a note starts lying: `frag_dm.sma` on the DM five, and a second copy in
+  `gungame.sma` for GunGame, which runs no `frag_dm.sma` at all. `/restart`
+  survives as an alias of `/spawn` in both - the word is in players' fingers,
+  and silence would teach nothing.
+- **A round that genuinely needs resetting for everyone** is the war room's
+  Restart round button (`POST /admin-api/restartround`), one rung below
+  Restart server on the Console panel. Same `sv_restartround 1`, now behind
+  the admin token, so the cost lands with the person who can see the whole
+  server.
+
+`chatrestart.sma` is deleted from all six mod images rather than left
+registered with its command removed: what was left was the ticker, and the
+ticker belongs next to `/spawn`.
+
+A collision goes with it. GunGame's own `!restart` means "reset me to level
+1" (`gungame.sma`, and its `!rules` console text says so), so on gg the two
+plugins had been answering the same word with different things - a level
+reset menu and a server-wide round restart, both at once. That is why gg's
+`/spawn` takes every shape of the word EXCEPT `!restart`: bare, `/` and `.`
+land on the respawn, and the `!` shape stays GunGame's level reset, which is
+the one meaning a player can read for themselves in `!rules`.
+
+Aim Prac got the same three pieces the same day. Its `frag_dm.sma` is an
+older copy (no `split_cmd`, no alias table - it matches whole words), so the
+prefix is stripped for these three verbs only rather than pulling the whole
+normaliser back; the rest of that file staying a version behind is a separate
+tidy-up.
+
+**The last piece is a cvar, not a plugin.** `/spawn` deliberately refuses
+anyone not on a team - writing a team segfaults this stack
+(`teambalance.sma`) - so it tells them to press F1/F2 instead, and gg was the
+one mod where the engine refused that: `aim/awp/css/dm/fy` all append
+`mp_limitteams 0` + `mp_autoteambalance 0` to `amxx.cfg` from their
+Dockerfiles, gg appended neither and `gungame.cfg` set `mp_autoteambalance 1`
+back on. Both cvars now live in `gungame.cfg`, which is where they have to be:
+`exec_gg_config_file` runs that file after `amxx.cfg`, so anything the
+Dockerfile appended would have been overwritten. Without it gg's new nag ends
+in a wall - "press F1 or F2" to a player the engine will not let press it.
+
+## Classic split in two: ClassicAl and CPL Tournament (2026-09-05)
+
+Classic was built as a tournament mode and it is a good one - `mp_startmoney
+800`, MR15 halves, no map clock, no bots, `mp_fadetoblack 1`. Every one of
+those numbers is sourced to a league rulebook in
+[classic-rules.md](classic-rules.md), and none of them is wrong.
+
+They are wrong for a Friday. Sessions here run in 30-minute blocks, people
+arrive late, and the mode's three defining rules each work against that: no
+map clock means one map for the whole block, $800 means the first three
+rounds are pistols, and fade to black means a dead player spends most of the
+block looking at nothing. That last one is what actually prompted this - Al
+asked to be able to watch the round finish - and `classic-rules.md` had
+already flagged it as "the rule most likely to read as 'the game is broken'
+to someone who has only played the casual modes".
+
+So the mode split rather than bent:
+
+- **ClassicAl** (`classical`): the same rounds, the match rules off.
+  `mp_fadetoblack 0` / `mp_forcecamera 0` / `mp_forcechasecam 0`,
+  `mp_startmoney 16000` (the engine's ceiling), `mp_timelimit 10` with
+  `mp_maxrounds 0` so a block sees three maps, `mp_freezetime 6`, and
+  `yb_quota 10` so it is never empty. `mp_limitteams 0` is mechanical rather
+  than taste: stock CS blocks joining the larger team, which locks a human
+  out of a bot-filled server. Friendly fire stays on and the teams stay as
+  people pick them - it is still Classic.
+- **CPL Tournament** (`cpl`): the old mode, byte-identical in behaviour,
+  renamed so its name says which of the two it is. The name is the era it
+  copies, and it sits next to a "CPL" column in the rules tables that means
+  the league, so the tables in `classic-rules.md` still say "Classic" with a
+  note at the top explaining the rename rather than being churned.
+
+**ClassicAl is a built mod dir; CPL Tournament is not.** This is the more
+interesting half. Classic runs the stock image unbuilt, which is why it has
+no `teambalance` (its half-time swap is ten people rejoining by hand), no
+`ff_rejoin` (a crashed player returns as `Name (1)`), and a pile of
+hand-placed `.amxx` binaries in `/opt/cs16/mods/zp` that no part of `server/`
+syncs - backlog items 16 and 17. Copying that shape for the new mode would
+have copied the problem, so `server/classical/` was built from `server/fy/`
+instead: its own Dockerfile, its own compiled plugins, its cvars baked into
+`amxx.cfg` (which AMXX execs at every map start, unlike `server.cfg`), and
+`PORT 27138`. Backlog item 16 now has a working example of what porting CPL
+Tournament would look like.
+
+It ships **no `frag_dm.amxx`**, which is the one thing to remember when
+copying a mod dir for a round-based mode. That plugin forces instant respawn,
+`mp_freezetime 0` and `mp_timelimit 10` from `plugin_init`, so it would
+overwrite the ruleset on every map. Its absence also means no `/guns` and no
+`/spawn` ticker here, which is correct: nothing respawns.
+
+The rotation is CPL's seven plus `cs_office`, `cs_italy` and `cs_assault` -
+maps no competition pool ever had, and exactly the kind of variety a 30-minute
+block wants. All ten are already in another mod's `mapcycle.txt`, so the
+`valve.zip` keep-list (the union of every rotation) is unchanged and this
+needed no `clientcfg`.
+
+Two things the rename touched that are worth knowing:
+
+- `modOf()` in `server/mcp/src/exec.js` mapped **any** `cs16-*` container to
+  `vanilla`, because the root compose project is the prefix and there was only
+  ever one service in it. It now reads the service name out of the middle
+  segment. Nothing was broken by this before; it would have been the moment a
+  second root-compose profile existed, which is a second reason ClassicAl is a
+  mod dir instead.
+- `data/logs/vanilla/` keeps its name - it is the archive, and the recap
+  parser's `MODES` keeps `"vanilla": "classic"` alongside the new `"cpl"` so
+  old sessions still parse. `/opt/cs16/vanilla/` on the box is dead after the
+  first deploy and has to be removed by hand: `deploy.sh` never deletes a
+  directory it no longer knows about.

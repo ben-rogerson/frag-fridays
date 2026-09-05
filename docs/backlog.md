@@ -224,7 +224,8 @@ Give IT a heads-up about the public-facing server, if not already done.
 
 ## 11. Housekeeping - done (2026-08-02)
 
-All three verified done on the box: root compose profile is `vanilla`, the
+All three verified done on the box: root compose profile is `vanilla` (now
+`cpl`), the
 stray `/opt/cs16/dm/valve.zip` is gone, every compose (repo and box) uses
 `restart: unless-stopped`.
 
@@ -335,25 +336,34 @@ the two halves' scores on the same piece of paper. A match plugin
 (`ffmatch.sma`: `.ready` / `.knife` / `.stay` / `.swap`, a half-time swap, a
 HUD score across halves) is the obvious next piece.
 
-The blocker is not the plugin, it is where it would live. Classic runs the
-**stock image, unbuilt** - it has no Dockerfile, so nothing compiles `.sma`
+**Update 2026-09-05:** option 1 below now exists in working form, for the
+other half of the mode. `server/classical/` (ClassicAl) is a Classic-family
+mode built the normal way - its own Dockerfile, its own compiled
+`cmdpipe`/`statusjson`/`ff_rejoin`/`teambalance`, its cvars baked into
+`amxx.cfg`, and no `frag_dm.amxx`. Copy that dir, put `server/cpl/server.cfg`'s
+numbers in its `amxx.cfg` block, drop the bots to `yb_quota 0`, and CPL
+Tournament stops being the unbuilt one. That closes item 17 with it.
+
+The blocker is not the plugin, it is where it would live. CPL Tournament runs
+the **stock image, unbuilt** - it has no Dockerfile, so nothing compiles `.sma`
 for it, and the plugins it does load are pre-compiled `.amxx` binaries
 hand-placed in `/opt/cs16/mods/zp/plugins` that no part of `server/` syncs.
 Two honest options, both bigger than a plugin:
 
-1. **Give Classic its own mod dir** (`server/vanilla/` gains a Dockerfile +
-   compose the way `gg/` has, and `vanilla` joins `DIR_MODS` in deploy.sh).
+1. **Give it its own mod dir** (`server/cpl/` gains a Dockerfile +
+   compose the way `gg/` has, and `cpl` joins `DIR_MODS` in deploy.sh).
    Then it compiles its own plugins, bakes its own configs, and `mods/zp`
    stops mattering. This is the right answer and it also fixes item 17.
 2. Compile the plugin in a throwaway container and `docker cp` the `.amxx`
    into `mods/zp/plugins` box-side. Fast, and it keeps the box-only pile
    growing - the exact hazard item 17 is about.
 
-Two smaller wins available on the same path, both currently missing on
-Classic and both already compiled inside the mod images:
-`chatrestart.amxx` (`!restart` from chat - useful for a botched knife round)
-and `teambalance.amxx` (`ff_swapteams`, which would make the half-time swap a
-war room button instead of ten people rejoining by hand).
+One smaller win available on the same path, currently missing on Classic and
+already compiled inside the mod images: `teambalance.amxx` (`ff_swapteams`,
+which would make the half-time swap a war room button instead of ten people
+rejoining by hand). A botched knife round no longer needs a plugin here - the
+war room's Restart round button sends `sv_restartround` through the pipe,
+which Classic has.
 
 ## 17. Vanilla's box-only plugins and configs (2026-09-04)
 
@@ -363,7 +373,7 @@ on the box (cmdpipe + statusjson 2026-08-03, YaPB 2026-08-13). Anything
 changed there is invisible to version control and dies with the box.
 
 Three files have been pulled back by mounting repo copies over the box tree
-(`server/vanilla/{amxx.cfg,maps.ini,yapb.cfg}`, 2026-09-04). Still box-only:
+(`server/cpl/{amxx.cfg,maps.ini,yapb.cfg}`, 2026-09-04). Still box-only:
 `mods/zp/plugins/*.amxx`, `mods/zp/configs/{plugins.ini,users.ini,maps/}`,
 `mods/metamod-plugins.ini`.
 
@@ -383,8 +393,9 @@ is how anything that starts mattering gets rescued, and
 
 `de_prodigy` was in the CPL and CAL rotations of the era and is a stock CS 1.6
 map, so the `.bsp` is already in `/opt/cs16/cs/cstrike/maps` and the
-screenshot is already in `apps/web/src/assets/maps/`. It is out of the Classic
-pool only because it is in no mod's `mapcycle.txt`, and the valve.zip
+screenshot is already in `apps/web/src/assets/maps/`. It is out of both
+Classic-family pools only because it is in no mod's `mapcycle.txt`, and the valve.zip
 keep-list is the union of those - adding it costs every player the extra
 download and needs `pnpm run clientcfg` on top of the deploy. Worth doing if
-Classic gets used enough to want a ninth map; not worth the payload otherwise.
+either mode gets used enough to want another map; not worth the payload
+otherwise.

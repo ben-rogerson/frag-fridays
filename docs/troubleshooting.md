@@ -16,7 +16,7 @@ every debugging session came down to **verify, don't assume**:
 **Live server console: `pnpm run rc "<command>"`** (e.g. `pnpm run rc
 "changelevel de_dust2"`). There is no rcon (this build answers no A2S/rcon
 UDP queries) and stdin is closed, so the `cmdpipe.amxx` plugin (gg + dm, not
-vanilla) polls a compose-mounted file `/opt/cs16/cmdpipe/cmd.txt` once a
+cpl) polls a compose-mounted file `/opt/cs16/cmdpipe/cmd.txt` once a
 second and executes new lines in the server console. `scripts/rc.sh` bumps
 the serial on line 1 and replaces the file atomically; the plugin swallows
 the current serial on load so restarts/map changes never replay a command.
@@ -223,7 +223,7 @@ Two consequences, both of which have bitten:
   has to be reachable from `amxx.cfg`.
 
 Server-side `exec` DOES work (unlike the browser client's - see above), so
-`server/vanilla/amxx.cfg` ends with `exec server.cfg`: one file holds the
+`server/cpl/amxx.cfg` ends with `exec server.cfg`: one file holds the
 ruleset and it is re-applied every map. Verified by setting `mp_roundtime 5`
 live, changing map, and reading `1.75` back.
 
@@ -981,14 +981,16 @@ Two more things established on the rig, both of which shape the plugin:
 The kick is only safe because every mod that ships this plugin also ships
 the `fragfridays-sv-dropclient.txt` gamedata override (see the SV_DropClient
 entry above) - without it a programmatic drop goes straight through the
-detour that killed the server eight times. **Classic/vanilla was running
-without that override** - it has no build step, so it kept the stock image's
-gamedata while gg/dm/aim were fixed on 2026-08-28. The root compose now
-mounts `./vanilla/gamedata` into its `common.games/custom/` so Classic
-carries the same override as everything else. Classic still does not run
-`ff_rejoin.amxx`: its plugins live box-side at `/opt/cs16/mods/zp/plugins/`
-where `deploy.sh` never reaches, so the compiled `.amxx` has to be copied in
-and registered by hand.
+detour that killed the server eight times. **Classic (`vanilla`, renamed
+`cpl` on 2026-09-05) was running without that override** - it has no build
+step, so it kept the stock image's gamedata while gg/dm/aim were fixed on
+2026-08-28. The root compose now mounts `./cpl/gamedata` into its
+`common.games/custom/` so it carries the same override as everything else.
+It still does not run `ff_rejoin.amxx`: its plugins live box-side at
+`/opt/cs16/mods/zp/plugins/` where `deploy.sh` never reaches, so the compiled
+`.amxx` has to be copied in and registered by hand. ClassicAl (`classical`)
+has none of this - it is a built mod dir, so it COPYs the override and
+compiles `ff_rejoin` like the rest.
 
 Verified end to end 2026-09-05 in a throwaway dm container: join, crash the
 renderer, rejoin inside the timeout window - ghost dropped, name back to

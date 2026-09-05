@@ -31,7 +31,7 @@ import {
 } from './actions.js'
 
 const TOKEN = process.env.ADMIN_TOKEN
-const MODS = ['vanilla', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
+const MODS = ['cpl', 'classical', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
 
 const sha = (s) => createHash('sha256').update(String(s)).digest()
 const tokenOk = (t) => Boolean(TOKEN) && timingSafeEqual(sha(t ?? ''), sha(TOKEN))
@@ -250,6 +250,19 @@ export function adminRouter() {
     log('swapteams')
     const { serial, result } = await swapTeams()
     return ok(result ?? `swap sent (#${serial})`)
+  }))
+
+  // Restart the round, not the server: sv_restartround 1 respawns everyone
+  // where they stand, keeps the map and drops nobody. It used to be !restart
+  // in chat (chatrestart.amxx, removed 2026-09-05) - unadmin-gated, and mostly
+  // used by one player who only wanted to spawn: 57 of the server's 90 round
+  // restarts were theirs. /spawn covers that player now; the whole-server
+  // reset is this button, which is the shape it should always have had.
+  router.post('/restartround', handle(async () => {
+    log('restartround')
+    // no log wait: the round is visibly back on the scoreboard the panel polls
+    const { serial } = await runCommands(['sv_restartround 1'], { wait: 0 })
+    return ok(`round restarting (#${serial})`)
   }))
 
   // The escape hatch: cmdpipe.js still blocks the engine-killers, so the worst

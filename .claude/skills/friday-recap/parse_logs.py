@@ -58,8 +58,13 @@ DUPE_RE = re.compile(r"\s*\(\d+\)$")
 def canon(name):
     return DUPE_RE.sub("", name)
 
-MODES = {"gg": "gungame", "dm": "deathmatch", "vanilla": "classic",
-         "aim": "aim", "zp": "zombie"}
+# logs/<dir> -> the mode label the recap tells the story in. "vanilla" stays
+# because the archive under data/logs/vanilla/ predates the 2026-09-05 rename
+# to "cpl" and still has to parse.
+MODES = {"gg": "gungame", "dm": "deathmatch", "cpl": "classic",
+         "vanilla": "classic", "classical": "classical", "aim": "aim",
+         "css": "deathmatch", "fy": "deathmatch", "awp": "deathmatch",
+         "zp": "zombie"}
 
 # The leaderboards count the slot exactly; a recap is a story, so it opens a
 # little early and stays on air for whatever ran over the end.

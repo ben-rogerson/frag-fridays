@@ -1,9 +1,10 @@
 services:
-  vanilla:
+  cpl:
     image: yohimik/cs-web-server-metpamx:0.1.3
     platform: linux/386
-    profiles: ["vanilla"]
-    # Classic is the 5v5 match mode, so the slot count is the format: 10 for
+    profiles: ["cpl"]
+    # CPL Tournament is the 5v5 match mode, so the slot count is the format: 10
+    # for
     # the two teams plus 2 spare (a sub, or someone watching from spectate).
     # Any more and "5v5" would only be a suggestion - there is no cvar that
     # caps a team at five, only maxplayers and mp_limitteams between them.
@@ -27,16 +28,16 @@ services:
       - "./web/index.html:/xashds/public/index.html:ro"
       - "./web/assets:/xashds/public/assets:ro"
       # mode blurb shown on the loading screen
-      - "./info-vanilla.json:/xashds/public/info.json:ro"
-      # statusjson.amxx writes this (mod images pre-create it at build; vanilla
+      - "./info-cpl.json:/xashds/public/info.json:ro"
+      # statusjson.amxx writes this (mod images pre-create it at build; this one
       # can't, so it's a writable file mount - truncate-in-place keeps the inode)
-      - "./status-vanilla.json:/xashds/public/status.json"
-      # classic rotation over the stock 2-map cycle (all-stock maps already in
+      - "./status-cpl.json:/xashds/public/status.json"
+      # the era's competition rotation over the stock 2-map cycle (all-stock maps already in
       # the valve.zip keep-list); keep line 1 equal to the +map boot arg
-      - "./vanilla/mapcycle.txt:/xashds/cstrike/mapcycle.txt:ro"
+      - "./cpl/mapcycle.txt:/xashds/cstrike/mapcycle.txt:ro"
       # hostname "Frag Fridays" over the base default ("My WebXash3D CS
       # Server" - the join banner); mod images bake this in their Dockerfiles
-      - "./vanilla/server.cfg:/xashds/cstrike/server.cfg:ro"
+      - "./cpl/server.cfg:/xashds/cstrike/server.cfg:ro"
       - "./cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       - "./mods/zp/plugins:/xashds/cstrike/addons/amxmodx/plugins"
       - "./mods/zp/configs:/xashds/cstrike/addons/amxmodx/configs"
@@ -44,47 +45,47 @@ services:
       # AMXX execs configs/amxx.cfg at EVERY map start; server.cfg execs only
       # at container start (measured 2026-09-04). So whatever is in amxx.cfg
       # beats server.cfg on every map after the first - which is exactly what
-      # the box copy was doing with Classic's old casual values (16k money,
+      # the box copy was doing with this mode's old casual values (16k money,
       # 2.5 min rounds, 10 min maps), invisibly outranking the config in this
       # repo. The repo copy sets no gameplay cvar at all and ends with
       # `exec server.cfg`, so the ruleset re-applies every map from one file.
       # Docker applies bind mounts deepest-path-last, so this file wins over
       # the directory mount above (verified on the box: yb_quota_mode reads
       # `fill` where the box file says `normal`).
-      - "./vanilla/amxx.cfg:/xashds/cstrike/addons/amxmodx/configs/amxx.cfg:ro"
+      - "./cpl/amxx.cfg:/xashds/cstrike/addons/amxmodx/configs/amxx.cfg:ro"
       # ...and configs/maps.ini, mapchooser's list of maps the end-of-map vote
-      # may offer. The mod Dockerfiles regenerate it from mapcycle.txt so a
-      # vote can never send players to a map that is not in valve.zip; vanilla
-      # has no build step, so its box copy had gone stale and was still
+      # # may offer. The mod Dockerfiles regenerate it from mapcycle.txt so a
+      # vote can never send players to a map that is not in valve.zip; this
+      # mode has no build step, so its box copy had gone stale and was still
       # offering de_prodigy and cs_militia, neither of which is in the client
       # payload at all (found 2026-09-04). Keep it equal to mapcycle.txt.
-      - "./vanilla/maps.ini:/xashds/cstrike/addons/amxmodx/configs/maps.ini:ro"
-      # Classic was still running the STOCK gamedata, so AMX Mod X's
+      - "./cpl/maps.ini:/xashds/cstrike/addons/amxmodx/configs/maps.ini:ro"
+      # This mode was still running the STOCK gamedata, so AMX Mod X's
       # SV_DropClient detour was installed here long after gg/dm/aim were fixed
-      # on 2026-08-28 - i.e. any player timing out could still take Classic
+      # on 2026-08-28 - i.e. any player timing out could still take the match
       # down (docs/troubleshooting.md). The mod images COPY this override in
-      # via addons/; vanilla has no build step, so it mounts it. The image's
+      # via addons/; this one has no build step, so it mounts it. The image's
       # own custom/ dir is empty, so this only ever adds the one file.
-      - "./vanilla/gamedata:/xashds/cstrike/addons/amxmodx/data/gamedata/common.games/custom:ro"
+      - "./cpl/gamedata:/xashds/cstrike/addons/amxmodx/data/gamedata/common.games/custom:ro"
       # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
       - "./cmdpipe:/xashds/cstrike/cmdpipe:ro"
-      # YaPB bots (mod images bake these in; vanilla mounts them). The tree is
+      # YaPB bots (mod images bake these in; this one mounts them). The tree is
       # seeded BOX-SIDE like the rest of mods/: /opt/cs16/mods/yapb is a copy
       # of gg/addons/yapb, chown 1000; mods/metamod-plugins.ini = the image's
       # stock Metamod plugins.ini (amxmodx line) + the yapb registration line.
       # yapb dir stays writable - YaPB downloads graphs into data/ at map start.
       - "./mods/yapb:/xashds/cstrike/addons/yapb"
-      # ...and the repo owns the one setting that decides whether Classic is a
+      # ...and the repo owns the one setting that decides whether this is a
       # match: yb_quota 0, so a cold start has zero bots and all 10 playing
       # seats stay open for people. Bots are still fully supported (war room
       # Bots panel, or `pnpm run rc "yb_quota 4"`); YaPB re-reads this file on
       # load, so every restart lands back on zero. Same deepest-path-last rule
       # as amxx.cfg above.
-      - "./vanilla/yapb.cfg:/xashds/cstrike/addons/yapb/conf/yapb.cfg:ro"
+      - "./cpl/yapb.cfg:/xashds/cstrike/addons/yapb/conf/yapb.cfg:ro"
       - "./mods/metamod-plugins.ini:/xashds/cstrike/addons/metamod/plugins.ini:ro"
-      # HL kill logs (log on + mp_logfile in vanilla/server.cfg) - persisted
+      # HL kill logs (log on + mp_logfile in cpl/server.cfg) - persisted
       # for the recap; mod images do the same via their Dockerfiles
-      - "./logs/vanilla:/xashds/cstrike/logs"
+      - "./logs/cpl:/xashds/cstrike/logs"
       # segfault forensics: host kernel.core_pattern=/cores/core.%e.%t writes
       # dumps here (2026-08-14 session: two engine crashes, no evidence left)
       - "./cores:/cores"

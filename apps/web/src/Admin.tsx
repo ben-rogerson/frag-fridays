@@ -69,7 +69,8 @@ type State = {
 // mod key -> what it is called on the site, so the panel and the front page
 // name the same thing (App.tsx MODES, keyed by info.json instead)
 const MOD_LABEL: Record<string, string> = {
-  vanilla: "Classic",
+  classical: "ClassicAl",
+  cpl: "CPL Tournament",
   gg: "GunGame",
   dm: "Deathmatch",
   aim: "Aim Prac",
@@ -80,7 +81,7 @@ const MOD_LABEL: Record<string, string> = {
 
 // mods whose image bakes teambalance.amxx in - the Teams panel is dead
 // weight anywhere else (mirrors TEAM_MODS in server/mcp/src/actions.js)
-const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
+const TEAM_MODS = ["gg", "dm", "css", "fy", "awp", "classical"];
 
 // Slots the bot fill leaves alone, mirroring yb_autovacate_keep_slots in every
 // mod's yapb.cfg.
@@ -97,8 +98,8 @@ const TEAM_MODS = ["gg", "dm", "css", "fy", "awp"];
 // any non-zero yb_quota survives a changelevel (yb_ignore_cvars_on_changelevel,
 // verified 2026-09-04), so a quota pushed to the ceiling once stays there until
 // the container restarts. The panel is the only place that can be stopped.
-// 4 on the 16-slot modes, 2 on Classic's 12, mirroring their yapb.cfg files.
-// The same number would be the wrong number: Classic's slot count IS its
+// 4 on the 16-slot modes, 2 on CPL Tournament's 12, mirroring their yapb.cfg
+// files. The same number would be the wrong number: CPL's slot count IS its
 // format (10 for the teams plus 2 spare), so reserving 4 there would cap a
 // warm-up fill at 8 and make filling a 5v5 quietly impossible.
 const botReserveFor = (maxplayers: number) => (maxplayers >= 16 ? 4 : 2);
@@ -334,10 +335,11 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
   const busy = Boolean(pending) || jobRunning;
   const teams = Boolean(state && TEAM_MODS.includes(state.mod));
   const botCap = botCapOf(status?.maxplayers);
-  // Classic is the 5v5 match mode: it ships yb_quota 0, so an empty bot panel
-  // is its correct resting state and a fill is a deliberate act (a short side,
-  // a warm-up). Worth saying, because every other mod arrives with bots in.
-  const matchMod = state?.mod === "vanilla";
+  // CPL Tournament is the 5v5 match mode: it ships yb_quota 0, so an empty bot
+  // panel is its correct resting state and a fill is a deliberate act (a short
+  // side, a warm-up). Worth saying, because every other mod arrives with bots
+  // in - ClassicAl included, which is the whole difference between the two.
+  const matchMod = state?.mod === "cpl";
   const session = state?.session ?? null;
   // the kickoff has been moved iff the file carries what to put back
   const early = Boolean(session && session.scheduled !== undefined);
@@ -550,7 +552,7 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
             them, so this is headroom, not the map-change guard.{" "}
             {quota === 0 ? "Zero means an empty server." : ""}
             {matchMod
-              ? " Classic ships zero bots for the 5v5 - a fill lasts until the container restarts, then it is back to zero."
+              ? " CPL Tournament ships zero bots for the 5v5 - a fill lasts until the container restarts, then it is back to zero."
               : ""}
           </p>
           <button
@@ -676,6 +678,25 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               {pending === "command" ? "..." : "Run"}
             </button>
           </form>
+          {/* The soft restart, above the hard one so the ladder reads in
+              order. sv_restartround resets the round and respawns everyone
+              where they stand: the fix for a wedged round (bots camped, an
+              objective nobody can finish, someone stuck in spectate) that
+              costs nobody their connection. It was !restart in chat until
+              2026-09-05 - unadmin-gated, and mostly one player who only wanted
+              to spawn (57 of the server's 90 round restarts were theirs).
+              Players say /spawn for that now; this is the whole-server one. */}
+          <Arm
+            label="Restart round"
+            armed="Restart the round?"
+            disabled={busy || !pipe}
+            onFire={() => act("restartround", "/restartround", {}, "Restarting the round")}
+          />
+          <p className="war__hint">
+            Resets the round and respawns everyone where they stand - nobody is dropped, the map
+            stays, and frags are kept. A player who is just dead or stuck in spectate can say
+            /spawn instead of costing everyone a round.
+          </p>
           {/* deliberately NOT gated on `busy`: this is the way out of a
               wedged sim, and a map change going wrong is when it is wanted */}
           <Arm

@@ -46,9 +46,10 @@ One mod runs at a time; the URL never changes.
 
 | Mod | What it is | Swap to it |
 |---|---|---|
-| gg | GunGame - new weapon every kill, first to gold knife wins. Deathmatch respawn is on (`gg_dm 1`). | `pnpm run deploy gg` |
+| gg | GunGame - new weapon every kill, first to gold knife wins. Deathmatch respawn is on (`gg_dm 1`). Chat is GunGame's own (`!rules`, `!guns`, `!restart` = reset yourself to level 1), plus `/spawn` and its nag. | `pnpm run deploy gg` |
 | dm | Deathmatch - instant respawn, pick your gun, aim practice (`frag_dm.sma`, ours) | `pnpm run deploy dm` |
-| vanilla | Classic - 5v5 competition rules, no bots by default. The match mode; full ruleset and sources in [classic-rules.md](classic-rules.md) | `pnpm run deploy vanilla` |
+| classical | ClassicAl - Classic's rounds with the match rules off: $16000 a round, no fade to black, 10 minute maps, bots filling to 10. The Friday default | `pnpm run deploy classical` |
+| cpl | CPL Tournament - 5v5 competition rules, no bots by default. The match mode; full ruleset and sources in [classic-rules.md](classic-rules.md). Called `vanilla` until 2026-09-05 | `pnpm run deploy cpl` |
 
 ### DM gun selection (chat commands)
 
@@ -61,8 +62,13 @@ not ruled out:
   SMGs `/mp5 /p90 /mac10 /tmp /ump`, shotguns `/shotty /m3`, LMG `/para` -
   primary from next spawn
 - `/deagle` - pistol only
-- `/respawn` - back in the game now, if you are dead. Use this rather than
-  `/restart`, which restarts the round for the whole server.
+- `/respawn`, `/spawn` or `/restart` - back in the game now, if you are dead.
+  The server nags anyone who has been watching for two ticks (10-20s) to say
+  it. `/restart` is an alias, not a round restart any more: it used to restart
+  the round for everyone, and 57 of the 90 round restarts in the log history
+  were one player who only wanted to spawn. It stays as a word because it is
+  what those fingers type. A real round restart is a war room button now
+  (Console panel).
 
 **Anything reasonable is accepted.** The prefix can be `/`, `!`, `.` or
 nothing at all (`ak`, `!awp`, `.m4`, `guns ak` all work), case is ignored,
@@ -113,11 +119,13 @@ baked into the image, so changes need `pnpm run deploy <mod>` (rebuild +
 restart) to take effect. The two mods deliberately have separate copies -
 dm runs `yb_csdm_mode 1` (respawn-aware bots), gg does not.
 
-### Classic is the exception: zero bots
+### CPL Tournament is the exception: zero bots
 
-Classic is a 5v5 match mode, so its copy (`server/vanilla/yapb.cfg`) ships
-`yb_quota "0"` and nothing else differs from gg's. Bots are fully supported
-there, just not on by default:
+It is a 5v5 match mode, so its copy (`server/cpl/yapb.cfg`) ships
+`yb_quota "0"` and nothing else differs from gg's. **ClassicAl is not an
+exception** - it runs `yb_quota 10` like everything else, which is one of the
+four things that separate the two modes. Bots are fully supported on CPL
+Tournament too, just not on by default:
 
 - **Add them:** war room Bots panel (`/#/warroom`), or `pnpm run rc
   "yb_quota 6"`. Quota is a total headcount in `fill` mode, so 6 means six
@@ -133,14 +141,16 @@ there, just not on by default:
   mid-session. Only a restart clears it. **Except zero**: YaPB special-cases a
   quota of 0 and lets the config value back in on changelevel, so "Clear all
   bots" undoes itself at the next map (both measured 2026-09-04).
-- Classic runs 12 slots (`+maxplayers 12` in the root compose): 5v5 plus two
-  spare. With quota 0 no bot can ever be holding a seat when the tenth person
-  arrives.
+- CPL Tournament runs 12 slots (`+maxplayers 12` in the root compose): 5v5
+  plus two spare. With quota 0 no bot can ever be holding a seat when the
+  tenth person arrives. ClassicAl runs 16, because 12 is the match format
+  and not a limit it wants.
 
-Vanilla mounts the YaPB tree from `/opt/cs16/mods/yapb` rather than baking it
-(it runs the stock image unbuilt), and the root compose mounts
-`server/vanilla/yapb.cfg` over `conf/yapb.cfg` so the zero default is under
-version control rather than a hand-edit on the box.
+CPL Tournament mounts the YaPB tree from `/opt/cs16/mods/yapb` rather than
+baking it (it runs the stock image unbuilt), and the root compose mounts
+`server/cpl/yapb.cfg` over `conf/yapb.cfg` so the zero default is under
+version control rather than a hand-edit on the box. ClassicAl bakes its own
+tree like every other mod dir.
 
 ### Difficulty
 
@@ -173,7 +183,7 @@ and `yb_difficulty_auto 0`, then `yb_difficulty` alone applies.
 | `yb_quota` | 10 | target total players in `fill` mode (bot count in `normal`); lower it for tiny maps |
 | `yb_quota_mode` | fill | `fill` = top up to quota counting humans (bots leave as humans arrive); `normal` = fixed bot count, only vacate when slots run out; `match` = N bots per human |
 | `yb_join_delay` | 20.0 | seconds before bots start joining after a changelevel; max 30. Raised from 5 so the humans carry over first |
-| `yb_autovacate_keep_slots` | 4 (2 on Classic, 1 on aim) | slots not given to bots, counted against players YaPB can SEE; max 8. Classic's 12 slots take 2 so the ceiling lands on 5v5; aim keeps 8 free by arithmetic instead (24 slots, 16 fixed bots) |
+| `yb_autovacate_keep_slots` | 4 (2 on CPL Tournament, 1 on aim) | slots not given to bots, counted against players YaPB can SEE; max 8. CPL Tournament's 12 slots take 2 so the ceiling lands on 5v5; aim keeps 8 free by arithmetic instead (24 slots, 16 fixed bots) |
 | `yb_ignore_cvars_on_changelevel` | `yb_quota,yb_autovacate` | those two survive a changelevel, so a non-zero quota poked at runtime sticks until the container restarts and yapb.cfg's value is NOT authoritative on a long-running box. A quota of 0 is exempt and comes back at the next map |
 | `yb_join_team` | any | force `t`/`ct` to stack one side |
 | `yb_chat` / `yb_chat_percent` | 0 / 30 | text-chat banter, off since 2026-08-02 |
@@ -214,12 +224,16 @@ zip):
 - dm: fy_pool_day, dust2, dust, assault, nuke, cbble, cs_office,
   fy_iceworld, aim_map, scoutzknivez, de_rats, de_train,
   cs_prospeedball, cs_deagle5
-- vanilla (Classic): dust2, inferno, nuke, de_train, cbble, aztec, dust - the
-  era's competition pool, cut to maps already in the client payload (no
+- cpl (CPL Tournament): dust2, inferno, nuke, de_train, cbble, aztec, dust -
+  the era's competition pool, cut to maps already in the client payload (no
   hostage map was ever in one; the CPL and CEVO customs are not on this box).
   Every map it dropped (italy, assault, cs_office, cs_prospeedball,
   cs_deagle5) is still in gg's and dm's cycles, so the valve.zip keep-list
   (the union) is unchanged and this needed no `clientcfg`.
+- classical (ClassicAl): cpl's seven plus cs_office, cs_italy and cs_assault -
+  no rulebook to answer to, and three more maps is three more things to see in
+  a 30-minute block. All ten are already in another mod's cycle, so this
+  needed no `clientcfg` either.
 
 scoutzknivez runs at `sv_gravity 250` / `sv_airaccelerate 100` via an AMXX
 per-map config; every other map resets to stock 800/10 (mechanism in
@@ -231,11 +245,11 @@ info_map_parameters `buying 3` - which this stack's DLL ignores, so buying
 stays possible unless blocked server-side.
 On dm the `dm_only` cvar (per-map configs, frag_dm.sma) replaces the DM
 kit with the map's weapon and strips anything else the moment it is
-deployed. On vanilla, restmenu.amxx (enabled box-side in
+deployed. On cpl, restmenu.amxx (enabled box-side in
 `mods/zp/configs/plugins.ini`) blocks the buy commands via
 `amx_restrict on` in per-map configs, reset by `amx_restrict off` in
-amxx.cfg every map start. Neither one-weapon map is in Classic's pool any
-more, but the `amx_restrict off` reset stays in `server/vanilla/amxx.cfg`
+amxx.cfg every map start. Neither one-weapon map is in CPL Tournament's pool any
+more, but the `amx_restrict off` reset stays in `server/cpl/amxx.cfg`
 because a restriction left set by a per-map config would otherwise follow
 the server into the next map.
 
@@ -249,13 +263,13 @@ adding one needs no image rebuild - just the deploy + clientcfg pair.
 Maps rotate at `mp_timelimit`, which each mode sets for itself - the
 deathmatch-family modes (Deathmatch, Source Maps, Fight Yard, Aim Prac,
 Sniper) run 10 minutes, set from `frag_dm.sma` rather than any config file -
-on every mode except **Classic**,
-which runs `mp_timelimit 0` - no map clock at all, because a match must not
-be cut off mid-half. Its map changes when the half ends
-(`mp_maxrounds 15`); see [classic-rules.md](classic-rules.md). Classic's
-cvars used to come from box-side `mods/zp/configs/amxx.cfg`, which AMXX execs
+and ClassicAl runs 10 from its baked `amxx.cfg`. The exception is
+**CPL Tournament**, which runs `mp_timelimit 0` - no map clock at all,
+because a match must not be cut off mid-half. Its map changes when the half
+ends (`mp_maxrounds 15`); see [classic-rules.md](classic-rules.md). Its cvars
+used to come from box-side `mods/zp/configs/amxx.cfg`, which AMXX execs
 at every map start while `server.cfg` execs only at container start - so it
-silently overrode `server/vanilla/server.cfg` for the life of every container
+silently overrode `server/cpl/server.cfg` for the life of every container
 (the full exec order is in [troubleshooting.md](troubleshooting.md)). The repo
 now mounts an `amxx.cfg` that sets no gameplay cvar and ends with
 `exec server.cfg`, so server.cfg is the ruleset and re-applies every map.
@@ -339,7 +353,7 @@ machine and it cannot - the engine holds that session, its slot and its name
 for `sv_timeout` (600s), which is why a rejoin used to arrive as
 `Reversons (1)` next to a motionless copy of you.
 
-`ff_rejoin.amxx` (gg/dm/aim/css/fy/awp, not Classic) closes that: on a join it
+`ff_rejoin.amxx` (every mod dir, so not CPL Tournament) closes that: on a join it
 looks for another client with the same base name, and if that client has sent
 nothing for `ff_rejoin_quiet` seconds it drops it and renames the newcomer back
 to the plain name. It takes about a second, so the suffix flashes up and then
