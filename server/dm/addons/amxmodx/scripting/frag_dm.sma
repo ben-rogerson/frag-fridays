@@ -40,6 +40,9 @@ new g_choice[33];
 // one /guns hint per connection, on first spawn
 new bool:g_hinted[33];
 
+// consecutive 10s ticks a player has spent not alive - see task_nag_dead
+new g_deadTicks[33];
+
 // Keys are the bare word - every chat line is normalised through split_cmd
 // before it reaches here, so "/ak", "!ak", ".ak", "ak" and "guns ak" all
 // arrive as "ak". The leading slash is added back for display only.
@@ -94,7 +97,13 @@ new const g_aliases[][] = {
 	"de",      "deagle",
 	// too vague to pick for them - show the list instead
 	"rifle",   "guns",
-	"gun",     "guns"
+	"gun",     "guns",
+	// /restart was chatrestart.sma's server-wide round restart until that
+	// plugin was removed and the restart became a war room button. It is what
+	// players have in their fingers - 57 uses by one player, all of them
+	// really meaning "put me back in" - so point it at the command that now
+	// does exactly that, rather than letting it fall through to silence.
+	"restart", "spawn"
 };
 
 public plugin_init()
@@ -137,6 +146,8 @@ public plugin_init()
 	register_clcmd("say", "cmd_say");
 	register_clcmd("say_team", "cmd_say");
 
+	set_task(10.0, "task_nag_dead", _, _, _, "b");
+
 	// DM round shape: no freeze, long rounds. With respawn, teams are never
 	// eliminated; only objective maps (hostages/bomb sites) end the round on
 	// the timer - no-objective maps run one round for the whole map. Short
@@ -152,6 +163,7 @@ public client_putinserver(id)
 {
 	g_choice[id] = -1;
 	g_hinted[id] = false;
+	g_deadTicks[id] = 0;
 }
 
 // client_disconnect, not client_disconnected: the newer forward needs AMXX's
@@ -207,6 +219,35 @@ bool:do_respawn(id)
 
 	ExecuteHamB(Ham_CS_RoundRespawn, id);
 	return true;
+}
+
+// Stuck players don't know the way out, so a 10s ticker nags anyone who has
+// sat dead or spectating through two consecutive ticks. The two-tick grace
+// keeps normal between-round deaths (instant respawn makes any real death
+// shorter than one tick) from triggering it. Spectators and unassigned
+// players are nagged too, not skipped, and /spawn answers both: it puts a
+// dead player straight back in, and tells anyone who is not on a team which
+// key picks a side.
+//
+// This nag used to name /restart, chatrestart.sma's server-wide round
+// restart, which dragged everyone through sv_restartround so that one person
+// could spawn - 57 of the server's 90 round restarts were one player doing
+// exactly that. The round restart is a war room button now, admin-gated
+// (server/mcp/src/admin.js).
+public task_nag_dead()
+{
+	for (new id = 1; id <= get_maxplayers(); id++)
+	{
+		if (!is_user_connected(id) || is_user_bot(id) || is_user_hltv(id)
+			|| is_user_alive(id))
+		{
+			g_deadTicks[id] = 0;
+			continue;
+		}
+
+		if (++g_deadTicks[id] >= 2)
+			client_print(id, print_chat, "[DM] stuck watching? press Y and type /spawn to get back in");
+	}
 }
 
 // --- one-weapon maps: strip everything else on deploy ------------------------
@@ -405,8 +446,8 @@ print_gun_line(id, const line[], bool:continuation)
 // history: of 254 command-shaped lines ever said here, 76 did nothing, and
 // the largest group was a word this plugin knows wearing a prefix it did not
 // ("ak", "!awp", ".m4") or split across two ("guns ak", "more guns"). The
-// inconsistency was also ours - chatrestart.sma took !restart while this
-// file took only /-prefixed words.
+// inconsistency was also ours - the since-removed chatrestart.sma took
+// !restart while this file took only /-prefixed words.
 //
 // Accepts /x, !x, .x and bare x, case-insensitively, plus "guns <name>" for
 // the pick and "more guns"/"all guns" for the list.
@@ -484,13 +525,14 @@ public cmd_say(id)
 
 	// /respawn - put a dead player back in the game NOW.
 	//
-	// Without this the only verb a dead player has ever had is /restart, which
-	// is chatrestart.sma's SERVER-WIDE round restart: one player who wants to
-	// spawn drags everyone through sv_restartround. Measured 2026-09-05 over
-	// the full log history, one player accounted for 57 of the server's 90
-	// round restarts, 45 of them within a minute of joining. Death already
-	// queues task_respawn, so this only ever matters to someone dead for
-	// another reason - joined mid-round, or waiting out a long objective map.
+	// This replaced /restart, a SERVER-WIDE round restart from chat: one
+	// player who wanted to spawn dragged everyone through sv_restartround.
+	// Measured 2026-09-05 over the full log history, one player accounted for
+	// 57 of the server's 90 round restarts, 45 of them within a minute of
+	// joining - so the chat command is gone and the round restart lives in the
+	// war room. Death already queues task_respawn, so this only ever matters
+	// to someone dead for another reason - joined mid-round, or waiting out a
+	// long objective map.
 	if (equal(verb, "respawn") || equal(verb, "spawn"))
 	{
 		if (!do_respawn(id))

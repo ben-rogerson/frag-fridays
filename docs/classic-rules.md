@@ -1,13 +1,20 @@
-# Classic: the 5v5 match ruleset
+# CPL Tournament: the 5v5 match ruleset
 
-What Classic plays by, where every number came from, and how to run a match on
-this stack. The rules themselves are in
-[server/vanilla/server.cfg](../server/vanilla/server.cfg), one comment per
-cvar; this file is the reasoning, the sources and the arguments between
-leagues.
+What CPL Tournament plays by, where every number came from, and how to run a
+match on this stack. The rules themselves are in
+[server/cpl/server.cfg](../server/cpl/server.cfg), one comment per cvar; this
+file is the reasoning, the sources and the arguments between leagues.
 
-Classic is the only mode here not tuned for a casual half hour. Five a side,
-no bots, one life a round, on the rules the leagues actually used.
+CPL Tournament is the only mode here not tuned for a casual half hour. Five a
+side, no bots, one life a round, on the rules the leagues actually used.
+
+> **This mode was called "Classic" until 2026-09-05**, and everything below
+> was written under that name; the id was `vanilla`. It was renamed when the
+> Friday version split off as **ClassicAl** (`server/classical/`) - the same
+> rounds with the match rules taken off: `mp_startmoney 16000`, no fade to
+> black, `mp_timelimit 10` so maps rotate inside a 30-minute block, and bots
+> filling to ten. If you are here because a Friday felt punishing, ClassicAl
+> is the answer, not a change to the numbers below.
 
 ## There was never one ruleset
 
@@ -94,7 +101,7 @@ stack the half break is where the manual side swap happens - see below.
 
 ## The cvars
 
-Every line is in [server/vanilla/server.cfg](../server/vanilla/server.cfg)
+Every line is in [server/cpl/server.cfg](../server/cpl/server.cfg)
 with the same explanation attached to it. Blank means the league did not set
 it.
 
@@ -183,7 +190,7 @@ watch). Classic runs 1. If it turns out to be more confusing than it is worth,
 ### The world
 
 The leagues pinned the stock physics explicitly rather than trusting a server
-to be unmodified, and Classic does too - this box runs six other mods and
+to be unmodified, and Classic does too - this box runs seven other mods and
 GoldSrc never resets a cvar at a map change.
 
 `sv_maxspeed 320`, `sv_gravity 800`, `sv_airaccelerate 10`, `sv_accelerate 5`,
@@ -208,7 +215,8 @@ throwaway container on 2026-09-04 - each printed `Unknown command` at boot and
 - **`mp_autocrosshair`** - `cvarlist mp_auto` returns only `mp_autokick`,
   `mp_autokick_timeout` and `mp_autoteambalance`.
 - **`mp_decals`** - the per-client decal cap. `decalfrequency` is an engine
-  cvar and does exist.
+  cvar and does exist. Server-side only: `mp_decals` is a real CLIENT cvar on
+  this build and `userconfig.cfg` sets it (2026-09-05, see troubleshooting).
 - **`sv_proxies`** - the HLTV proxy allowance, moot anyway on a WebRTC-only
   server with no A2S or rcon netchannel.
 
@@ -322,6 +330,10 @@ No hostage map was in any competition pool, which is why `cs_italy`,
 gg's and dm's cycles, so the `valve.zip` keep-list (the union of the
 mapcycles) is unchanged and this needed no `clientcfg`.
 
+They are also in **ClassicAl's** pool (`server/classical/mapcycle.txt`), which
+is these seven plus those three. That mode is not bound by any rulebook, and
+three hostage maps is exactly the kind of variety a 30-minute block wants.
+
 ## Running a match on this stack
 
 Everything above is the ruleset. This is what actually works on a WASM Xash3D
@@ -371,8 +383,8 @@ pnpm run match score     # the live scoreboard
 
 Note `sv_restartround`, not `restart`: the command pipe blocks `restart`
 because it segfaults this engine build (2026-08-04). `sv_restartround` is an
-alias of the era's `sv_restart` and is what `chatrestart.sma` uses on the
-other modes.
+alias of the era's `sv_restart` and is what the war room's Restart round
+button sends on the other modes.
 
 ### What this stack cannot do
 
@@ -388,12 +400,13 @@ other modes.
   **stock image, unbuilt**: it has no Dockerfile, so nothing compiles a `.sma`
   for it, and the plugins it does load are pre-compiled binaries hand-placed
   on the box. Backlog item 16 is the fix and it is bigger than a plugin.
-- **No `!restart` in chat.** `chatrestart.amxx` is baked into the mod images
-  only. Use `pnpm run match knife`.
+- **No `!restart` in chat.** Nothing has it any more - the plugin that took
+  it (`chatrestart.amxx`) was removed from every mod on 2026-09-05. Use
+  `pnpm run match knife`, or the war room's Restart round button.
 
 ### Bots
 
-Zero on every cold start: `server/vanilla/yapb.cfg` ships `yb_quota "0"` and
+Zero on every cold start: `server/cpl/yapb.cfg` ships `yb_quota "0"` and
 YaPB re-reads it on load. They are still fully supported when you want them -
 `pnpm run match bots <n>` or the war room's Bots panel - and a fill survives a
 map change but never a restart. Full detail in [game-guide.md](game-guide.md).
@@ -418,7 +431,7 @@ every map after that it beat it by running at all. A box-side `amxx.cfg`
 holding casual round values was therefore re-applying them for the life of the
 container while the repo's `server.cfg` never got another turn.
 
-`server/vanilla/amxx.cfg` therefore sets **no gameplay cvar at all**. It used
+`server/cpl/amxx.cfg` therefore sets **no gameplay cvar at all**. It used
 to be a box-only file holding Classic's casual quick-round values
 (`mp_startmoney 16000`, `mp_roundtime 2.5`, `mp_freezetime 5`, `mp_c4timer 35`,
 `mp_timelimit 10`, added 2026-08-11), silently outranking the `server.cfg` in
@@ -456,8 +469,8 @@ list `mapchooser` offers in the end-of-map vote, the mod Dockerfiles
 regenerate it from `mapcycle.txt` so a vote can never offer a map that is not
 in `valve.zip`, and Classic - having no build step - had been missed: its box
 copy still listed `de_prodigy` and `cs_militia`, neither of which is in the
-client payload at all. Keep `server/vanilla/maps.ini` equal to
-`server/vanilla/mapcycle.txt`.
+client payload at all. Keep `server/cpl/maps.ini` equal to
+`server/cpl/mapcycle.txt`.
 
 ### What the boot test proved (2026-09-04)
 

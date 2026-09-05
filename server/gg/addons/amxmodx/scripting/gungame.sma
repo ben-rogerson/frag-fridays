@@ -133,6 +133,7 @@ enum
 #define TASK_CHECK_JOINCLASS		1500
 #define TASK_AUTOVOTE_RESULT		1600
 #define TASK_GET_TOP_PLAYERS		1700
+#define TASK_NAG_DEAD			1800
 
 //**********************************************************************
 // VARIABLE DEFINITIONS
@@ -229,6 +230,9 @@ Float:spawnOrigin[33][3], Float:spawnAngles[33][3], afkCheck[33], playerStats[33
 	new sfFile[64], sfLineData[112], sfAuthid[32], sfTimestamp[12], Array:statsArray, Array:statsPointers[2], statsSize[2];
 #endif
 
+// consecutive 10s ticks a player has spent dead or watching, for the /spawn nag
+new ggDeadTicks[33];
+
 //**********************************************************************
 // INITIATION FUNCTIONS
 //**********************************************************************
@@ -310,6 +314,9 @@ public plugin_init()
 	register_srvcmd("gg_reloadweapons","cmd_reloadweapons",ADMIN_CVAR,"- reloads the weapon order and kills per level from cvars");
 	register_clcmd("say","cmd_say");
 	register_clcmd("say_team","cmd_say");
+
+	// nag anyone left watching - see task_nag_dead
+	set_task(10.0,"task_nag_dead",TASK_NAG_DEAD,_,_,"b");
 
 	// menus
 	register_menucmd(register_menuid("autovote_menu"),MENU_KEY_1|MENU_KEY_2|MENU_KEY_3|MENU_KEY_0,"autovote_menu_handler");
@@ -2337,9 +2344,65 @@ public cmd_reloadweapons(id,lvl,cid)
 }
 
 // hook say
+// Nag anyone left watching. Mirrors frag_dm.sma's task_nag_dead: two
+// consecutive ticks, so a normal death never trips it (gg_dm respawns in
+// seconds), and spectators are nagged rather than skipped because they are
+// exactly the people who cannot get back in without being told how.
+public task_nag_dead()
+{
+	for(new id = 1; id <= get_maxplayers(); id++)
+	{
+		if(!is_user_connected(id) || is_user_bot(id) || is_user_hltv(id) || is_user_alive(id))
+		{
+			ggDeadTicks[id] = 0;
+			continue;
+		}
+
+		if(++ggDeadTicks[id] >= 2)
+			client_print(id,print_chat,"[GG] stuck watching? press Y and type /spawn to get back in");
+	}
+}
+
 public cmd_say(id)
 {
 	if(!ggActive) return PLUGIN_CONTINUE;
+
+	// /spawn - the escape hatch dm has, here for the same reason. The browser
+	// client cannot render the team menu, so F1/F2 is the only way onto a side
+	// and the engine refuses a second attempt in the same round ("Only 1 team
+	// change is allowed"). chatrestart.sma's !restart used to be the way out of
+	// that; it is gone, and gg does not run frag_dm.sma, so without this gg has
+	// no way out at all - and gg feels it hardest, being the one mod that never
+	// turns the team limits off (gungame.cfg sets mp_autoteambalance 1, and its
+	// Dockerfile omits the mp_limitteams 0 every other mod appends).
+	//
+	// Semantics deliberately match frag_dm's: respawn a dead player who is on a
+	// team, and tell anyone who is not which key picks a side. It does NOT force
+	// a team - writing one segfaults this stack (teambalance.sma's header) and
+	// dm does not force one either. /restart is accepted because that is still
+	// what players type. Unlike frag_dm this eats the line rather than echoing
+	// it to chat, matching gg's own chat commands.
+	//
+	// "!restart" is the one shape NOT taken, because on gg it is already a
+	// command: cmd_say answers !restart/!reset with the "reset me to level 1"
+	// menu, and the !rules text this plugin prints tells players so. Every
+	// other shape (/restart, .restart, bare restart) is free and lands here.
+	new said[32];
+	read_args(said,charsmax(said));
+	remove_quotes(said);
+	trim(said);
+	strtolower(said);
+
+	new start = (said[0] == '/' || said[0] == '!' || said[0] == '.') ? 1 : 0;
+	if(equal(said[start],"spawn") || equal(said[start],"respawn")
+		|| (said[0] != '!' && equal(said[start],"restart")))
+	{
+		if(is_user_alive(id) || !on_valid_team(id))
+			client_print(id,print_chat,"[GG] /spawn only works while you are dead and on a team - press F1 or F2 to pick a side.");
+		else if(!task_exists(TASK_RESPAWN+id))
+			respawn(TASK_RESPAWN+id);
+		return PLUGIN_HANDLED;
+	}
 
 	static message[10];
 	read_argv(1,message,9);

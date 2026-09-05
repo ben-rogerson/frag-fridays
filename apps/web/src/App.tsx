@@ -19,6 +19,9 @@ import type { DropKind } from "./webrtc";
 // and ping at all
 import { TabScreen } from "./TabScreen";
 import type { ModeInfo, ServerStatus } from "./TabScreen";
+// A page-level display setting rather than a cvar, so it owns its own storage
+// and its own tile - see Vibrance.tsx for why it is not in CONTROLS.
+import { VibranceTweak } from "./Vibrance";
 import "@fontsource/black-ops-one";
 import "./App.css";
 
@@ -56,45 +59,56 @@ const CHANGE_STUCK_MS = 30_000;
 // cheaper. Freeing a slot on leave, fixing the spray store and reworking the
 // standings columns all failed that test and were cut - real work, invisible
 // from a player's seat. Flat facts only, newest first, no roadmap language.
+//
+// One line each, read at a glance: what a player gets, in the words they
+// would use. No mechanism unless the mechanism is the point, no numbers a
+// player cannot feel, and nothing that needs a second clause to land.
 const NEWS: { label: string; items: string[] }[] = [
+  {
+    label: "5 sep",
+    items: [
+      "new mode - classicAl: classic rounds with $16000 every round, and when you die you watch the rest of it instead of staring at black",
+      "the old classic is now cpl tournament - same match rules, a name that says what it is",
+    ],
+  },
   {
     label: "4 sep",
     items: [
-      "changing map no longer strands everyone on the loading screen - the page names the map it is loading, tells you your slot is held, and says so plainly if your game does not come back",
-      "the netcode is retuned: with six players on, the worst pings came down from about 100ms to 50ms, which was most of the rubber banding. the server also runs its simulation about three times faster than it did, on less cpu. your ping is now on screen",
-      "bots wait 20 seconds at the top of a new map, and if a change does lock people out the server clears the bots out of the way so your reload lands",
-      "tab draws its own scoreboard now - it scales to your screen instead of overlapping its own rows, sits centred, and carries the mode's rules. every mode but classic is one list ordered by kills, with your side shown next to your name",
-      "classic is the 5v5 match mode: cpl and esl era rules, friendly fire on, no bots, $800 start, and dead players fade to black until the round ends",
-      "holding tab no longer sets the sound off - the key was firing at the engine dozens of times a second the whole time you held it",
-      "if you ever set ex_interp yourself, following a rates guide or an old habit, it was quietly costing you half your shots on moving targets - the page now clears it and the server never sees it again",
-      "if your tab crashes and you come back, you get your own name and your own seat back instead of turning up as \"you (1)\" beside a frozen copy of yourself",
+      "map changes no longer strand you on the loading screen - your slot is held",
+      "much less rubber banding: on a full server the worst pings halved. your ping is on screen now",
+      "bots clear out of the way at the top of a new map so your reload lands",
+      "tab draws a proper scoreboard - fits your screen, ordered by kills, with the mode's rules",
+      "classic is the 5v5 match mode: cpl and esl era rules, friendly fire on, no bots, $800 start",
+      "holding tab no longer sets the sound off",
+      "if you ever set ex_interp, it was costing you half your shots on moving targets. the page clears it",
+      "crash and rejoin and you get your own name and seat back, not \"you (1)\"",
       "the game starts at 20% volume instead of full",
-      "the loading screen carries the frag fridays logo and what the server runs on, instead of being a blue screen",
+      "the loading screen carries the frag fridays logo instead of a blue screen",
     ],
   },
   {
     label: "30 aug",
     items: [
-      "three more modes on the card: source maps (cs:s and cs:go remakes), fight yard (fy_ maps only) and sniper (awp and knife) - open them under more game modes",
-      "hold tab in-game to see how long the friday session has left - or, before kickoff on the day, how long until it starts",
-      "the esc menu now lists your controls - the actual keys you have bound, so nobody has to remember what 1.6 used",
-      "esc opens the match menu whether you are fullscreen or not - windowed, it used to just free the mouse and show nothing",
+      "three more modes under more game modes: source maps, fight yard (fy_ only) and sniper (awp and knife)",
+      "hold tab to see how long the friday session has left, or how long until it starts",
+      "the esc menu lists your controls - the keys you actually have bound",
+      "esc opens the match menu windowed too, not just in fullscreen",
     ],
   },
   {
     label: "29 aug",
     items: [
-      "esc opens a match menu instead of doing nothing - resume, or leave the server, with the round still running behind it",
-      "quitting with exit in the game console no longer reports a crash - the page says you left, with a rejoin button",
-      "your settings are now listed on this page - sensitivity, hand and the rest, with anything you changed in-game shown as a chip you can drop",
+      "esc opens a match menu - resume, or leave the server, with the round still running behind it",
+      "quitting with exit no longer looks like a crash - you get a rejoin button",
+      "your settings are on this page: sensitivity, hand and the rest",
     ],
   },
   {
     label: "28 aug",
     items: [
-      "a player leaving no longer restarts the server - one timed-out connection used to drop everyone mid-round",
-      "reconnect works: it reloads properly instead of landing on a black screen",
-      "if the game does crash the page now says so, with a reload button, instead of freezing the tab",
+      "a player leaving no longer restarts the server and drops everyone mid-round",
+      "reconnect works instead of landing on a black screen",
+      "a crash now gives you a reload button instead of freezing the tab",
     ],
   },
   {
@@ -526,7 +540,7 @@ const MapShot: FC<{ map: string }> = ({ map }) => {
 // One mod runs at a time; /info.json announces the live one. The roster is
 // static because the offering changes rarely - blurbs and rules are taken
 // from each mod's real info.json copy (server/<mod>/info.json), map pools
-// from its mapcycle.txt (vanilla's lives in server/vanilla/mapcycle.txt).
+// from its mapcycle.txt (cpl's lives in server/cpl/mapcycle.txt).
 type ModeEmblem = FC;
 type ModeEntry = {
   key: string;
@@ -560,13 +574,13 @@ const DeathmatchEmblem: ModeEmblem = () => (
   </svg>
 );
 
-// Classic: the same defusal shield the mode has always worn, now a
+// CPL Tournament: the same defusal shield the mode has always worn, now a
 // tournament crest - the slash is replaced by a pentagram drawn in one
 // unbroken stroke, five points for the five a side. It is the only emblem in
 // the set with a mark INSIDE it, which is what makes it read as the flagship
 // without leaving the one-stroke-linework family. The star runs thinner than
 // the family's 2.5 so it stays legible at the 18px roster size.
-const ClassicEmblem: ModeEmblem = () => (
+const CplEmblem: ModeEmblem = () => (
   <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M20 3l14 5v10c0 9-6 15-14 19-8-4-14-10-14-19V8z" />
     <path
@@ -574,6 +588,17 @@ const ClassicEmblem: ModeEmblem = () => (
       strokeWidth="1.8"
       strokeLinejoin="round"
     />
+  </svg>
+);
+
+// ClassicAl: the same shield, because it is the same game - but the crest
+// inside is an eye rather than a star. That is the whole difference between
+// the two modes in one mark: when you die here you get to keep watching.
+const ClassicAlEmblem: ModeEmblem = () => (
+  <svg viewBox="0 0 40 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M20 3l14 5v10c0 9-6 15-14 19-8-4-14-10-14-19V8z" />
+    <path d="M11 19c3.6-4.2 14.4-4.2 18 0-3.6 4.2-14.4 4.2-18 0z" strokeWidth="1.8" />
+    <circle cx="20" cy="19" r="2.6" strokeWidth="1.8" />
   </svg>
 );
 
@@ -613,15 +638,54 @@ const SniperEmblem: ModeEmblem = () => (
   </svg>
 );
 
+// The two modes whose tab screen splits by side. Both are round-based with
+// real teams; everything else on the card is a free-for-all in team clothing.
+const TEAM_BOARD_MODES = new Set(["classical", "cpl"]);
+
 const MODES: ModeEntry[] = [
-  // Classic leads the roster because it is the match mode - the one with a
-  // real ruleset and no bots. Order here is the order of the MORE GAME MODES
-  // rows, and `match` is tested top-down (no other mode's name matches
-  // /classic|vanilla/, so leading is safe).
+  // ClassicAl leads the roster because it is the one people actually play on
+  // a Friday: Classic's rounds with the match rules taken off. Order here is
+  // the order of the MORE GAME MODES rows.
+  //
+  // `match` is tested top-down against the live info.json mode string, so the
+  // two Classic-family regexes have to stay disjoint: /classic\s*al/ does not
+  // match "CPL Tournament" and /cpl|tournament/ does not match "ClassicAl".
+  // Do NOT reintroduce a bare /classic/ here - it would swallow both.
   {
-    key: "classic",
-    match: /classic|vanilla/i,
-    name: "Classic",
+    key: "classical",
+    match: /classic\s*al/i,
+    name: "ClassicAl",
+    blurb: "classic rounds, full wallet, and you get to watch",
+    rules: [
+      "$16000 every round - buy whatever you want",
+      "no fade to black - spectate whoever is still alive",
+      "1:45 rounds, 6s freeze, one life",
+      "5v5 with bots - one leaves per human",
+      "10 minute maps",
+    ],
+    emblem: ClassicAlEmblem,
+    bots: true,
+    fresh: true,
+    // CPL's seven, plus the three casual maps already in gg's and dm's
+    // rotations - so the valve.zip keep-list (the union of every mapcycle) is
+    // unchanged and this needed no clientcfg.
+    pool: [
+      "de_dust2",
+      "de_inferno",
+      "de_nuke",
+      "de_train",
+      "de_cbble",
+      "de_aztec",
+      "de_dust",
+      "cs_office",
+      "cs_italy",
+      "cs_assault",
+    ],
+  },
+  {
+    key: "cpl",
+    match: /cpl|tournament/i,
+    name: "CPL Tournament",
     blurb: "5v5 on match rules - no bots, no respawn",
     rules: [
       "five a side, humans only",
@@ -629,7 +693,7 @@ const MODES: ModeEntry[] = [
       "1:45 rounds, $800 start, friendly fire on",
       "dead players see black until the round ends",
     ],
-    emblem: ClassicEmblem,
+    emblem: CplEmblem,
     tournament: true,
     // the era's pool, cut to maps this server already ships. dust2, inferno,
     // nuke, train and cbble are in every league's rotation for the whole
@@ -1012,6 +1076,29 @@ const CONTROLS: Control[] = [
       { value: "2", label: "graph" },
     ],
   },
+  {
+    // Bullet holes and blood splatter. Shipped FULL (r_decals 4096 in
+    // userconfig.cfg) after measuring the cost on fy_pool_day and not finding
+    // one - see docs/decisions.md. This control exists anyway because that
+    // measurement is one M1 Pro, and the laptops people actually join on are
+    // not that.
+    //
+    // Only reduces, and cannot do otherwise: the engine clamps r_decals to
+    // mp_decals at every level load, and userconfig.cfg ships that ceiling at
+    // 4096. A value at or below it survives every map change (verified), and
+    // nothing a player picks here can raise the count past what the server
+    // config intends.
+    cvar: "r_decals",
+    label: "bullet holes",
+    def: "4096",
+    note: "off is the cheapest picture if your machine is struggling - it takes the blood with it",
+    kind: "choice",
+    options: [
+      { value: "0", label: "off" },
+      { value: "300", label: "some" },
+      { value: "4096", label: "full" },
+    ],
+  },
 ];
 
 const CONTROL_BY_CVAR = new Map(CONTROLS.map((c) => [c.cvar, c]));
@@ -1134,6 +1221,11 @@ const SettingsPanel: FC = () => {
         </div>
 
         <div className="tweaks__grid">
+          {/* First because the grid groups by shape (sliders, then pick-one
+              rows) and this is a slider - not because it outranks sensitivity.
+              It is the only control here that is the page rather than the
+              engine, so it is not in CONTROLS and renders itself. */}
+          <VibranceTweak />
           {CONTROLS.map((c) => {
             const raw = savedValue(c);
             const value = raw ?? c.def;
@@ -1932,7 +2024,7 @@ const App: FC = () => {
   // which roster entry is live; unmatched modes (a future mod) still render
   // from info.json with the fallback emblem
   const liveMode = modeInfo ? (MODES.find((m) => m.match.test(modeInfo.mode)) ?? null) : null;
-  const HeroEmblem = liveMode?.emblem ?? ClassicEmblem;
+  const HeroEmblem = liveMode?.emblem ?? CplEmblem;
   const tier = clockTier(clock);
   // What the in-game clock says, and whether it says anything at all: the
   // slot's remaining time while the session runs, and on matchday before
@@ -1958,7 +2050,7 @@ const App: FC = () => {
         : null;
   // each mode broadcasts in its own signal colour; classic acid until the
   // live mode is known (or an unmatched future mod runs)
-  const themeMode = DEBUG_MODE ?? liveMode?.key ?? "classic";
+  const themeMode = DEBUG_MODE ?? liveMode?.key ?? "cpl";
   // What the carry-over cards below paint, in one place: the live state, or
   // whatever the ?mapload debug params ask for. Both stand down for the match
   // menu, which the player opened on purpose.
@@ -1966,15 +2058,16 @@ const App: FC = () => {
   const loadingStuck = DEBUG_MAPLOAD ? DEBUG_MAPSTATE !== null : changeStuck;
   const loadingFrozen = DEBUG_MAPLOAD ? DEBUG_MAPSTATE === "frozen" : serverFrozen;
 
-  // Which shape the tab screen takes. Classic is the only mode where the two
-  // teams are the story; gungame, dm, aim, source maps, fight yard and sniper
-  // are all effectively free-for-alls in team clothing, and the table anyone
-  // there actually reads is one list ordered by kills. An unknown mod
-  // (info.json missing) keeps the teams, which is what stock 1.6 would do.
+  // Which shape the tab screen takes. The two Classic-family modes are the
+  // only ones where the teams are the story; gungame, dm, aim, source maps,
+  // fight yard and sniper are all effectively free-for-alls in team clothing,
+  // and the table anyone there actually reads is one list ordered by kills.
+  // An unknown mod (info.json missing) keeps the teams, which is what stock
+  // 1.6 would do.
   const classicBoard =
     DEBUG_TAB === "combined"
       ? false
-      : DEBUG_TAB === "classic" || (liveMode?.key ?? "classic") === "classic";
+      : DEBUG_TAB === "classic" || TEAM_BOARD_MODES.has(liveMode?.key ?? "cpl");
   const modeName = liveMode?.name ?? modeInfo?.mode ?? "Frag Fridays";
 
   return (

@@ -10,7 +10,7 @@
     "deploy": "scripts/deploy.sh",
     "web:build": "pnpm --filter @frag-friday/web build",
     "web:dev": "pnpm --filter @frag-friday/web dev",
-    "deploy:vanilla": "scripts/deploy.sh vanilla",
+    "deploy:cpl": "scripts/deploy.sh cpl",
     "deploy:gg": "scripts/deploy.sh gg",
     "pull": "scripts/pull.sh",
     "clientcfg": "scripts/deploy.sh && ssh cs16 /opt/cs16/update-clientcfg.sh",

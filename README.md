@@ -26,7 +26,8 @@ who already know the game. None of that is true here, so:
   with a progress bar (cached after the first visit), name entry, who's on
   the server right now, and the current mode. The engine boots straight into
   the game.
-- **Four modes, one URL.** Classic, GunGame, Deathmatch and Aim Prac. Each
+- **Modes, one URL.** ClassicAl, CPL Tournament, GunGame, Deathmatch, Aim
+  Prac, Source Maps, Fight Yard and Sniper. Each
   is its own Docker image with its own plugins, maps, bots and
   round pacing. Swapping the whole server takes one command and the address
   never changes.
@@ -36,9 +37,9 @@ who already know the game. None of that is true here, so:
   restrictions, gravity, round timers pitched at a 30-minute
   session rather than a whole evening.
 - **Never an empty server.** YaPB bots hold the slots and step out one at a
-  time as humans arrive, prefixed `[BOT]` and tuned to be beatable. Classic
-  is the exception and ships zero: it is the 5v5 match mode, and its ten
-  seats are for people.
+  time as humans arrive, prefixed `[BOT]` and tuned to be beatable. CPL
+  Tournament is the exception and ships zero: it is the 5v5 match mode, and
+  its ten seats are for people.
 - **It handles the browser being a browser.** Backgrounded tabs freeze the
   game loop, so the timeouts on both ends are set to survive an alt-tab
   rather than kicking you. A dropped connection returns to the lobby with a
@@ -66,7 +67,7 @@ change goes through `pnpm run deploy`.
 
 ```sh
 pnpm run deploy            # sync files only, no restart
-pnpm run deploy <mod>      # gg | dm | aim | vanilla - swaps the running mode
+pnpm run deploy <mod>      # cpl | classical | gg | dm | aim | css | fy | awp
 pnpm run status            # what's running on 27016
 pnpm run logs              # tail the live server
 pnpm run rc "<cmd>"        # live server console

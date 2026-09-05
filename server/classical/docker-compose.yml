@@ -1,0 +1,43 @@
+services:
+  xash3d:
+    build: .
+    restart: unless-stopped
+    platform: linux/386
+    # boot map comes from the shuffled mapcycle - entrypoint.sh randomises the
+    # rotation order on every container start and strips any +map given here
+    #
+    # 16 slots, not CPL Tournament's 12: 12 IS that mode's format (5v5 plus two
+    # spare) and nothing here is trying to hold a 5v5 open. yb_quota 10 fills to
+    # ten and steps out one bot per human, so the extra slots only ever mean
+    # room for whoever else turns up.
+    command: ["+maxplayers 16"]
+    environment:
+      PORT: 27138
+      IP: 149.28.172.74
+    volumes:
+      - "../valve.zip:/xashds/public/valve.zip"
+      # custom web client (Frag Fridays loading screen) over the image's stock
+      # client; index.html is a file mount, so containers restart to pick up
+      # a redeploy (same inode rule as valve.zip)
+      - "../web/index.html:/xashds/public/index.html:ro"
+      - "../web/assets:/xashds/public/assets:ro"
+      # mode blurb shown on the loading screen
+      - "./info.json:/xashds/public/info.json:ro"
+      - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
+      # no models/sprites mounts: every map in this rotation is stock CS, so
+      # the image already has its props. css/fy/awp need them for their custom
+      # maps; this mode has none.
+      # command pipe (remote console) - written by scripts/rc.sh, read by cmdpipe.amxx
+      - "../cmdpipe:/xashds/cstrike/cmdpipe:ro"
+      # HL kill logs (log on + mp_logfile in server.cfg) - persisted for the recap
+      - "../logs/classical:/xashds/cstrike/logs"
+      # segfault forensics: host kernel.core_pattern=/cores/core.%e.%t
+      - "../cores:/cores"
+    ulimits:
+      core:
+        soft: -1
+        hard: -1
+    ports:
+      - "27016:27016"
+      - "27138:27138"
+      - "27138:27138/udp"

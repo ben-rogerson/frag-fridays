@@ -1,5 +1,5 @@
 // Node port of scripts/rc.sh's write side. The cmdpipe.amxx plugin (mod-dir
-// images only - not vanilla/zp) polls cmdpipe/cmd.txt every second and runs
+// images only - not cpl/zp) polls cmdpipe/cmd.txt every second and runs
 // the lines when the serial on line 1 changes. The DIRECTORY is what's bind-mounted into the
 // game container, so replacing the file via same-dir rename is safe (new
 // inode, atomic swap) - never write cmd.txt in place.
@@ -10,10 +10,10 @@ import { setTimeout as delay } from 'node:timers/promises'
 const DIR = '/opt/cs16/cmdpipe'
 
 // mods that can hear the pipe: the mod images bake cmdpipe.amxx in, and
-// vanilla gets it from the box-side mods/zp/{plugins,configs} mounts (seeded
+// cpl gets it from the box-side mods/zp/{plugins,configs} mounts (seeded
 // 2026-08-03, registered in that plugins.ini - re-verified 2026-08-30). Only
 // zp, whose mount is the abandoned template, is deaf.
-export const CMDPIPE_MODS = new Set(['vanilla', 'gg', 'dm', 'aim', 'css', 'fy', 'awp'])
+export const CMDPIPE_MODS = new Set(['cpl', 'classical', 'gg', 'dm', 'aim', 'css', 'fy', 'awp'])
 
 // the plugin's line buffer is 192 bytes - refuse anything close to it
 const MAX_CMD_BYTES = 190

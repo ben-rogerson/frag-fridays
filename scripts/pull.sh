@@ -3,7 +3,7 @@
 #
 # server/ mirrors /opt/cs16 1:1 for everything worth tracking:
 #
-#   /opt/cs16/docker-compose.yml        -> server/docker-compose.yml  (profile-based: vanilla)
+#   /opt/cs16/docker-compose.yml        -> server/docker-compose.yml  (profile-based: cpl)
 #   /opt/cs16/{gg,dm,zp}/               -> server/{gg,dm,zp}/         (minus valve.zip)
 #   /opt/cs16/cs/cstrike/userconfig.cfg -> server/config/userconfig.cfg
 #   /opt/cs16/update-clientcfg.sh       -> server/update-clientcfg.sh
@@ -26,7 +26,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" true || {
 
 mkdir -p "$SERVER_DIR/config"
 
-log "pulling root docker-compose.yml (profile-based, vanilla lives here)..."
+log "pulling root docker-compose.yml (profile-based, cpl lives here)..."
 rsync -tvz "$HOST:$REMOTE_ROOT/docker-compose.yml" "$SERVER_DIR/docker-compose.yml"
 
 for mod in gg dm zp; do

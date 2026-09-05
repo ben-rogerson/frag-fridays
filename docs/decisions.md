@@ -1261,3 +1261,325 @@ which `deploy.sh` never touches, so the compiled `.amxx` goes in by hand.
 The log parsers fold `Name (1)` back to `Name` anyway (standings.py already
 did; the recap parser now does too), because the plugin only helps from the
 moment it ships and the archive is full of already-split sessions.
+
+## The round restart left chat for the war room (2026-09-05)
+
+`chatrestart.amxx` gave every player `!restart`, an unadmin-gated
+`sv_restartround` - deliberately, because sessions run without admins and a
+round can wedge (bots camped, an objective nobody can finish, someone stuck in
+spectate) with nobody able to fix it. A 10-second ticker told anyone who had
+been dead or spectating for two ticks to type it.
+
+Reading the full log history on 2026-09-05 said what it was actually used for.
+Of 90 round restarts, **one player accounted for 57, and 45 of those were
+within a minute of joining**: they were dead, they wanted to spawn, and the
+only verb anyone had ever advertised to them restarted the round for all ten
+people. The nag is what taught it to them.
+
+So the two needs were separated:
+
+- **A player who wants to be back in the game** says `/spawn` (or `/respawn`,
+  added the same day in `frag_dm.sma`). It respawns them alone, and the ticker
+  now names it. Both moved into the plugin that owns the verb, because
+  advertising a command from a plugin that might not be loaded beside it is
+  how a note starts lying: `frag_dm.sma` on the DM five, and a second copy in
+  `gungame.sma` for GunGame, which runs no `frag_dm.sma` at all. `/restart`
+  survives as an alias of `/spawn` in both - the word is in players' fingers,
+  and silence would teach nothing.
+- **A round that genuinely needs resetting for everyone** is the war room's
+  Restart round button (`POST /admin-api/restartround`), one rung below
+  Restart server on the Console panel. Same `sv_restartround 1`, now behind
+  the admin token, so the cost lands with the person who can see the whole
+  server.
+
+`chatrestart.sma` is deleted from all six mod images rather than left
+registered with its command removed: what was left was the ticker, and the
+ticker belongs next to `/spawn`.
+
+A collision goes with it. GunGame's own `!restart` means "reset me to level
+1" (`gungame.sma`, and its `!rules` console text says so), so on gg the two
+plugins had been answering the same word with different things - a level
+reset menu and a server-wide round restart, both at once. That is why gg's
+`/spawn` takes every shape of the word EXCEPT `!restart`: bare, `/` and `.`
+land on the respawn, and the `!` shape stays GunGame's level reset, which is
+the one meaning a player can read for themselves in `!rules`.
+
+Aim Prac got the same three pieces the same day. Its `frag_dm.sma` is an
+older copy (no `split_cmd`, no alias table - it matches whole words), so the
+prefix is stripped for these three verbs only rather than pulling the whole
+normaliser back; the rest of that file staying a version behind is a separate
+tidy-up.
+
+**The last piece is a cvar, not a plugin.** `/spawn` deliberately refuses
+anyone not on a team - writing a team segfaults this stack
+(`teambalance.sma`) - so it tells them to press F1/F2 instead, and gg was the
+one mod where the engine refused that: `aim/awp/css/dm/fy` all append
+`mp_limitteams 0` + `mp_autoteambalance 0` to `amxx.cfg` from their
+Dockerfiles, gg appended neither and `gungame.cfg` set `mp_autoteambalance 1`
+back on. Both cvars now live in `gungame.cfg`, which is where they have to be:
+`exec_gg_config_file` runs that file after `amxx.cfg`, so anything the
+Dockerfile appended would have been overwritten. Without it gg's new nag ends
+in a wall - "press F1 or F2" to a player the engine will not let press it.
+
+## Classic split in two: ClassicAl and CPL Tournament (2026-09-05)
+
+Classic was built as a tournament mode and it is a good one - `mp_startmoney
+800`, MR15 halves, no map clock, no bots, `mp_fadetoblack 1`. Every one of
+those numbers is sourced to a league rulebook in
+[classic-rules.md](classic-rules.md), and none of them is wrong.
+
+They are wrong for a Friday. Sessions here run in 30-minute blocks, people
+arrive late, and the mode's three defining rules each work against that: no
+map clock means one map for the whole block, $800 means the first three
+rounds are pistols, and fade to black means a dead player spends most of the
+block looking at nothing. That last one is what actually prompted this - Al
+asked to be able to watch the round finish - and `classic-rules.md` had
+already flagged it as "the rule most likely to read as 'the game is broken'
+to someone who has only played the casual modes".
+
+So the mode split rather than bent:
+
+- **ClassicAl** (`classical`): the same rounds, the match rules off.
+  `mp_fadetoblack 0` / `mp_forcecamera 0` / `mp_forcechasecam 0`,
+  `mp_startmoney 16000` (the engine's ceiling), `mp_timelimit 10` with
+  `mp_maxrounds 0` so a block sees three maps, `mp_freezetime 6`, and
+  `yb_quota 10` so it is never empty. `mp_limitteams 0` is mechanical rather
+  than taste: stock CS blocks joining the larger team, which locks a human
+  out of a bot-filled server. Friendly fire stays on and the teams stay as
+  people pick them - it is still Classic.
+- **CPL Tournament** (`cpl`): the old mode, byte-identical in behaviour,
+  renamed so its name says which of the two it is. The name is the era it
+  copies, and it sits next to a "CPL" column in the rules tables that means
+  the league, so the tables in `classic-rules.md` still say "Classic" with a
+  note at the top explaining the rename rather than being churned.
+
+**ClassicAl is a built mod dir; CPL Tournament is not.** This is the more
+interesting half. Classic runs the stock image unbuilt, which is why it has
+no `teambalance` (its half-time swap is ten people rejoining by hand), no
+`ff_rejoin` (a crashed player returns as `Name (1)`), and a pile of
+hand-placed `.amxx` binaries in `/opt/cs16/mods/zp` that no part of `server/`
+syncs - backlog items 16 and 17. Copying that shape for the new mode would
+have copied the problem, so `server/classical/` was built from `server/fy/`
+instead: its own Dockerfile, its own compiled plugins, its cvars baked into
+`amxx.cfg` (which AMXX execs at every map start, unlike `server.cfg`), and
+`PORT 27138`. Backlog item 16 now has a working example of what porting CPL
+Tournament would look like.
+
+It ships **no `frag_dm.amxx`**, which is the one thing to remember when
+copying a mod dir for a round-based mode. That plugin forces instant respawn,
+`mp_freezetime 0` and `mp_timelimit 10` from `plugin_init`, so it would
+overwrite the ruleset on every map. Its absence also means no `/guns` and no
+`/spawn` ticker here, which is correct: nothing respawns.
+
+The rotation is CPL's seven plus `cs_office`, `cs_italy` and `cs_assault` -
+maps no competition pool ever had, and exactly the kind of variety a 30-minute
+block wants. All ten are already in another mod's `mapcycle.txt`, so the
+`valve.zip` keep-list (the union of every rotation) is unchanged and this
+needed no `clientcfg`.
+
+Two things the rename touched that are worth knowing:
+
+- `modOf()` in `server/mcp/src/exec.js` mapped **any** `cs16-*` container to
+  `vanilla`, because the root compose project is the prefix and there was only
+  ever one service in it. It now reads the service name out of the middle
+  segment. Nothing was broken by this before; it would have been the moment a
+  second root-compose profile existed, which is a second reason ClassicAl is a
+  mod dir instead.
+- `data/logs/vanilla/` keeps its name - it is the archive, and the recap
+  parser's `MODES` keeps `"vanilla": "classic"` alongside the new `"cpl"` so
+  old sessions still parse. `/opt/cs16/vanilla/` on the box is dead after the
+  first deploy and has to be removed by hand: `deploy.sh` never deletes a
+  directory it no longer knows about.
+## Decals and blood back on: measured, the "cheap performance win" was not one (2026-09-05)
+
+`userconfig.cfg` shipped `r_decals 0` / `mp_decals 0` in a block labelled cheap
+performance wins. Ben asked for decals back and for blood as high as it goes.
+Both are now on, `r_decals`/`mp_decals` at **4096**, and the four `violence_*`
+cvars pinned at 1.
+
+### Blood was never off, it just had nowhere to land
+
+`violence_ablood`, `violence_hblood`, `violence_agibs`, `violence_hgibs` all
+exist client-side and server-side and all four default to `1` - read back off
+the engine console in the browser, and out of `cvarlist violence` in a
+throwaway container. A symbol dump of the three client wasms finds no other
+gore cvar, so there is no "excess blood" setting to turn on: GoldSrc never had
+one. What there is instead is decals. With `r_decals 0` the server still sends
+every blood effect and the client still draws the spray, but nothing sticks -
+so "decals off" and "blood off" were the same switch, and turning decals on is
+the whole of the fix.
+
+### The two cvars are not redundant, and the naming is a trap
+
+Ben's read was that the client-side `mp_decals` line was dead weight, since
+`server.cfg` records `mp_decals` as absent from the game DLL. Server-side that
+is true. Client-side it is exactly backwards, and the line was carrying the
+whole setting: **the count the engine uses is `min(r_decals, mp_decals)`,
+re-evaluated at every level load.** `mp_decals` is a ceiling. It pulled 1234
+down to 777 across a `changelevel`, and it left 300 alone under a ceiling of
+4096 - it never raises.
+
+Which means the obvious edit - flip `r_decals 0` to `r_decals 4096` and leave
+the other line - would have shipped **no decals at all**, with no warning
+anywhere: `mp_decals 0` clamps it to nothing. It took seven runs to see that,
+and only because a run that set both was compared against runs that set one.
+Both lines now carry the same number and a comment saying why.
+
+The same clamp is what makes a per-player control possible: a saved `r_decals`
+sits under the shipped 4096 ceiling and survives every map change, so the
+settings panel can reduce decals and can never raise them past what the server
+config intends.
+
+### Measurement: client frame rate, not server ping
+
+Decals cost the browser's frame rate, not server CPU, so the server-side ping
+column this repo usually reaches for cannot see this at all. Measured with a
+headed-Chrome joiner (real GPU: ANGLE Metal on an M1 Pro, verified per run -
+Playwright passes `--enable-unsafe-swiftshader` and a software rasteriser would
+have made every number here fiction) against the live server on `fy_pool_day`
+with ten bots, sampling rAF frame intervals for 60s windows.
+
+Protocol per run: `changelevel fy_pool_day` for a clean decal pool, join, then
+spin-and-hold-fire continuously for the whole run so the two windows differ
+only in how much of the map is painted. Two passes, second in reverse order, to
+bracket drift on the laptop rather than compound it.
+
+The after-window - a map that has had five to seven minutes of ten bots and one
+harness client painting it - is the number that matters. fps percentiles, so
+higher is better, and p5 is the stutter a player feels:
+
+| `r_decals` | pass | p50 | p5 | p1 | mean | worst frame |
+|---|---|---|---|---|---|---|
+| 0 (shipped) | 1 | 119 | 40.0 | 24.0 | 83.0 | 58ms |
+| 0 (shipped) | 2 | 59.9 | 29.6 | 17.2 | **54.1** | 92ms |
+| 300 | 1 | 119 | 57.8 | 39.7 | 92.5 | 58ms |
+| 300 | 2 | 119 | 40.7 | 30.0 | 88.8 | 76ms |
+| 4096 | 1 | 108.7 | 39.5 | 29.9 | 72.2 | 50ms |
+| 4096 | 2 | 62.1 | 40.2 | 38.9 | 73.9 | 42ms |
+
+**There is no decal cost to find.** The two runs with decals OFF are 54.1 and
+83.0 mean fps - a 35% spread from the same settings twenty minutes apart - and
+that spread is bigger than any gap between the three settings. Decals off
+produced the single worst window of all six, and the worst single frame (92ms)
+as well. p5, the stutter percentile, sits at 40fps in five of the six windows
+regardless of what `r_decals` says.
+
+So the honest answer to "what do the two values cost" is: nothing this
+instrument can see, at either of them, on this machine. Ben can have the high
+one, and the reason to prefer 4096 over 300 is that it looks better, not that
+it was free - both were.
+
+### Why the numbers are quoted as rAF frame intervals, and not the engine's own fps
+
+The engine's `net_graph` prints its own fps, and it does **not** track the rAF
+cadence: the same run reads 110 fps face-down on the floor and 32 fps looking
+across an open room at two player models. That readout is one instant and it
+moves with what is on screen far more than with anything being tested, so it is
+useless as an A/B - three paired screenshots produced three contradictory
+stories. The 60-second rAF windows (thousands of frames each) are the
+instrument; the screenshots are kept only as visual proof that decals and blood
+render at all.
+
+Two honest caveats on the windows themselves. The "before" window is not a
+clean map: by the time the client has booted, connected and settled, the bots
+have already had roughly two minutes to paint, and at 300 the pool has long
+since saturated. And the "before" window is consistently *worse* than "after"
+in every run, which is the client still warming up rather than decals being
+free - which is another way of saying the first two minutes of a player's
+session are the expensive part, not the decals.
+
+### And a control on the settings page, because one laptop is not every laptop
+
+Every number above came off one M1 Pro. "No measurable cost here" is not the
+same as "no cost on the five-year-old work laptop somebody joins from", and
+decals are the most visible looks-versus-speed dial in the game, so the
+settings page gets a three-chip control: off / some / full, `r_decals` at
+0 / 300 / 4096, defaulting to the shipped 4096.
+
+It works because of the clamp, not in spite of it. `setSavedCvar` writes into
+the localStorage snapshot, the boot replay applies it before `connect`, and the
+shipped `mp_decals 4096` ceiling leaves every one of those values untouched -
+verified end to end, including that 300 survives a `changelevel`. A player can
+turn decals down and never up, which is the right direction for a control whose
+whole point is buying frames back.
+
+`cl_shadows` and `r_dynamic` are the same family and could join it later; they
+are left alone here to keep the diff on a contended file small.
+
+### What has to happen for any of this to reach players
+
+`userconfig.cfg` is baked into valve.zip: `pnpm run clientcfg`, and players
+hard-refresh. Nothing here is server-side, so no mod rebuild and no restart -
+and equally, no amount of `pnpm run rc` will deliver it.
+
+## Digital vibrance: a CSS filter on the canvas, on a slider (2026-09-05)
+
+"Digital vibrance" is an NVIDIA control-panel setting, not a game one. There is
+no cvar for it and there never was - it is a saturation boost the display
+driver applies after the game has finished drawing, and 1.6 players have run it
+at 60-100% since the CPL era because the maps are sand and concrete and so are
+the player models.
+
+The engine draws into a canvas element in a web page here, so the page can do
+the driver's old job: `filter: saturate(N)` on `#canvas`, driven by a
+`--ff-vibrance` custom property that `Vibrance.tsx` writes on the root element.
+Same operation at the same point in the pipeline - on the composited output, on
+the GPU, after the frame is drawn and before it is presented. The engine is
+never told.
+
+**It costs nothing, measured.** In a live match the number is useless: on this
+Mac the display is 120Hz ProMotion, so with vsync on every frame gap quantises
+to 120/n and a one-millisecond difference cannot appear at all; with vsync off
+(`--disable-gpu-vsync --disable-frame-rate-limit`) the game's own variance -
+respawns, bots in view, a round ending, the wasm engine on CPU - swamps it, and
+three runs put filter-on above filter-off about as often as below. So the
+question was asked again with the game taken out of it: a WebGL canvas laid out
+exactly like the engine's (`#canvas`, fixed, 100vw/100vh, 2560x1720 drawing
+buffer), GPU-bound at ~53fps, vsync off, filter-off and filter-on blocks
+interleaved five times. Median frame 18.7ms in every condition - off,
+`saturate(1.2)` and `saturate(1.6)` alike - and the slow tail (fps p5) 51.8 off
+against 52.6 and 52.4 filtered, i.e. the filtered runs were marginally *faster*,
+which is the shape of noise, not of a cost. A compositor colour matrix on a
+surface that is already being composited is free.
+
+**`saturate()`, not a colour matrix.** NVIDIA's dial is a chroma gain in a
+YCbCr-ish space, which is an `feColorMatrix` with Rec.601 luma weights; CSS
+`saturate()` is the same operation with Rec.709 weights. Both were run over a
+real fy_pool_day frame at +20% and differ by a mean of 0.31 of 255 per channel,
+max 6 - invisible, and `saturate()` is one browser-native primitive with no SVG
+filter element to keep alive in the DOM. `contrast()` was tried alongside it and
+dropped: it darkens the corners these maps are already full of, which is the
+opposite of the point. Clipping, the usual charge against naive saturation, does
+not bite at the shipped strength either - 0.49% of that frame already clips at
+off, 0.53% at +20%, and it only reaches 1.55% at the top of the slider.
+
+**A slider, not a fixed default**, for the same reason NVIDIA made it one: it
+depends on the monitor and on taste. 1.0 (off) to 1.8, shown as the boost
+("+20%") rather than the multiplier, because +20% is the number anyone who ever
+opened that control panel already has in their head. Shipped at +20%.
+
+**It is not a cvar, so it does not live in `CONTROLS`.** Everything in that array
+is a cfg line that replays into the engine console on the next boot, and the
+saved-override chips are that diff made visible. A page-level display setting
+replayed there would be an unknown command every session and a chip nobody could
+explain, so it gets its own `ff-vibrance` localStorage key and renders its own
+tile. The tile still shows `tweak--set` when it is off the default; "clear all"
+deliberately does not touch it, because that button clears what the engine will
+be told and this is never told to the engine.
+
+**The filter goes on the canvas ELEMENT, never on a parent.** The lobby overlay,
+the tab scoreboard and the match menu are sibling page elements drawn over the
+canvas, and a filter one level up would saturate those too. Checked, not
+assumed: computed `filter` is `none` on `#root`, `body`, `html`, `.overlay` and
+`.page` with the dial at maximum, and in a live match at `saturate(4)` - far past
+anything the slider offers - the match menu's opaque chrome is pixel-identical to
+the unfiltered shot, zero differing channels over the whole Resume button. Where
+those overlays are deliberately translucent (`.tabscreen__panel` at 0.93 alpha,
+`.pause` at 0.82, both with a backdrop blur) they do show the boosted match
+through them, which is what they are for; at the shipped +20% the filter moves a
+real frame by a mean of 1.64 of 255, so at 93% opacity the scoreboard can pick up
+about a tenth of one level.
+
+Because the rule lives in the stylesheet keyed on `#canvas` rather than as an
+inline style, it also survives anything that replaces the element, and fullscreen
+is requested on the document element, so no fullscreen path can drop it.

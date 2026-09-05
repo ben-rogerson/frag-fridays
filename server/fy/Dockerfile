@@ -76,9 +76,6 @@ RUN cd cstrike/addons/amxmodx/scripting \
 # remote console via compose-mounted command file - see scripting/cmdpipe.sma
 RUN grep -qx 'cmdpipe.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'cmdpipe.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
-# !restart chat command - see scripting/chatrestart.sma
-RUN grep -qx 'chatrestart.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
- || echo 'chatrestart.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 # ff_rebalance / ff_swapteams server commands (cmdpipe-driven) - see scripting/teambalance.sma
 RUN grep -qx 'teambalance.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'teambalance.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini

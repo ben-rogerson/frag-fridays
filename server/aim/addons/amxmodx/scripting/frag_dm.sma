@@ -40,6 +40,9 @@ new g_choice[33];
 // one /guns hint per connection, on first spawn
 new bool:g_hinted[33];
 
+// consecutive 10s ticks a player has spent not alive - see task_nag_dead
+new g_deadTicks[33];
+
 new const g_guns[][] = {
 	"/ak",     "weapon_ak47",
 	"/m4",     "weapon_m4a1",
@@ -97,6 +100,8 @@ public plugin_init()
 	register_clcmd("say", "cmd_say");
 	register_clcmd("say_team", "cmd_say");
 
+	set_task(10.0, "task_nag_dead", _, _, _, "b");
+
 	// DM round shape: no freeze, long rounds. With respawn, teams are never
 	// eliminated; only objective maps (hostages/bomb sites) end the round on
 	// the timer - no-objective maps run one round for the whole map. Short
@@ -112,6 +117,7 @@ public client_putinserver(id)
 {
 	g_choice[id] = -1;
 	g_hinted[id] = false;
+	g_deadTicks[id] = 0;
 }
 
 // client_disconnect, not client_disconnected: the newer forward needs AMXX's
@@ -149,15 +155,52 @@ public event_death()
 
 public task_respawn(taskid)
 {
-	new id = taskid - TASK_RESPAWN;
+	do_respawn(taskid - TASK_RESPAWN);
+}
+
+// Respawn one dead player where they stand in the rotation. Shared by the
+// post-death task and the /spawn chat command; returns false when the player
+// is not in a state that can be respawned (alive, spectating, unassigned,
+// gone).
+bool:do_respawn(id)
+{
 	if (!is_user_connected(id) || is_user_alive(id))
-		return;
+		return false;
 
 	new CsTeams:team = cs_get_user_team(id);
 	if (team != CS_TEAM_T && team != CS_TEAM_CT)
-		return;
+		return false;
 
 	ExecuteHamB(Ham_CS_RoundRespawn, id);
+	return true;
+}
+
+// Stuck players don't know the way out, so a 10s ticker nags anyone who has
+// sat dead or spectating through two consecutive ticks. The two-tick grace
+// keeps normal between-round deaths (instant respawn makes any real death
+// shorter than one tick) from triggering it. Spectators and unassigned
+// players are nagged too, not skipped, and /spawn answers both: it puts a
+// dead player straight back in, and tells anyone who is not on a team which
+// key picks a side.
+//
+// This nag used to name /restart, chatrestart.sma's server-wide round
+// restart, which dragged everyone through sv_restartround so that one person
+// could spawn. The round restart is a war room button now, admin-gated
+// (server/mcp/src/admin.js).
+public task_nag_dead()
+{
+	for (new id = 1; id <= get_maxplayers(); id++)
+	{
+		if (!is_user_connected(id) || is_user_bot(id) || is_user_hltv(id)
+			|| is_user_alive(id))
+		{
+			g_deadTicks[id] = 0;
+			continue;
+		}
+
+		if (++g_deadTicks[id] >= 2)
+			client_print(id, print_chat, "[DM] stuck watching? press Y and type /spawn to get back in");
+	}
 }
 
 // --- one-weapon maps: strip everything else on deploy ------------------------
@@ -361,6 +404,25 @@ public cmd_say(id)
 	read_args(said, charsmax(said));
 	remove_quotes(said);
 	trim(said);
+
+	// /spawn - put a dead player back in the game NOW, the same verb the other
+	// DM mods carry. This file still matches whole words rather than running
+	// them through frag_dm's split_cmd (backlog: aim is a version behind), so
+	// the prefix is stripped here for these three and nothing else. /restart
+	// is one of them because it is what players type - it was chatrestart's
+	// server-wide round restart until that became a war room button, and
+	// silence would teach nothing.
+	new verb[16];
+	copy(verb, charsmax(verb), said);
+	strtolower(verb);
+	new start = (verb[0] == '/' || verb[0] == '!' || verb[0] == '.') ? 1 : 0;
+	if (equal(verb[start], "spawn") || equal(verb[start], "respawn")
+		|| equal(verb[start], "restart"))
+	{
+		if (!do_respawn(id))
+			client_print(id, print_chat, "[DM] /spawn only works while you are dead and on a team - press F1 or F2 to pick a side.");
+		return PLUGIN_CONTINUE;
+	}
 
 	if (equali(said, "/guns") || equali(said, "guns"))
 	{

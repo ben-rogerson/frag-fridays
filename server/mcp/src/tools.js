@@ -188,12 +188,12 @@ export function registerTools(server) {
     {
       title: 'Swap game mod',
       description:
-        'DESTRUCTIVE: swaps the running mod (vanilla/gg/dm/aim/css/fy/awp/zp). DROPS ALL ' +
+        'DESTRUCTIVE: swaps the running mod (cpl/classical/gg/dm/aim/css/fy/awp/zp). DROPS ALL ' +
         'PLAYERS and takes 1-2 minutes (longer on a cold image cache - if the ' +
         'call times out, do NOT retry; check server_status instead). ALWAYS ask ' +
         'the owner before calling this.',
       inputSchema: z.object({
-        mod: z.enum(['vanilla', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']),
+        mod: z.enum(['cpl', 'classical', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']),
         confirm: z.literal(true).describe('Must be true - confirms the owner approved the swap'),
       }),
       annotations: { destructiveHint: true },

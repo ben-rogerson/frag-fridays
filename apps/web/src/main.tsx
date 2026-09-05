@@ -1,6 +1,11 @@
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { applyVibrance } from './Vibrance'
 import './index.css'
+
+// Before the first render, so the canvas is never briefly unfiltered: this
+// writes one custom property on the root element and nothing else.
+applyVibrance()
 
 // The admin panel is a hash route, not a path: the game containers only serve
 // index.html and assets/, so a second HTML entry would never reach the box.

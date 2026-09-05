@@ -11,7 +11,7 @@ HOST="${CS16_HOST:-cs16}"
 name=$(ssh "$HOST" 'docker ps --filter publish=27016 --format "{{.Names}}"' | head -n1)
 [[ -n "$name" ]] || { echo "[votemap] no container on 27016 - server is down" >&2; exit 1; }
 mod=${name%%-*}
-[[ "$mod" == "cs16" ]] && mod=vanilla # root compose names its container cs16-vanilla-1
+if [[ "$mod" == "cs16" ]]; then mod=cpl; fi # root compose names its container cs16-cpl-1
 cycle="server/$mod/mapcycle.txt"
 [[ -f "$cycle" ]] || { echo "[votemap] no mapcycle for running mod '$mod' ($cycle missing)" >&2; exit 1; }
 

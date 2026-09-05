@@ -21,9 +21,10 @@
   --live: #4be381;
   --alert: #ff6b57;
   /* mode signal colours - every game mode broadcasts in its own hue.
-     classic keeps the wallpaper's acid; used raw by the roster rows and
+     cpl keeps the wallpaper's acid; used raw by the roster rows and
      remapped onto --accent by the overlay's data-mode. */
-  --mode-classic: #dce81e;
+  --mode-cpl: #dce81e;
+  --mode-classical: #ff5ce1; /* ClassicAl: the party version of cpl's acid */
   --mode-gungame: #ff9d1e;
   --mode-dm: #ff4d5e;
   --mode-aim: #a86bff;
@@ -60,7 +61,8 @@
   --grid-o: 0.6;
   /* the accent role: data-mode (set from the live info.json mode) remaps
      these, and the whole wallpaper follows - streaks, radar sweep, clock
-     digits, crest, CONNECT chrome. Baseline = classic acid. */
+     digits, crest, CONNECT chrome. Baseline = cpl acid, which is also what
+     an unknown mod falls back to. */
   --accent: var(--acid);
   --accent-hot: var(--acid-hot);
   --accent-deep: #b8c313; /* button gradient base */
@@ -69,6 +71,23 @@
   --accent-rgb: 220 232 30;
   --accent-hot-rgb: 244 255 61;
   --accent-edge-dark-rgb: 122 130 12;
+}
+
+/* ClassicAl: hot magenta - cpl's shape at a party. It is the only mode that
+   deliberately sits next to another on the card, so it gets the loudest hue
+   on it rather than a neighbour of the acid. */
+.overlay[data-mode="classical"],
+.pause[data-mode="classical"],
+.tabscreen[data-mode="classical"],
+.slotclock[data-mode="classical"] {
+  --accent: var(--mode-classical);
+  --accent-hot: #ff8bec;
+  --accent-deep: #d42bb8;
+  --accent-edge-light: #ffc4f5;
+  --accent-edge-dark: #8a1476;
+  --accent-rgb: 255 92 225;
+  --accent-hot-rgb: 255 139 236;
+  --accent-edge-dark-rgb: 138 20 118;
 }
 
 /* GunGame: ember orange - weapon heat, climbing the ladder */
@@ -1327,8 +1346,12 @@
 
 /* each roster row wears its own mode's signal colour when touched or open -
    the colour system taught in miniature, one row per mode */
-.rotation__item[data-mode="classic"] {
-  --row-accent: var(--mode-classic);
+.rotation__item[data-mode="classical"] {
+  --row-accent: var(--mode-classical);
+}
+
+.rotation__item[data-mode="cpl"] {
+  --row-accent: var(--mode-cpl);
 }
 
 .rotation__item[data-mode="gungame"] {
@@ -2532,20 +2555,25 @@ th.standings__num {
 
 .news__body {
   display: grid;
-}
-
-/* a rule between dates, in the rotation rows' vocabulary - the entries stack
-   without one running into the one below. Space is split either side of the
-   line rather than left on the grid gap, so the rule sits centred between
-   the two entries it separates. */
-.news__entry + .news__entry {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid rgba(51, 73, 127, 0.28);
+  gap: 0.85rem;
 }
 
 .news__list {
   grid-template-columns: 1fr;
+  /* the rules do the separating, so the gap goes and the space is split
+     either side of each line instead - that is what centres a rule between
+     the two updates it divides */
+  gap: 0;
+}
+
+/* one update per row, in the rotation rows' vocabulary. Dates are held apart
+   by their heading and the body gap alone: a rule there as well would fence
+   off every group and the panel would read as four tables rather than one
+   list. */
+.news__list li + li {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(51, 73, 127, 0.28);
 }
 
 /* --- your settings ------------------------------------------------------ */
