@@ -19,6 +19,7 @@
 // statusjson.amxx now writes every second with deaths, team and ping.
 import { useEffect, useLayoutEffect, useRef, useState, type FC } from "react";
 import { loadoutsFor, type Loadout } from "./buy";
+import { CartIcon, KIT_ICONS } from "./buyicons";
 import "./tabscreen.css";
 
 // each mod's compose mounts its own /info.json next to the client
@@ -104,8 +105,11 @@ const sideTag = (p: Row) => {
 // row and on every non-bomb map, and neither is a quantity to line up and
 // compare - it is a fact about a person, which belongs beside their name.
 //
-// Words, not glyphs, and the same shape as the side tags: this board has no
-// icon language and one bomb pictogram would have to teach itself. Coloured by
+// Words, not glyphs, and the same shape as the side tags - even now the buy
+// pad below draws its kits. A button can afford a pictogram because its label
+// sits right beside it saying the same thing; a mark wedged into a name would
+// be the only thing carrying its own meaning on the board, and would have to
+// teach itself out of a row six characters wide. Coloured by
 // what the thing does rather than by whose side it is - the C4 in the T colour
 // and the kit in the CT colour is also just true - so that a glance down a
 // classic board finds the carrier without reading a word of it.
@@ -166,12 +170,23 @@ const BuyPad: FC<{
   return (
     <div className="tabscreen__buy" ref={padRef}>
       <div className="tabscreen__buyhead">
+        <CartIcon />
         <span>buy</span>
         <span className="tabscreen__buyhint">click while holding tab</span>
       </div>
+      {/* The one precondition the pad cannot show and the server will not
+          explain. Buying anywhere else is refused in silence, exactly as a
+          mistyped alias is, so a beginner clicking Rifle in the open has no
+          way to tell a dead button from a rule they have not met yet. The
+          cart above is the same mark the game puts in your hud inside a zone,
+          which is what makes this sentence point at something. */}
+      <p className="tabscreen__buynote">
+        buys only land in a buy zone - where this cart shows in your hud
+      </p>
       <div className="tabscreen__kits">
         {kits.map((l) => {
           const lit = flash?.id === l.id;
+          const Icon = KIT_ICONS[l.icon];
           return (
             <button
               type="button"
@@ -187,6 +202,7 @@ const BuyPad: FC<{
                 click(l);
               }}
             >
+              <Icon />
               <span className="tabscreen__kitname">{l.label}</span>
               <span className="tabscreen__kitdetail">{lit ? (flash.ok ? "sent" : "no link") : l.detail}</span>
               <span className="tabscreen__kitprice">${l.price}</span>

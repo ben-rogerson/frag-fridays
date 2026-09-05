@@ -37,6 +37,11 @@
 // still land the gun. Armour is the cheap part and the part you can pick up
 // from the floor.
 
+/** Which mark from buyicons.tsx a kit wears. A name for the drawing, not for
+ *  the weapon: the awp and the scout are one family drawn at two sizes, and
+ *  both rifles share the one rifle. */
+export type KitIcon = "rifle" | "sniper" | "scout" | "smg" | "pistol" | "vest" | "grenade";
+
 export type Loadout = {
   /** stable key, also the React list key */
   id: string;
@@ -47,6 +52,8 @@ export type Loadout = {
   /** roughly what it costs, for the button's corner. Not enforced here - the
    *  server is the only thing that decides whether a purchase happens. */
   price: number;
+  /** the pictogram on the button, resolved through KIT_ICONS */
+  icon: KitIcon;
   /** console commands, in the order they are sent */
   cmds: string[];
   /** T only, CT only, or both. Rifles differ by side; the rest do not. */
@@ -68,6 +75,7 @@ export const LOADOUTS: Loadout[] = [
     label: "Rifle",
     detail: "AK-47, armour, ammo",
     price: 3600,
+    icon: "rifle",
     cmds: ["ak47", ...AMMO, ARMOUR],
     team: "t",
   },
@@ -76,6 +84,7 @@ export const LOADOUTS: Loadout[] = [
     label: "Rifle",
     detail: "M4A1, armour, ammo",
     price: 4000,
+    icon: "rifle",
     cmds: ["m4a1", ...AMMO, ARMOUR],
     team: "ct",
   },
@@ -84,6 +93,7 @@ export const LOADOUTS: Loadout[] = [
     label: "AWP",
     detail: "sniper, armour, ammo",
     price: 5700,
+    icon: "sniper",
     cmds: ["awp", ...AMMO, ARMOUR],
   },
   {
@@ -91,6 +101,7 @@ export const LOADOUTS: Loadout[] = [
     label: "SMG",
     detail: "MP5, armour, ammo",
     price: 2150,
+    icon: "smg",
     cmds: ["mp5", ...AMMO, ARMOUR],
   },
   {
@@ -98,6 +109,7 @@ export const LOADOUTS: Loadout[] = [
     label: "Scout",
     detail: "cheap sniper, armour",
     price: 3350,
+    icon: "scout",
     cmds: ["scout", ...AMMO, ARMOUR],
   },
   {
@@ -105,6 +117,7 @@ export const LOADOUTS: Loadout[] = [
     label: "Pistol round",
     detail: "Deagle, armour",
     price: 1650,
+    icon: "pistol",
     cmds: ["deagle", ...AMMO, ARMOUR],
   },
   {
@@ -112,6 +125,7 @@ export const LOADOUTS: Loadout[] = [
     label: "Armour",
     detail: "vest and helmet",
     price: 1000,
+    icon: "vest",
     cmds: [ARMOUR],
   },
   {
@@ -119,6 +133,7 @@ export const LOADOUTS: Loadout[] = [
     label: "Grenade",
     detail: "one HE",
     price: 300,
+    icon: "grenade",
     cmds: ["hegren"],
   },
 ];

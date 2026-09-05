@@ -684,13 +684,24 @@
 .tabscreen__buyhead {
   display: flex;
   align-items: baseline;
-  gap: 0.7em;
-  margin-bottom: 0.6em;
+  gap: 0.5em;
+  margin-bottom: 0.3em;
   font-size: 0.8em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--text-mute);
+}
+
+/* The cart that heads the pad and is pointed at by the note under it. Baseline
+   alignment is what the rest of this row wants, and an svg's baseline is its
+   bottom edge, so it centres itself out of the flow instead. */
+.tabscreen__cart {
+  align-self: center;
+  flex: none;
+  width: 1.3em;
+  height: 1.3em;
+  color: var(--accent, var(--acid));
 }
 
 /* the pad is new furniture on a key people already know, so it says what it
@@ -702,20 +713,33 @@
   color: var(--text-faint);
 }
 
+/* The buy-zone rule. Sits between the head and the buttons rather than under
+   them: it is a precondition for every click below it, and a footnote under a
+   grid of buttons is read after the click that failed, which is too late. */
+.tabscreen__buynote {
+  margin: 0 0 0.6em;
+  font-size: 0.76em;
+  line-height: 1.35;
+  color: var(--text-faint);
+}
+
 /* auto-fit rather than a fixed column count: the kit list is 7 wide for a
    player with a side and 6 without, and the panel itself is fluid, so the
    only rule that holds at every size is "as many as fit at a legible width". */
 .tabscreen__kits {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7.5em, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8em, 1fr));
   gap: 0.4em;
 }
 
 .tabscreen__kit {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.1em 0.5em;
-  padding: 0.5em 0.6em;
+  /* so the price can stand down when the button gets tight - see below */
+  container-type: inline-size;
+  /* mark, then the words, then the price in the corner */
+  grid-template-columns: auto 1fr auto;
+  gap: 0.1em 0.4em;
+  padding: 0.5em 0.5em;
   border: 1px solid var(--bevel-dark);
   border-radius: 2px;
   background: rgb(255 255 255 / 0.04);
@@ -731,6 +755,36 @@
 
 .tabscreen__kit:hover {
   border-color: var(--accent, var(--acid));
+}
+
+/* The mark sits on the NAME's row only, not down the side of both, so the
+   detail line underneath keeps the full width of the button - on a pad held
+   to one row the detail is the text with the least room to give. Quiet by
+   default -
+   the label is what identifies the kit and the mark is what finds it again -
+   and it takes the accent on hover with the border, which is the cheapest way
+   to make a button that is mostly text feel like it is under the cursor. */
+.tabscreen__kiticon {
+  grid-row: 1;
+  grid-column: 1;
+  align-self: center;
+  /* Small, because the kits stay on ONE row and the row is the constraint:
+     every pixel the mark takes comes off the name beside it. 1.35em is where
+     it is still a readable drawing and every label but "Pistol round" - which
+     ellipsised here before there were any marks at all - still fits whole. */
+  width: 1.35em;
+  height: 1.35em;
+  color: var(--text-mute);
+  transition: color 120ms ease;
+}
+
+.tabscreen__kit:hover .tabscreen__kiticon,
+.tabscreen__kit.is-sent .tabscreen__kiticon {
+  color: var(--accent, var(--acid));
+}
+
+.tabscreen__kit.is-dead .tabscreen__kiticon {
+  color: var(--team-t);
 }
 
 /* The click landed and the commands went down the wire. NOT "you bought it" -
@@ -778,7 +832,7 @@
    ellipsising "sniper, armour, ammo" down to "sniper, armour, ...". */
 .tabscreen__kitprice {
   grid-row: 1;
-  grid-column: 2;
+  grid-column: 3;
   align-self: start;
   font-size: 0.74em;
   color: var(--text-faint);
@@ -786,7 +840,7 @@
 }
 
 .tabscreen__kitname {
-  grid-column: 1;
+  grid-column: 2;
 }
 
 /* full width, and min-width 0 so the ellipsis works inside a grid track
@@ -794,4 +848,43 @@
 .tabscreen__kitdetail {
   grid-column: 1 / -1;
   min-width: 0;
+}
+
+/* The kits hold to ONE row at every width, so when the panel narrows it is the
+   buttons that pay, and something inside them has to move. The price moves.
+
+   Not disappears - MEASURED, a side always has seven kits, and seven buttons
+   in this panel are under the threshold at every window size we can produce
+   (the panel is a fixed ratio of the type unit, ~60em, so the button never
+   gets wider than about 8.5em of its own text). Hiding the price there hides
+   it from every player who has picked a side, which is everyone: the pad's
+   whole first purpose is telling a beginner what they can afford.
+
+   So it drops to the end of the detail line instead, where it costs the one
+   piece of text that is already ellipsising at these widths and nothing else.
+   The name keeps the room the mark took off it, and "Pistol round" goes back
+   to being the only label that ever clips - which it was before there were
+   any marks. The width is the button's CONTENT box, which is what
+   container-type: inline-size measures. */
+@container (max-width: 7.5em) {
+  .tabscreen__kitprice {
+    grid-row: 2;
+    align-self: end;
+  }
+
+  /* the name has to SPAN the price's column, not just sit beside an empty
+     one: a grid column keeps its width on every row whether or not this row
+     put anything in it, so without this the price moves down and the name
+     gains nothing at all */
+  .tabscreen__kitname {
+    grid-column: 2 / -1;
+  }
+
+  /* row 2 explicitly: placing the price there moves the auto-placement
+     cursor past it, and the detail would otherwise land on a third row and
+     make this button taller than its neighbours */
+  .tabscreen__kitdetail {
+    grid-row: 2;
+    grid-column: 1 / 3;
+  }
 }

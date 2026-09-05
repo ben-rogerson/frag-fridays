@@ -1789,3 +1789,70 @@ what is true. Only when the list is actually overflowing - the class is set
 from the same layout effect that pins the scroll to the newest line, and
 re-checked on resize, because a fade over the first line of a short
 conversation would dim a line that is hiding nothing.
+
+## The buy pad's kits wear pictograms, and the head wears the buy-zone cart (2026-09-05)
+
+Each button on the tab screen's buy pad now carries a small line drawing of
+what it sells - rifle, sniper, scout, smg, pistol, vest, grenade - and the
+"BUY" heading carries a shopping cart.
+
+**Because a pad is scanned, not read.** The pad exists for the player who is
+dead in four seconds and wants the AK now; six buttons of near-identical
+two-line text are six things to read before the click. A mark is found in
+peripheral vision and remembered by shape, which is the whole job here. The
+words stay: every kit still says its name, its contents and its price, so the
+mark is a second way in rather than the only one.
+
+**The scout is the awp's mark drawn smaller and shorter**, deliberately, and
+the two rifles share one mark. They are the same weapon class and "the cheaper
+lighter version of that one" is the useful thing to say; drawing seven strictly
+distinct guns at 26px would produce seven equally illegible ones.
+
+**Same hand as the mode emblems** - 40x40 box, no fill, one currentColor
+stroke at 2.5 - with round caps and joins added, because these marks carry more
+detail at half the size and a mitred corner at that scale is a spike.
+
+**The cart is the pad pointing at the other screen.** It heads the pad and is
+named by the line under it: *buys only land in a buy zone - where this cart
+shows in your hud*. That sentence is the one precondition the pad cannot show
+and the server will not explain - buying outside a zone is refused in silence,
+exactly as a mistyped alias is, so a beginner clicking Rifle in the open had no
+way to tell a dead button from a rule nobody had told them. It sits above the
+buttons, not under them, because a footnote under a grid of buttons is read
+after the click that failed.
+
+**The kits still hold to one row, and the price steps down a line to pay for
+the marks.** A mark costs a button about 1.5em, which came straight off the
+names: "Armour" and "Grenade" started ellipsising on a pad that had only ever
+clipped "Pistol round". Widening the columns fixed that but wrapped the kits
+onto a second row, which is worse - the pad is a strip of controls and a strip
+is read in one pass. So the columns stayed narrow (8em) and a container query
+re-lays the button under 7.5em of content: the price leaves the name's row for
+the end of the detail line, and the name spans the column it vacated.
+
+**The price moves rather than disappears, because "narrow" here means
+"always".** A player on a side gets seven kits, and seven buttons in this panel
+are under the threshold at every window size - the panel is a fixed ratio of
+the fluid type unit (~60em), so the button never outgrows about 8.5em of its
+own text. Hiding the price there would hide it from everyone who has picked a
+side, which is everyone, and telling a beginner what they can afford is the
+pad's first purpose. Sending it down a line costs the detail text instead,
+which is already ellipsising at those widths.
+
+Measured with seven kits on an 864px panel: one row, every button the same
+height, prices on every button, and "Pistol round" the only label that clips -
+which is what clipped before there were any marks. Two ordering traps found on
+the way, both written into the css: the query has to sit AFTER the rules it
+overrides (same specificity, later wins), and the detail line has to be pinned
+to row 2 explicitly, because placing the price there moves grid auto-placement
+past it and the detail lands on a third row.
+
+The mark sits on the name's row rather than down the side of both rows, so the
+detail line keeps the full width of the button. On a pad held to one row the
+detail is the text with the least room to give.
+
+**This amends the entry above it.** "The board has no icon language" was true
+when the C4 and kit tags were written and is not now - but those tags stay
+words. A button can afford a pictogram because its own label sits beside it
+saying the same thing; a mark wedged into a name on the board would be the only
+thing on the row carrying its own meaning, out of six characters of space.
