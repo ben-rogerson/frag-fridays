@@ -215,7 +215,8 @@ throwaway container on 2026-09-04 - each printed `Unknown command` at boot and
 - **`mp_autocrosshair`** - `cvarlist mp_auto` returns only `mp_autokick`,
   `mp_autokick_timeout` and `mp_autoteambalance`.
 - **`mp_decals`** - the per-client decal cap. `decalfrequency` is an engine
-  cvar and does exist.
+  cvar and does exist. Server-side only: `mp_decals` is a real CLIENT cvar on
+  this build and `userconfig.cfg` sets it (2026-09-05, see troubleshooting).
 - **`sv_proxies`** - the HLTV proxy allowance, moot anyway on a WebRTC-only
   server with no A2S or rcon netchannel.
 

@@ -1390,3 +1390,125 @@ Two things the rename touched that are worth knowing:
   old sessions still parse. `/opt/cs16/vanilla/` on the box is dead after the
   first deploy and has to be removed by hand: `deploy.sh` never deletes a
   directory it no longer knows about.
+## Decals and blood back on: measured, the "cheap performance win" was not one (2026-09-05)
+
+`userconfig.cfg` shipped `r_decals 0` / `mp_decals 0` in a block labelled cheap
+performance wins. Ben asked for decals back and for blood as high as it goes.
+Both are now on, `r_decals`/`mp_decals` at **4096**, and the four `violence_*`
+cvars pinned at 1.
+
+### Blood was never off, it just had nowhere to land
+
+`violence_ablood`, `violence_hblood`, `violence_agibs`, `violence_hgibs` all
+exist client-side and server-side and all four default to `1` - read back off
+the engine console in the browser, and out of `cvarlist violence` in a
+throwaway container. A symbol dump of the three client wasms finds no other
+gore cvar, so there is no "excess blood" setting to turn on: GoldSrc never had
+one. What there is instead is decals. With `r_decals 0` the server still sends
+every blood effect and the client still draws the spray, but nothing sticks -
+so "decals off" and "blood off" were the same switch, and turning decals on is
+the whole of the fix.
+
+### The two cvars are not redundant, and the naming is a trap
+
+Ben's read was that the client-side `mp_decals` line was dead weight, since
+`server.cfg` records `mp_decals` as absent from the game DLL. Server-side that
+is true. Client-side it is exactly backwards, and the line was carrying the
+whole setting: **the count the engine uses is `min(r_decals, mp_decals)`,
+re-evaluated at every level load.** `mp_decals` is a ceiling. It pulled 1234
+down to 777 across a `changelevel`, and it left 300 alone under a ceiling of
+4096 - it never raises.
+
+Which means the obvious edit - flip `r_decals 0` to `r_decals 4096` and leave
+the other line - would have shipped **no decals at all**, with no warning
+anywhere: `mp_decals 0` clamps it to nothing. It took seven runs to see that,
+and only because a run that set both was compared against runs that set one.
+Both lines now carry the same number and a comment saying why.
+
+The same clamp is what makes a per-player control possible: a saved `r_decals`
+sits under the shipped 4096 ceiling and survives every map change, so the
+settings panel can reduce decals and can never raise them past what the server
+config intends.
+
+### Measurement: client frame rate, not server ping
+
+Decals cost the browser's frame rate, not server CPU, so the server-side ping
+column this repo usually reaches for cannot see this at all. Measured with a
+headed-Chrome joiner (real GPU: ANGLE Metal on an M1 Pro, verified per run -
+Playwright passes `--enable-unsafe-swiftshader` and a software rasteriser would
+have made every number here fiction) against the live server on `fy_pool_day`
+with ten bots, sampling rAF frame intervals for 60s windows.
+
+Protocol per run: `changelevel fy_pool_day` for a clean decal pool, join, then
+spin-and-hold-fire continuously for the whole run so the two windows differ
+only in how much of the map is painted. Two passes, second in reverse order, to
+bracket drift on the laptop rather than compound it.
+
+The after-window - a map that has had five to seven minutes of ten bots and one
+harness client painting it - is the number that matters. fps percentiles, so
+higher is better, and p5 is the stutter a player feels:
+
+| `r_decals` | pass | p50 | p5 | p1 | mean | worst frame |
+|---|---|---|---|---|---|---|
+| 0 (shipped) | 1 | 119 | 40.0 | 24.0 | 83.0 | 58ms |
+| 0 (shipped) | 2 | 59.9 | 29.6 | 17.2 | **54.1** | 92ms |
+| 300 | 1 | 119 | 57.8 | 39.7 | 92.5 | 58ms |
+| 300 | 2 | 119 | 40.7 | 30.0 | 88.8 | 76ms |
+| 4096 | 1 | 108.7 | 39.5 | 29.9 | 72.2 | 50ms |
+| 4096 | 2 | 62.1 | 40.2 | 38.9 | 73.9 | 42ms |
+
+**There is no decal cost to find.** The two runs with decals OFF are 54.1 and
+83.0 mean fps - a 35% spread from the same settings twenty minutes apart - and
+that spread is bigger than any gap between the three settings. Decals off
+produced the single worst window of all six, and the worst single frame (92ms)
+as well. p5, the stutter percentile, sits at 40fps in five of the six windows
+regardless of what `r_decals` says.
+
+So the honest answer to "what do the two values cost" is: nothing this
+instrument can see, at either of them, on this machine. Ben can have the high
+one, and the reason to prefer 4096 over 300 is that it looks better, not that
+it was free - both were.
+
+### Why the numbers are quoted as rAF frame intervals, and not the engine's own fps
+
+The engine's `net_graph` prints its own fps, and it does **not** track the rAF
+cadence: the same run reads 110 fps face-down on the floor and 32 fps looking
+across an open room at two player models. That readout is one instant and it
+moves with what is on screen far more than with anything being tested, so it is
+useless as an A/B - three paired screenshots produced three contradictory
+stories. The 60-second rAF windows (thousands of frames each) are the
+instrument; the screenshots are kept only as visual proof that decals and blood
+render at all.
+
+Two honest caveats on the windows themselves. The "before" window is not a
+clean map: by the time the client has booted, connected and settled, the bots
+have already had roughly two minutes to paint, and at 300 the pool has long
+since saturated. And the "before" window is consistently *worse* than "after"
+in every run, which is the client still warming up rather than decals being
+free - which is another way of saying the first two minutes of a player's
+session are the expensive part, not the decals.
+
+### And a control on the settings page, because one laptop is not every laptop
+
+Every number above came off one M1 Pro. "No measurable cost here" is not the
+same as "no cost on the five-year-old work laptop somebody joins from", and
+decals are the most visible looks-versus-speed dial in the game, so the
+settings page gets a three-chip control: off / some / full, `r_decals` at
+0 / 300 / 4096, defaulting to the shipped 4096.
+
+It works because of the clamp, not in spite of it. `setSavedCvar` writes into
+the localStorage snapshot, the boot replay applies it before `connect`, and the
+shipped `mp_decals 4096` ceiling leaves every one of those values untouched -
+verified end to end, including that 300 survives a `changelevel`. A player can
+turn decals down and never up, which is the right direction for a control whose
+whole point is buying frames back.
+
+`cl_shadows` and `r_dynamic` are the same family and could join it later; they
+are left alone here to keep the diff on a contended file small.
+
+### What has to happen for any of this to reach players
+
+`userconfig.cfg` is baked into valve.zip: `pnpm run clientcfg`, and players
+hard-refresh. Nothing here is server-side, so no mod rebuild and no restart -
+and equally, no amount of `pnpm run rc` will deliver it.
+

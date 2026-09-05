@@ -1072,6 +1072,29 @@ const CONTROLS: Control[] = [
       { value: "2", label: "graph" },
     ],
   },
+  {
+    // Bullet holes and blood splatter. Shipped FULL (r_decals 4096 in
+    // userconfig.cfg) after measuring the cost on fy_pool_day and not finding
+    // one - see docs/decisions.md. This control exists anyway because that
+    // measurement is one M1 Pro, and the laptops people actually join on are
+    // not that.
+    //
+    // Only reduces, and cannot do otherwise: the engine clamps r_decals to
+    // mp_decals at every level load, and userconfig.cfg ships that ceiling at
+    // 4096. A value at or below it survives every map change (verified), and
+    // nothing a player picks here can raise the count past what the server
+    // config intends.
+    cvar: "r_decals",
+    label: "bullet holes",
+    def: "4096",
+    note: "off is the cheapest picture if your machine is struggling - it takes the blood with it",
+    kind: "choice",
+    options: [
+      { value: "0", label: "off" },
+      { value: "300", label: "some" },
+      { value: "4096", label: "full" },
+    ],
+  },
 ];
 
 const CONTROL_BY_CVAR = new Map(CONTROLS.map((c) => [c.cvar, c]));
