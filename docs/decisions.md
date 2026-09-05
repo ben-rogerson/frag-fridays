@@ -1721,3 +1721,26 @@ Next, if it is wanted: the kill feed. That one CAN come off the engine's stdout
 (`launch.ts` already routes every engine line through `noteEngineLine`), or ride
 the same `events` array for structured fields. `hud_deathnotice_time 0` retires
 the engine's version once something draws it.
+
+## The "Welcome to Frag Fridays" banner is off in every mode (2026-09-05)
+
+`imessage.amxx` printed `amx_imessage` centre-screen every `amx_freq_imessage`
+(180) seconds, whether or not a round was live. The line it printed was not
+AMXX's stock plug: the base image carries a hand-written
+`amx_imessage "Welcome to %hostname%"`, and the hostname is "Frag Fridays", so
+what players actually got was **"Welcome to Frag Fridays" across the middle of
+the screen, every three minutes, mid-round**. Every mode's Dockerfile had been
+stripping the AMXX advert (`/^amx_imessage "This server is using/d`) and
+walking straight past this one, because it does not look like an advert in the
+file.
+
+It is now off everywhere: CPL Tournament has its `amx_imessage` commented out
+in the repo's `server/cpl/amxx.cfg` (2026-09-04), and every other mode's
+Dockerfile deletes **every** `amx_imessage` line rather than the one matching
+AMXX's own text. `imessage.amxx` stays loaded; with nothing registered it has
+nothing to print, so this needs no plugin change and reverses by uncommenting.
+
+The rule this is an instance of: **a greeting is for arrival, and there is no
+arrival here.** The loading screen is the welcome, it says the name in 60pt,
+and the player has already read it by the time the map loads. Repeating it over
+the game every three minutes is the server talking during someone else's round.

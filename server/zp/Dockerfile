@@ -3,9 +3,13 @@ FROM yohimik/cs-web-server-metpamx:0.1.3
 COPY addons cstrike/addons
 
 USER root
-# stock amxx.cfg ships AMX Mod X adverts (scrolling HUD line + centre-screen
-# "This server is using AMX Mod X" every 3 min) - strip them
-RUN sed -i '/^amx_scrollmsg /d; /^amx_imessage "This server is using/d' cstrike/addons/amxmodx/configs/amxx.cfg
+# amxx.cfg ships adverts that print over the game: a scrolling HUD line, and
+# centre-screen imessage lines every amx_freq_imessage seconds - AMXX's own
+# "This server is using AMX Mod X" plus a "Welcome to %hostname%" the base
+# image carries. Both imessage lines are a banner across the middle of the
+# screen mid-round, so drop every amx_imessage, not just the AMXX one.
+# imessage.amxx stays loaded; with nothing registered it prints nothing.
+RUN sed -i '/^amx_scrollmsg /d; /^amx_imessage /d' cstrike/addons/amxmodx/configs/amxx.cfg
 RUN chmod +x cstrike/addons/amxmodx/scripting/compile.sh && chmod +x cstrike/addons/amxmodx/scripting/amxxpc && cd cstrike/addons/amxmodx/scripting \
  && ./compile.sh \
  && cp compiled/*.amxx ../plugins/

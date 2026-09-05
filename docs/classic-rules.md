@@ -456,13 +456,14 @@ are counting files.
 
 The repo copy is the box copy **verbatim** as of 2026-09-04 apart from those
 five lines, so nothing AMX Mod X was relying on went missing when the mount
-went over it. Two things in it are not stock AMXX and are kept deliberately:
-the scrolling advert (`amx_scrollmsg`) had already been deleted, and
-`amx_imessage` had been rewritten from the AMX Mod X plug to
-`"Welcome to %hostname%"`, which still prints centre-screen every
-`amx_freq_imessage` (180) seconds - i.e. during a live round. If that turns
-out to be unwanted in a match, deleting the `amx_imessage` line is the whole
-change.
+went over it. Two things in it are not stock AMXX: the scrolling advert
+(`amx_scrollmsg`) had already been deleted, and `amx_imessage` had been
+rewritten from the AMX Mod X plug to `"Welcome to %hostname%"` - which, with
+the hostname being "Frag Fridays", is the "Welcome to Frag Fridays" banner
+that printed centre-screen every `amx_freq_imessage` (180) seconds, during
+live rounds included. Both are now off everywhere: commented out here
+(2026-09-04), and as of 2026-09-05 the other modes' Dockerfiles strip *every*
+`amx_imessage` line from the image copy, not just AMXX's own advert.
 
 `configs/maps.ini` is mounted from the repo for the same reason. It is the
 list `mapchooser` offers in the end-of-map vote, the mod Dockerfiles
