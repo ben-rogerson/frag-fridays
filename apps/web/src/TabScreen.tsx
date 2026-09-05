@@ -43,6 +43,22 @@ export type ServerStatus = {
     team?: number; // 1 = T, 2 = CT, 3 = spectator, 0 = still picking
     ping?: number;
   }[];
+  /** last 20 things said, oldest first. Absent on a box still running a
+   *  pre-0.3.0 statusjson, which is the difference between "no panel" and
+   *  "a panel saying nobody has spoken" - see hasChat below. */
+  chat?: ChatLine[];
+};
+
+export type ChatLine = {
+  /** server-side counter, unique for the life of the map; also the React key */
+  id: number;
+  name: string;
+  text: string;
+  team?: number;
+  /** said while dead, which in 1.6 only other dead players heard */
+  dead?: boolean;
+  /** say_team rather than say */
+  teamOnly?: boolean;
 };
 
 type Row = ServerStatus["players"][number];
@@ -149,6 +165,72 @@ const BuyPad: FC<{
   );
 };
 
+// The chat panel.
+//
+// It exists because chat has nowhere else to go. Measured live 2026-09-05:
+// every kind of say reaches the server and the mod logs it, and none of it
+// comes back out anywhere the player can see - not the HUD, not the engine's
+// stdout, with hud_saytext 1. Death notices do print, chat does not. So this
+// is not a restyling of the engine's chat; on this client it is the only chat
+// there is, and typing still works (Y still opens the engine's say prompt and
+// the message still reaches everyone's server-side log).
+//
+// It sits outside the pages for the same reason the buy pad does: turning to
+// the briefing should not take it away. Read-only, so unlike the pad it does
+// NOT opt back into pointer events - a click here still reaches the canvas
+// and re-locks the mouse.
+//
+// Scrolled to the bottom rather than reversed, because the newest line being
+// nearest the bottom is what every chat anyone has ever used does, and the
+// panel is short enough that the oldest lines are the ones to lose.
+const ChatPanel: FC<{ lines: ChatLine[]; panelRef: React.Ref<HTMLDivElement> }> = ({
+  lines,
+  panelRef,
+}) => {
+  const listRef = useRef<HTMLDivElement>(null);
+  const newest = lines.length ? lines[lines.length - 1].id : 0;
+
+  // Keyed on the newest id, not on the array: the poll hands us a new array
+  // every second whether or not anyone spoke, and there is no reason to touch
+  // the scroll on a tick where nothing was said. This pin IS the whole scroll
+  // behaviour - the overlay is pointer-events: none and the wheel is taken by
+  // the page turn, so the list cannot be scrolled by hand.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [newest]);
+
+  return (
+    <div className="tabscreen__chat" ref={panelRef}>
+      <div className="tabscreen__chathead">
+        <span>chat</span>
+        <span className="tabscreen__chathint">press y to talk</span>
+      </div>
+      <div className="tabscreen__chatlist" ref={listRef}>
+        {lines.length === 0 ? (
+          <p className="tabscreen__chatempty">nothing said yet</p>
+        ) : (
+          lines.map((l) => {
+            const side = l.team === 1 ? "t" : l.team === 2 ? "ct" : null;
+            return (
+              <p className="tabscreen__chatline" key={l.id}>
+                {l.dead && <span className="tabscreen__chatflag">dead</span>}
+                {l.teamOnly && <span className="tabscreen__chatflag">team</span>}
+                <span
+                  className={`tabscreen__chatname${side ? ` tabscreen__chatname--${side}` : ""}`}
+                >
+                  {l.name}
+                </span>
+                <span className="tabscreen__chattext">{l.text}</span>
+              </p>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
 const PAGES = ["scoreboard", "briefing"] as const;
 
 // One wheel notch on a mouse is 100+ deltaY; a trackpad flick is a spray of
@@ -187,6 +269,7 @@ export const TabScreen: FC<TabScreenProps> = ({
   const frameRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const padRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const briefRef = useRef<HTMLDivElement>(null);
   // false = board and briefing stack in one screen; true = they are two pages
@@ -198,6 +281,10 @@ export const TabScreen: FC<TabScreenProps> = ({
   // snaps to whichever page is showing and the two read as separate popups
   // rather than two pages of one screen.
   const [pageH, setPageH] = useState<number | null>(null);
+  // How many times the fit measurement has changed its mind since the frame
+  // last changed size, and what size that was - see the settle guard below.
+  const flips = useRef(0);
+  const lastFrame = useRef(0);
 
   const players = (status?.players ?? []).filter((p) => (p.team ?? 1) !== 3);
   const spectators = (status?.players ?? []).filter((p) => p.team === 3);
@@ -212,6 +299,14 @@ export const TabScreen: FC<TabScreenProps> = ({
   // refuse every one of these. Its presence changes the fit, so the measure
   // below depends on it.
   const hasPad = Boolean(onBuy) && yourTeam !== 3;
+  // The panel is drawn whenever the FEED can carry chat, empty or not, not
+  // whenever somebody has spoken. An empty panel says "this is where chat
+  // lives and nobody has said anything"; one that appears only once a message
+  // arrives is a feature nobody knows exists on a client that shows chat
+  // nowhere else. A box on the old plugin sends no `chat` key at all and gets
+  // no panel, which is the honest answer there - it has nothing to show.
+  const chat = status?.chat;
+  const hasChat = chat !== undefined;
   const bullets = info?.bullets ?? [];
   const hasBrief = Boolean(info?.tagline || bullets.length);
   // A box still running the pre-0.2.0 statusjson sends no team at all. Falling
@@ -265,32 +360,58 @@ export const TabScreen: FC<TabScreenProps> = ({
       // measured - 3em covers its own height plus the gap under it. The
       // panel's border and padding are the other 1.5em.
       const em = parseFloat(getComputedStyle(frame).fontSize) || 14;
-      // The buy pad hangs below the pages and is not part of either, so its
-      // height is chrome as far as the fit is concerned. Measured rather than
-      // allowed for: it is one row of buttons on a wide panel and two on a
-      // narrow one, so a constant here would overflow the panel at exactly
-      // the sizes where there is least room to spare.
+      // The buy pad and the chat panel hang below the pages and are part of
+      // neither, so their height is chrome as far as the fit is concerned.
+      // Measured rather than allowed for: the pad is one row of buttons on a
+      // wide panel and two on a narrow one, and the chat panel's own height
+      // depends on how much was said, so a constant here would overflow the
+      // panel at exactly the sizes where there is least room to spare.
       const chrome =
-        (barRef.current?.offsetHeight ?? 0) + (padRef.current?.offsetHeight ?? 0) + 4.5 * em;
+        (barRef.current?.offsetHeight ?? 0) +
+        (padRef.current?.offsetHeight ?? 0) +
+        (chatRef.current?.offsetHeight ?? 0) +
+        4.5 * em;
       const avail = frame.clientHeight;
       const need = chrome + board.offsetHeight + brief.offsetHeight;
+      // A measurement that is allowed to disagree with itself forever is a
+      // frozen tab, so the count resets only when the frame really changes
+      // size - the one input to this that is not downstream of the answer.
+      if (avail !== lastFrame.current) {
+        lastFrame.current = avail;
+        flips.current = 0;
+      }
+
       // Hysteresis, and it is load-bearing: the two states dress the briefing
       // differently (a divider appears when it is stacked, a heading when it
-      // is a page), so the same content measures a line or two apart in each.
-      // Without a dead band, a window sized exactly on the boundary would page
-      // and un-page forever.
-      setPaged((was) => (was ? need + 3 * em > avail : need > avail));
+      // is a page, and the rules run in two columns stacked and one paged), so
+      // the same content measures differently in each. Without a dead band, a
+      // window sized exactly on the boundary would page and un-page forever.
+      //
+      // The dead band is not enough on its own, and finding that out is what
+      // the chat panel cost: it added ~3.5em of chrome, which put a common
+      // window size onto a boundary where the two dressings differ by more
+      // than the 3em band, and the effect flipped for as long as the tab was
+      // open - no error, no console line, just a renderer at 100% that never
+      // painted. So the band handles the ordinary case and this handles the
+      // bistable one. Landing on paged is the safe end: paging always fits,
+      // because each page is then measured on its own.
+      setPaged((was) => {
+        const next = was ? need + 3 * em > avail : need > avail;
+        if (next === was) return was;
+        return ++flips.current > 4 ? true : next;
+      });
       // the taller page wins the height, never more than there is room for
       setPageH(Math.min(Math.max(board.offsetHeight, brief.offsetHeight), avail - chrome));
     };
     measure();
     const ro = new ResizeObserver(measure);
     if (padRef.current) ro.observe(padRef.current);
+    if (chatRef.current) ro.observe(chatRef.current);
     if (boardRef.current) ro.observe(boardRef.current);
     if (briefRef.current) ro.observe(briefRef.current);
     if (frameRef.current) ro.observe(frameRef.current);
     return () => ro.disconnect();
-  }, [hasBrief, hasPad]);
+  }, [hasBrief, hasPad, hasChat]);
 
   // a screen that stopped having two pages must not be left showing page two
   useEffect(() => {
@@ -464,11 +585,16 @@ export const TabScreen: FC<TabScreenProps> = ({
             </div>
           </div>
 
-          {/* Outside the pages, so turning to the briefing does not take the
-              guns away - the pad is the reason a beginner opened this screen
-              and it should never be a page they have to find. Spectators get
-              nothing to click: there is no side to buy for and the server
-              would refuse every one of these. */}
+          {/* Both of these live outside the pages, so turning to the briefing
+              does not take them away - the pad is the reason a beginner opened
+              this screen and it should never be a page they have to find, and
+              chat is the only place chat appears at all.
+
+              Chat above the pad, because the pad is the one thing here you can
+              click and a control strip belongs at the bottom edge. Spectators
+              get no pad: there is no side to buy for and the server would
+              refuse every one of these. */}
+          {hasChat && <ChatPanel lines={chat!} panelRef={chatRef} />}
           {hasPad && <BuyPad team={yourTeam} onBuy={onBuy!} padRef={padRef} />}
         </div>
       </div>
