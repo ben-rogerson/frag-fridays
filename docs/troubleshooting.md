@@ -1238,3 +1238,31 @@ ssh cs16 '( sleep 100; echo "quit" ) | timeout 140 docker run -i --rm --platform
 (empty = no real segfault has happened) and the live container's
 `RestartCount`. Note `--entrypoint ./xash` is needed at all because
 entrypoint.sh shuffles mapcycle.txt and strips any `+map` you pass.
+
+## CPL Tournament's `status-cpl.json` did not exist on the box
+
+The root compose mounts `./status-cpl.json` over `/xashds/public/status.json`
+for the `cpl` service, because that mode runs the stock image and cannot
+pre-create the file at build the way the mod images do. **The file was not
+there** (found 2026-09-05): the mount was renamed from `status-vanilla.json`
+when Classic split into ClassicAl and CPL Tournament, and nothing renamed the
+file to match.
+
+Docker creates a missing bind-mount source as a **directory**, so the next
+`docker compose --profile cpl up` would have given `statusjson.amxx` a
+directory where its output file should be. `fopen` fails, the plugin writes
+nothing and says nothing, and the symptom is the one that reads as a dead
+server rather than a missing file: the tab screen has no scoreboard, and the
+loading screen's server-browser row - which waits on `/status.json` - never
+fills in. The mod images are immune; only this mode was exposed.
+
+Fixed by creating it empty and mode 666 (`: > status-cpl.json; chmod 666`).
+Empty rather than a copy of `status-vanilla.json` on purpose: the client keeps
+its last good snapshot and skips an unparseable tick, so an empty file costs
+one second, while a seeded copy would have shown the previous mode's roster as
+a plausible frozen scoreboard. 666 because the container runs as uid 1000 and
+the file is root-owned - a 644 copy is silently unwritable, which looks exactly
+like a broken plugin.
+
+If a `status-*.json` is ever a directory on the box, that is this bug: remove
+it, recreate the file 666, and restart the mode.
