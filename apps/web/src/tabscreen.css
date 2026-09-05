@@ -485,6 +485,124 @@
   }
 }
 
+/* --- the chat panel ----------------------------------------------------- */
+
+/* Under the pages, above the buy pad, sharing the pad's recessed treatment so
+   the two read as one lower half of the screen rather than two afterthoughts.
+   Read-only, so unlike the pad it does NOT set pointer-events: auto - a click
+   here passes through to the canvas and re-locks the mouse exactly as a click
+   anywhere else on this overlay does. */
+.tabscreen__chat {
+  /* never squeezed by the flex column - the pages above are the elastic part */
+  flex: none;
+  margin-top: 0.9em;
+  /* same resolved inset as the bar and the pad - see the note on the pad */
+  padding: 0.85em 0.7em 0.9em;
+  border-top: 1px solid rgb(var(--accent-rgb) / 0.22);
+}
+
+/* one rule between chat and the pad, not two: the pad's own top margin would
+   otherwise open a gap inside what is meant to read as a single lower block */
+.tabscreen__chat + .tabscreen__buy {
+  margin-top: 0;
+}
+
+.tabscreen__chathead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  margin-bottom: 0.5em;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+}
+
+/* Chat has no visible input on this client, so the panel has to say where the
+   words come from. Same quiet voice as the buy pad's hint and the page-turn
+   hint above it. */
+.tabscreen__chathint {
+  margin-left: auto;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* A height cap in em, so it scales with the panel's type unit like everything
+   else here, and a cap rather than a fixed height so a quiet server gives its
+   rows back to the board instead of holding open an empty box. Roughly six
+   lines: enough to be a conversation, small enough that chat never pushes the
+   scoreboard - the thing people actually hold Tab for - onto its own page.
+   The overflow is scrolled programmatically (pinned to the newest line); it
+   cannot be dragged, because the overlay takes no pointer events. */
+.tabscreen__chatlist {
+  max-height: 8.4em;
+  overflow-y: auto;
+  scroll-behavior: auto;
+  /* The bar is hidden because it lies: the overlay takes no pointer events,
+     so it cannot be dragged, and a control that does not work is worse than
+     no control. The half-cut line at the top edge is what says there is more
+     above, which is the same thing every chat box in the world says. */
+  scrollbar-width: none;
+}
+
+.tabscreen__chatlist::-webkit-scrollbar {
+  display: none;
+}
+
+.tabscreen__chatline {
+  margin: 0 0 0.15em;
+  font-size: 0.86em;
+  line-height: 1.35;
+  /* a long message wraps rather than cutting: chat is the content, and there
+     is no hover or click here that could reveal the rest of it */
+  overflow-wrap: anywhere;
+}
+
+.tabscreen__chatname {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* 1.6 colours the name by side and leaves the message white, which is the
+   only part of its chat worth keeping: it answers "whose team is this" at a
+   glance, which is most of why you read chat mid-round. */
+.tabscreen__chatname--t {
+  color: var(--team-t);
+}
+.tabscreen__chatname--ct {
+  color: var(--team-ct);
+}
+
+.tabscreen__chatname::after {
+  content: ":";
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.tabscreen__chattext {
+  margin-left: 0.4em;
+  color: var(--text);
+}
+
+/* Same shape as the board's side tags, and for the same reason: a short
+   uppercase word carrying a fact about the row, not part of the sentence. */
+.tabscreen__chatflag {
+  margin-right: 0.4em;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.tabscreen__chatempty {
+  margin: 0;
+  font-size: 0.86em;
+  color: var(--text-faint);
+}
+
 /* --- the buy pad -------------------------------------------------------- */
 
 /* Lives under the pages rather than inside one, so turning to the briefing

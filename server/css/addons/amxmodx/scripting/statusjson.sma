@@ -23,6 +23,24 @@
 // write-then-rename), which means a read landing mid-write gets half a
 // document. The client keeps its last good snapshot and skips the tick; that
 // is the whole handling this needs.
+//
+// CHAT rides the same file, for the tab screen's chat panel, and the reason it
+// comes from the server rather than the client is that the client has nothing
+// to give. Measured live 2026-09-05 against the classical mod with a real
+// browser client: three spectator `say`s, an `amx_psay` and two `amx_say`s all
+// reached the server (they are in the mod's own log) and not one of them
+// appeared in the client - not in the HUD, not on the engine's stdout, with
+// hud_saytext 1 and hud_saytext_time 5. Death notices DO print to stdout, so
+// this is specific to SayText. So there is no client-side stream to intercept
+// and the panel would have nothing to draw; going through the server also
+// means structured fields instead of regexing localised HUD prose.
+//
+// Captured with clcmd hooks on say/say_team, which fire once per message with
+// the sender known, rather than register_message(SayText), which fires once
+// per RECIPIENT (N copies of every line to dedupe) and carries localisation
+// tokens instead of plain text. The trade is that admin `amx_say` and plugin
+// announcements are not client says and so do not appear. That is the right
+// side of the trade for a panel whose job is "what did people say".
 
 #include <amxmodx>
 // cs_get_user_deaths - deaths live on CBasePlayer, not in entvars
@@ -31,14 +49,83 @@
 new g_roundtime;
 new Float:g_roundEnd;
 
+// Rolling window of what has been said. It is the whole history the panel
+// gets: no client-side accumulation, so a player who tabs in mid-session sees
+// the same last-20 as everyone else, and nothing has to survive a reload.
+// Twenty lines is about a screen of the panel and ~2KB on top of a file that
+// is rewritten every second anyway.
+#define CHAT_MAX 20
+#define CHAT_TEXT 128
+
+new g_chatName[CHAT_MAX][32];
+new g_chatText[CHAT_MAX][CHAT_TEXT];
+new g_chatTeam[CHAT_MAX];
+new bool:g_chatDead[CHAT_MAX];
+new bool:g_chatTeamOnly[CHAT_MAX];
+new g_chatId[CHAT_MAX];
+// next slot to write, how many slots hold a message, and the id counter
+new g_chatHead;
+new g_chatCount;
+new g_chatSeq;
+
 public plugin_init()
 {
-	register_plugin("Frag Fridays Status JSON", "0.2.0", "frag-friday");
+	register_plugin("Frag Fridays Status JSON", "0.3.0", "frag-friday");
 
 	g_roundtime = get_cvar_pointer("mp_roundtime");
 	register_logevent("logev_round_start", 2, "1=Round_Start");
 
+	// both return PLUGIN_CONTINUE - this only watches, the server still
+	// broadcasts every one of these exactly as it did before
+	register_clcmd("say", "cmd_say");
+	register_clcmd("say_team", "cmd_say_team");
+
 	set_task(1.0, "task_write", 0, "", 0, "b");
+}
+
+public cmd_say(id)
+{
+	return chat_add(id, false);
+}
+
+public cmd_say_team(id)
+{
+	return chat_add(id, true);
+}
+
+chat_add(id, bool:teamOnly)
+{
+	new text[CHAT_TEXT];
+	read_args(text, charsmax(text));
+	remove_quotes(text);
+	trim(text);
+
+	if (!text[0])
+		return PLUGIN_CONTINUE;
+
+	// Chat COMMANDS are not chat. "/guns" and friends are handled by another
+	// plugin which answers and then swallows the line, so it never reaches
+	// anyone else's screen - putting it in the panel would show a
+	// conversation that did not happen. Both prefixes, because players use
+	// both and the mods answer to both.
+	if (text[0] == '/' || text[0] == '!')
+		return PLUGIN_CONTINUE;
+
+	new slot = g_chatHead;
+	g_chatHead = (g_chatHead + 1) % CHAT_MAX;
+	if (g_chatCount < CHAT_MAX)
+		g_chatCount++;
+
+	get_user_name(id, g_chatName[slot], charsmax(g_chatName[]));
+	copy(g_chatText[slot], charsmax(g_chatText[]), text);
+	g_chatTeam[slot] = get_user_team(id);
+	// 1.6 prefixes dead players' chat, because a dead player talking to the
+	// living would be a different thing entirely; the panel says so too
+	g_chatDead[slot] = !is_user_alive(id);
+	g_chatTeamOnly[slot] = teamOnly;
+	g_chatId[slot] = ++g_chatSeq;
+
+	return PLUGIN_CONTINUE;
 }
 
 public plugin_cfg()
@@ -111,11 +198,30 @@ public task_write()
 			get_user_team(id), ping, is_user_bot(id) ? "true" : "false");
 	}
 
+	// oldest first, so the panel can render the array top to bottom and the
+	// newest line is the one nearest the input you would type into
+	fprintf(fp, "],^"chat^":[");
+
+	for (new i = 0; i < g_chatCount; i++)
+	{
+		new slot = (g_chatHead - g_chatCount + i + CHAT_MAX) % CHAT_MAX;
+		new escName[64], escText[CHAT_TEXT * 2 + 1];
+		json_escape(g_chatName[slot], escName, charsmax(escName));
+		json_escape(g_chatText[slot], escText, charsmax(escText));
+
+		fprintf(fp, "%s{^"id^":%d,^"name^":^"%s^",^"text^":^"%s^",^"team^":%d,^"dead^":%s,^"teamOnly^":%s}",
+			i ? "," : "", g_chatId[slot], escName, escText, g_chatTeam[slot],
+			g_chatDead[slot] ? "true" : "false", g_chatTeamOnly[slot] ? "true" : "false");
+	}
+
 	fprintf(fp, "]}");
 	fclose(fp);
 }
 
 // quotes/backslashes escaped, control chars dropped - enough for player names
+// and for chat text, which is the same problem with a longer buffer: both are
+// arbitrary bytes a player chose, and both land inside a JSON string. Give
+// `dst` room for twice `src` - every character can double.
 stock json_escape(const src[], dst[], len)
 {
 	new j = 0;
