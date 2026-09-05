@@ -18,6 +18,7 @@
 // Data comes from /status.json, the same feed the loading screen polls, which
 // statusjson.amxx now writes every second with deaths, team and ping.
 import { useEffect, useLayoutEffect, useRef, useState, type FC } from "react";
+import { loadoutsFor, type Loadout } from "./buy";
 import "./tabscreen.css";
 
 // each mod's compose mounts its own /info.json next to the client
@@ -74,6 +75,80 @@ const sideTag = (p: Row) => {
   );
 };
 
+// How long a clicked button stays lit. Long enough to register as a response,
+// short enough that a player buying gun then armour does not see the first
+// button still glowing and wonder whether the second one went.
+const FLASH_MS = 900;
+
+// The buy pad. One click per loadout, each one a short chain of console
+// commands sent straight down the player's own connection (see buy.ts).
+//
+// Deliberately stateless for now: it does not know your money, whether you
+// are alive, or whether the buy window is still open, because none of that is
+// on the wire yet - status.json carries no per-player money or buyzone. The
+// server refuses what you cannot afford or are not allowed, silently, exactly
+// as it does when you mistype in the console. So a button here means "ask",
+// not "you got it", and the flash says the ask was sent, nothing more. That
+// is an honest thing to show and it is most of the value: the beginner's
+// problem is not knowing they can afford an AK, it is not finding one.
+//
+// When money and buyzone do land in the feed, the greying and the countdown
+// hang off this component without moving it.
+const BuyPad: FC<{
+  team: number | undefined;
+  onBuy: (cmds: string[]) => boolean;
+  padRef: React.Ref<HTMLDivElement>;
+}> = ({ team, onBuy, padRef }) => {
+  // id of the loadout last clicked, and whether the console took it
+  const [flash, setFlash] = useState<{ id: string; ok: boolean } | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const click = (l: Loadout) => {
+    const ok = onBuy(l.cmds);
+    setFlash({ id: l.id, ok });
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setFlash(null), FLASH_MS);
+  };
+
+  const kits = loadoutsFor(team);
+
+  return (
+    <div className="tabscreen__buy" ref={padRef}>
+      <div className="tabscreen__buyhead">
+        <span>buy</span>
+        <span className="tabscreen__buyhint">click while holding tab</span>
+      </div>
+      <div className="tabscreen__kits">
+        {kits.map((l) => {
+          const lit = flash?.id === l.id;
+          return (
+            <button
+              type="button"
+              key={l.id}
+              className={`tabscreen__kit${lit ? (flash.ok ? " is-sent" : " is-dead") : ""}`}
+              // Pointer, not click: the engine is still running underneath and
+              // the sooner this leaves the browser the better. onPointerDown
+              // also sidesteps the focus ring a real click would leave on a
+              // button inside an overlay that vanishes on keyup.
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                click(l);
+              }}
+            >
+              <span className="tabscreen__kitname">{l.label}</span>
+              <span className="tabscreen__kitdetail">{lit ? (flash.ok ? "sent" : "no link") : l.detail}</span>
+              <span className="tabscreen__kitprice">${l.price}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const PAGES = ["scoreboard", "briefing"] as const;
 
 // One wheel notch on a mouse is 100+ deltaY; a trackpad flick is a spray of
@@ -93,6 +168,10 @@ export type TabScreenProps = {
   you: string;
   /** map time remaining, ticked locally by App between polls */
   mapLeft: number | null;
+  /** Send a loadout's console commands. Returns false when the console was
+   *  not safe to touch, which the pad shows rather than hides. Absent in the
+   *  ?tab= QA view, where there is no engine and the pad is not drawn. */
+  onBuy?: (cmds: string[]) => boolean;
 };
 
 export const TabScreen: FC<TabScreenProps> = ({
@@ -103,9 +182,11 @@ export const TabScreen: FC<TabScreenProps> = ({
   classic,
   you,
   mapLeft,
+  onBuy,
 }) => {
   const frameRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const padRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const briefRef = useRef<HTMLDivElement>(null);
   // false = board and briefing stack in one screen; true = they are two pages
@@ -120,6 +201,17 @@ export const TabScreen: FC<TabScreenProps> = ({
 
   const players = (status?.players ?? []).filter((p) => (p.team ?? 1) !== 3);
   const spectators = (status?.players ?? []).filter((p) => p.team === 3);
+  // Your own side, for picking which rifle the pad offers. Same loose name
+  // match as the row highlight, and the same reasoning applies: getting it
+  // wrong offers a T an M4 (which the server refuses, harmlessly), while
+  // insisting on certainty would leave the pad blank for everyone during the
+  // seconds after joining when it is most wanted. undefined means "no side
+  // known", which loadoutsFor answers with the side-neutral kits.
+  const yourTeam = (status?.players ?? []).find((p) => isYou(p, you))?.team;
+  // Spectators get no pad: there is no side to buy for and the server would
+  // refuse every one of these. Its presence changes the fit, so the measure
+  // below depends on it.
+  const hasPad = Boolean(onBuy) && yourTeam !== 3;
   const bullets = info?.bullets ?? [];
   const hasBrief = Boolean(info?.tagline || bullets.length);
   // A box still running the pre-0.2.0 statusjson sends no team at all. Falling
@@ -173,7 +265,13 @@ export const TabScreen: FC<TabScreenProps> = ({
       // measured - 3em covers its own height plus the gap under it. The
       // panel's border and padding are the other 1.5em.
       const em = parseFloat(getComputedStyle(frame).fontSize) || 14;
-      const chrome = (barRef.current?.offsetHeight ?? 0) + 4.5 * em;
+      // The buy pad hangs below the pages and is not part of either, so its
+      // height is chrome as far as the fit is concerned. Measured rather than
+      // allowed for: it is one row of buttons on a wide panel and two on a
+      // narrow one, so a constant here would overflow the panel at exactly
+      // the sizes where there is least room to spare.
+      const chrome =
+        (barRef.current?.offsetHeight ?? 0) + (padRef.current?.offsetHeight ?? 0) + 4.5 * em;
       const avail = frame.clientHeight;
       const need = chrome + board.offsetHeight + brief.offsetHeight;
       // Hysteresis, and it is load-bearing: the two states dress the briefing
@@ -187,11 +285,12 @@ export const TabScreen: FC<TabScreenProps> = ({
     };
     measure();
     const ro = new ResizeObserver(measure);
+    if (padRef.current) ro.observe(padRef.current);
     if (boardRef.current) ro.observe(boardRef.current);
     if (briefRef.current) ro.observe(briefRef.current);
     if (frameRef.current) ro.observe(frameRef.current);
     return () => ro.disconnect();
-  }, [hasBrief]);
+  }, [hasBrief, hasPad]);
 
   // a screen that stopped having two pages must not be left showing page two
   useEffect(() => {
@@ -364,6 +463,13 @@ export const TabScreen: FC<TabScreenProps> = ({
               )}
             </div>
           </div>
+
+          {/* Outside the pages, so turning to the briefing does not take the
+              guns away - the pad is the reason a beginner opened this screen
+              and it should never be a page they have to find. Spectators get
+              nothing to click: there is no side to buy for and the server
+              would refuse every one of these. */}
+          {hasPad && <BuyPad team={yourTeam} onBuy={onBuy!} padRef={padRef} />}
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   persistSettings,
   removeSavedSetting,
   savedSettings,
+  sendCommand,
   setSavedCvar,
 } from "./launch";
 import type { SavedSetting } from "./launch";
@@ -1316,10 +1317,13 @@ const App: FC = () => {
   // the keymap the menu lists, read from the engine when the menu opens rather
   // than held in state all session: a player can rebind mid-match
   const [keys, setKeys] = useState<{ label: string; keys: string[] }[]>([]);
-  // true for as long as the menu owns the cursor - see the release effect
+  // true for as long as an overlay owns the cursor - see the release effect
   const holdCursorRef = useRef(false);
-  // Tab held down: the session clock rides the scoreboard key
+  // Tab held down: the session clock and the buy pad ride the scoreboard key
   const [tabHeld, setTabHeld] = useState(false);
+  // whether the engine had the mouse when Tab went down, so releasing Tab
+  // gives back what it took and does not grab a cursor that was already free
+  const lockAtTabDownRef = useRef(false);
   // Whether the page got fullscreen when Play asked for it, which is not the
   // same as being fullscreen: Escape drops the page out of it without asking.
   // Resume reads this to know whether to put fullscreen back or leave a
@@ -1437,15 +1441,39 @@ const App: FC = () => {
       if (e.key !== "Tab") return;
       swallow(e);
       // a held key is one state change, not a hundred
-      if (!e.repeat) setTabHeld(true);
+      if (!e.repeat) {
+        // Remember whether the mouse was ours to take before the buy pad
+        // frees it. A player who is already unlocked - windowed, clicked
+        // outside the canvas - did not ask for the game to grab their cursor
+        // just because they glanced at the score, so Tab release must give
+        // back exactly what Tab press took and nothing more.
+        lockAtTabDownRef.current = Boolean(document.pointerLockElement);
+        setTabHeld(true);
+      }
     };
     const up = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       swallow(e);
       setTabHeld(false);
+      // Hand the mouse back here rather than in the hold effect's cleanup,
+      // for the reason `resume` documents: the cleanup has not run at this
+      // point, so its pointerlockchange listener is still live and would
+      // bounce the lock straight back out. Dropping the flag first is what
+      // makes the request stick. A keyup is a user gesture, so the browser
+      // accepts the request the same way it accepts one from a click.
+      if (lockAtTabDownRef.current) {
+        holdCursorRef.current = false;
+        try {
+          canvasRef.current?.requestPointerLock?.();
+        } catch {
+          /* refused - a click on the canvas relocks */
+        }
+      }
     };
     // the keyup that never comes: alt-tab away holding Tab, or the browser
-    // moving focus out of the page on that very press
+    // moving focus out of the page on that very press. No relock on this
+    // path: the page does not have focus, so the request would be refused
+    // anyway, and a player who has alt-tabbed away wants their cursor.
     const clear = () => setTabHeld(false);
     window.addEventListener("keydown", down, true);
     window.addEventListener("keyup", up, true);
@@ -1503,8 +1531,18 @@ const App: FC = () => {
   // Losing the lock any other way - alt-tab, a click outside the canvas -
   // leaves a free cursor over a round that is still running, which is the
   // state this menu exists for, so it opens for those too.
+  //
+  // Not while Tab is held either. The buy pad frees the cursor deliberately
+  // and keeps freeing it for as long as the key is down (see the hold effect),
+  // and every one of those releases is an unlock this handler would otherwise
+  // read as "the player wants the menu". The codeUnlockedAtRef stamp does
+  // suppress each one on its own - the hold goes through the patched
+  // exitPointerLock - but only because they happen to land inside its 600ms
+  // window, which is not something a scoreboard held for ten seconds should
+  // be relying on. Saying so outright is the difference between working and
+  // working by accident.
   useEffect(() => {
-    if (!playing || paused) return;
+    if (!playing || paused || tabHeld) return;
     const onLockChange = () => {
       if (document.pointerLockElement) return;
       // entering or leaving fullscreen drops the lock by itself; that is not
@@ -1515,7 +1553,7 @@ const App: FC = () => {
     };
     document.addEventListener("pointerlockchange", onLockChange);
     return () => document.removeEventListener("pointerlockchange", onLockChange);
-  }, [playing, paused]);
+  }, [playing, paused, tabHeld]);
 
   // Escape frees the cursor, but not for long: the engine asks for it
   // straight back. emscripten's _emscripten_request_pointerlock queues a
@@ -1527,24 +1565,52 @@ const App: FC = () => {
   // something takes it. This still swallows nothing: no preventDefault, no
   // stopPropagation, the engine sees every event it saw before (the attempt
   // that swallowed pointerlockchange is the one that broke mouse look).
+  //
+  // The buy pad needs exactly the same thing for exactly the same reason, so
+  // the condition is "some overlay wants the cursor", not "the menu is open".
+  // A click on a buy button is a user event, which is precisely when
+  // emscripten runs its deferred lock request, so without this the first
+  // click would buy the gun AND take the mouse back mid-purchase.
+  //
+  // The visible cost is a one-frame flicker per click - lock granted, then
+  // released again by the listener below - which the pause menu has always
+  // had and nobody has reported.
+  const cursorFree = paused || (playing && tabHeld);
+
   useEffect(() => {
-    if (!paused) return;
+    if (!cursorFree) return;
     holdCursorRef.current = true;
     const release = () => {
       if (holdCursorRef.current && document.pointerLockElement) document.exitPointerLock?.();
     };
-    release(); // in case the menu opened with the lock still held
+    release(); // in case the overlay opened with the lock still held
     document.addEventListener("pointerlockchange", release);
     return () => {
       holdCursorRef.current = false;
       document.removeEventListener("pointerlockchange", release);
     };
-  }, [paused]);
+  }, [cursorFree]);
 
   useEffect(() => {
     if (!paused) return;
     setKeys(keymapRows(currentBinds(xashRef.current)));
   }, [paused]);
+
+  // The tab screen's buy pad. Every command goes through sendCommand, which
+  // refuses to touch a console whose connection has gone - see the note above
+  // persistSettings in launch.ts. That refusal is the whole reason this
+  // returns a boolean: a dead link is the one case where the player must be
+  // told the ask did not leave the building, because the alternative is them
+  // clicking AK four times into a void while a bot shoots them.
+  //
+  // Sent one at a time and in order. Cmd_ExecuteString is synchronous, so the
+  // chain is already in flight before this returns; there is no queue to
+  // drain and no frame to wait for.
+  const buy = (cmds: string[]): boolean => {
+    let sent = false;
+    for (const cmd of cmds) sent = sendCommand(xashRef.current, cmd) || sent;
+    return sent;
+  };
 
   const resume = () => {
     // drop the hold first: the effect's cleanup has not run yet at this point,
@@ -2638,6 +2704,11 @@ const App: FC = () => {
           classic={classicBoard}
           you={name}
           mapLeft={mapClock}
+          // In the ?tab= QA view there is no engine to sell anything, but the
+          // pad is a whole row of the panel and changes what fits above it, so
+          // it has to be there to lay the screen out against. Its buttons then
+          // report the dead console they honestly have.
+          onBuy={playing ? buy : DEBUG_TAB !== null ? () => false : undefined}
         />
       )}
       {playing && paused && (

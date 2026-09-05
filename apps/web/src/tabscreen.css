@@ -484,3 +484,146 @@
     background: var(--ink-deep);
   }
 }
+
+/* --- the buy pad -------------------------------------------------------- */
+
+/* Lives under the pages rather than inside one, so turning to the briefing
+   does not take the guns away. The panel above it is read-only; this strip is
+   the only thing on the tab screen anyone can click, which is why it is
+   separated by a rule and sits on its own slightly recessed ground - the
+   change in surface is what says "this half is controls".
+
+   THE POINTER. .tabscreen sets pointer-events: none for the whole overlay so a
+   click during a round reaches the canvas and re-locks the mouse. The pad has
+   to opt back in, and only the pad does: everything else on this screen stays
+   click-through exactly as before. */
+.tabscreen__buy {
+  pointer-events: auto;
+  /* Never squeezed by the flex column - the pages above it are the elastic
+     part (flex: 1 1 auto) and the buy row is not. */
+  flex: none;
+  margin-top: 0.9em;
+  /* 0.7em, not the 0.9em the bar and strip use: those set a smaller
+     font-size first, so their 0.9em resolves to ~0.7 of the tab screen's
+     type unit. Matching the resolved value is what lines "BUY" up with the
+     title in the bar; matching the number would push it in too far.
+     The rule stays full-bleed regardless - a border draws on the edge of the
+     padding box, and it is dividing the whole panel, not just this text. */
+  padding: 0.85em 0.7em 0.9em;
+  border-top: 1px solid rgb(var(--accent-rgb) / 0.22);
+}
+
+.tabscreen__buyhead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  margin-bottom: 0.6em;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+}
+
+/* the pad is new furniture on a key people already know, so it says what it
+   wants once, quietly, in the same voice as the page-turn hint above it */
+.tabscreen__buyhint {
+  margin-left: auto;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* auto-fit rather than a fixed column count: the kit list is 7 wide for a
+   player with a side and 6 without, and the panel itself is fluid, so the
+   only rule that holds at every size is "as many as fit at a legible width". */
+.tabscreen__kits {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5em, 1fr));
+  gap: 0.4em;
+}
+
+.tabscreen__kit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.1em 0.5em;
+  padding: 0.5em 0.6em;
+  border: 1px solid var(--bevel-dark);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.04);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* No transition on background: the flash below has to read as instant
+     feedback for a click, and 150ms of easing on a 900ms light is the
+     difference between "it responded" and "something is happening". */
+  transition: border-color 120ms ease;
+}
+
+.tabscreen__kit:hover {
+  border-color: var(--accent, var(--acid));
+}
+
+/* The click landed and the commands went down the wire. NOT "you bought it" -
+   the server decides that and never tells this page (see BuyPad). */
+.tabscreen__kit.is-sent {
+  border-color: var(--accent, var(--acid));
+  background: rgb(var(--accent-rgb, 220 232 30) / 0.18);
+}
+
+/* The console was not safe to touch - dropped, quit, or the engine is gone.
+   Worth its own colour: it is the one state where clicking again will not
+   help, and the player needs to stop and look at the screen. */
+.tabscreen__kit.is-dead {
+  border-color: var(--team-t);
+  background: rgb(228 120 94 / 0.16);
+}
+
+/* One line, always. A label that wrapped made its button a row taller than
+   its neighbours and knocked every detail line in the row out of alignment,
+   which is why the kits are named in one or two words - the ellipsis here is
+   a guard against a future one, not a layout anybody should be relying on. */
+.tabscreen__kitname {
+  font-weight: 700;
+  font-size: 0.94em;
+  letter-spacing: 0.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabscreen__kitdetail {
+  font-size: 0.76em;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sits in the corner rather than on its own row: it is the least important
+   thing on the button - the server is the one enforcing it - and a third row
+   would make the pad taller than the board it hangs off. Only the NAME shares
+   its row; the detail line runs the full width underneath, because it is the
+   part a beginner is actually reading and splitting a column off it was
+   ellipsising "sniper, armour, ammo" down to "sniper, armour, ...". */
+.tabscreen__kitprice {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: start;
+  font-size: 0.74em;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabscreen__kitname {
+  grid-column: 1;
+}
+
+/* full width, and min-width 0 so the ellipsis works inside a grid track
+   instead of the track growing to fit the text */
+.tabscreen__kitdetail {
+  grid-column: 1 / -1;
+  min-width: 0;
+}

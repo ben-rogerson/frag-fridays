@@ -575,7 +575,7 @@ function readCfgFiles(x: Xash3DWebRTC): Record<string, string> {
 export function persistSettings(x: Xash3DWebRTC) {
   // a dead engine still answers ccall, and host_writeconfig on it re-enters
   // the crashed heap - the snapshot is lost either way, so skip it
-  if (!x.em?.FS || x.exited || engineDead || !x.live || x.engineQuiet || !baseline) return;
+  if (!consoleSafe(x) || !x.em?.FS || !baseline) return;
   const out: Record<string, string> = {};
   for (const [name, text] of Object.entries(readCfgFiles(x))) {
     const base = baseline[name] ?? new Map<string, string>();
@@ -605,11 +605,44 @@ export function persistSettings(x: Xash3DWebRTC) {
 export function leaveServer(x: Xash3DWebRTC) {
   // nothing to hand back once the server is already gone, and the console is
   // no longer safe to poke - see the note above persistSettings
-  if (!x.em || x.exited || engineDead || !x.live || x.engineQuiet) return;
+  if (!consoleSafe(x)) return;
   try {
     poke(x, "disconnect");
   } catch {
     /* engine already gone - the timeout will reap the slot */
+  }
+}
+
+// The one condition under which it is safe to put a command into the console,
+// named once because there are now three callers and the cost of getting it
+// subtly wrong at any of them is the crash card. The full argument is above
+// persistSettings; in short, Cmd_ExecuteString frees the previous tokens out
+// of a memory pool that does not outlive the connection, so a command issued
+// after the connection has gone aborts the engine.
+//
+// `x.live` is "server traffic seen and no drop fired"; `x.engineQuiet` is "no
+// usercmds for a second", which is how a deliberate `exit` is caught before
+// the ten-second silence watchdog would notice.
+function consoleSafe(x: Xash3DWebRTC): boolean {
+  return Boolean(x.em) && !x.exited && !engineDead && x.live && !x.engineQuiet;
+}
+
+// Send a player-initiated console command - today the buy buttons on the tab
+// screen (see BuyPad). Returns false when the console was not safe to touch,
+// which the caller shows as the command not having been sent rather than
+// pretending it worked.
+//
+// This is the same path the player's own keyboard takes: the buy aliases live
+// in the server dll, so the engine forwards them as a stringcmd over the
+// usercmd channel that is already carrying their movement. No extra message,
+// no polling, nothing to keep in sync.
+export function sendCommand(x: Xash3DWebRTC | null, cmd: string): boolean {
+  if (!x || !consoleSafe(x)) return false;
+  try {
+    poke(x, cmd);
+    return true;
+  } catch {
+    return false;
   }
 }
 
