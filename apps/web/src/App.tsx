@@ -1041,6 +1041,28 @@ const CONTROLS: Control[] = [
     ],
   },
   {
+    // The gap that opens as you fire, jump and run. cs16-client splits it in
+    // two: xhair_dynamic_move gates whether your stance and speed count (it
+    // defaults to 1 and is left alone), and this cvar is the amount - it
+    // scales BOTH the movement gap and the per-shot kick, so 0 pins the
+    // crosshair still no matter what move says, and 1 is stock 1.6. Shipped 0
+    // (userconfig.cfg): a static crosshair is the competitive default and the
+    // one the rest of the shipped config is built around.
+    //
+    // Not cl_dynamiccrosshair. That is the stock sprite crosshair's switch and
+    // this build draws the code crosshair (xhair_enable 1), so it does nothing
+    // here - checked against the client wasm, both names are in it.
+    cvar: "xhair_dynamic_scale",
+    label: "dynamic crosshair",
+    def: "0",
+    note: "the gap follows your spread as you fire, jump and run - it does not change it",
+    kind: "choice",
+    options: [
+      { value: "0", label: "static" },
+      { value: "1", label: "dynamic" },
+    ],
+  },
+  {
     // The browser canvas draws at native window resolution, so 1.6's stock HUD
     // text is tiny on a laptop screen. Shipping a bigger one for everybody was
     // tried and reverted (userconfig.cfg, 2026-08-21): the vgui-less scoreboard
