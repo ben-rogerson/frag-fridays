@@ -1857,3 +1857,55 @@ when the C4 and kit tags were written and is not now - but those tags stay
 words. A button can afford a pictogram because its own label sits beside it
 saying the same thing; a mark wedged into a name on the board would be the only
 thing on the row carrying its own meaning, out of six characters of space.
+
+## The map pool moves: italy and office out, four customs in (2026-09-05)
+
+`cs_italy` and `cs_office` left every rotation. `de_mirage` (BubkeZ, 2010),
+`de_beishan` (Trempler/seedee) and `de_dust2_2020_se` (seedee's Dust II 2020,
+the `_se` cut) went into every rotation that carries classic maps - gg, dm,
+aim, ClassicAl and **CPL Tournament** - and `css_overpass` (Tatu Eugen)
+went into Source Maps.
+
+Putting the three into CPL Tournament is a deliberate break with
+[classic-rules.md](classic-rules.md): that pool is the era's competition
+rotation and these three are not in it. Lines 1-7 of `server/cpl/mapcycle.txt`
+are still the era pool if a match ever wants only those.
+
+Every previous rotation change moved maps *between* cycles, so the `valve.zip`
+keep-list - the union of every mapcycle - never changed and no `clientcfg` run
+was needed. This one adds four maps that were not on the box at all. It cost
+**235MB -> 308MB** of client payload, most of it two 20MB+ BSPs. That is the
+real price of a custom map here and it is worth checking before adding the
+next one: it is a first-load download for every player.
+
+Three things the four maps needed beyond the mapcycle lines, none of which
+would have failed loudly:
+
+- **YaPB graphs.** No graph means bots that stand still. All four are in the
+  official graph database (`yapb/graph`), which is where the existing 47 came
+  from, so they were copied in verbatim per mod. CPL Tournament runs
+  `yb_quota 0` and gets none.
+
+- **A subdirectory in a skyname.** `de_dust2_2020_se` ships its faces as
+  `gfx/env/de_dust2_2020/Dust2020*.tga` and names the sky
+  `de_dust2_2020/Dust2020`. `update-clientcfg.sh` matched skynames against the
+  file's *basename*, so those six faces matched no keep-list entry and were
+  trimmed out of the payload - a skyless map, with no error anywhere in the
+  build. The rule now strips back to `gfx/env/` instead of to the basename,
+  which handles both shapes. (Watch the quoting in there: that awk program is
+  one single-quoted shell string, and the apostrophe in a comment ended it.
+  `bash -n server/update-clientcfg.sh` catches it.)
+
+- **models/ and sprites/ compose mounts.** Studio models and env_sprites load
+  SERVER-side; css/fy/awp already mounted the trees for their customs, and
+  gg/dm/aim/classical/cpl did not, because until now every map in them was
+  stock CS. `de_beishan` alone carries 22 models and 22 sprites.
+
+All four were boot-tested on the live gg container: each loads, fills to ten
+bots, and logs no `Could not load model ... from disk`. The only errors are
+`No spawn function for "info_overview_point"` / `"info_texlights"`, which are
+compiler entities the engine has never had a spawn function for.
+
+Still missing: none of the four has a 160x120 thumbnail in
+`apps/web/src/assets/maps/`, so they render as the "no map image" tile in the
+map pool on the loading screen.
