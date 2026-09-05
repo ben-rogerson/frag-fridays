@@ -1336,7 +1336,7 @@
 .rotation__emblem {
   display: grid;
   place-items: center;
-  color: var(--text-faint);
+  color: var(--row-accent, var(--text-faint));
 }
 
 .rotation__emblem svg {
@@ -1344,8 +1344,8 @@
   height: 18px;
 }
 
-/* each roster row wears its own mode's signal colour when touched or open -
-   the colour system taught in miniature, one row per mode */
+/* each roster row wears its own mode's signal colour on its emblem, folded
+   or not - the colour system taught in miniature, one row per mode */
 .rotation__item[data-mode="classical"] {
   --row-accent: var(--mode-classical);
 }
@@ -1376,11 +1376,6 @@
 
 .rotation__item[data-mode="awp"] {
   --row-accent: var(--mode-awp);
-}
-
-.rotation__row:hover .rotation__emblem,
-.rotation__item--open .rotation__emblem {
-  color: var(--row-accent, var(--accent));
 }
 
 .rotation__name {
@@ -1439,17 +1434,6 @@
 /* inside a roster row's sheet, the furniture keys to that row's mode */
 .rotation__preview .card__rulelist li::before {
   color: var(--row-accent, var(--accent));
-}
-
-.rotation__item .botbadge {
-  color: var(--row-accent, var(--accent));
-  border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 45%, transparent);
-}
-
-.rotation__item .newbadge {
-  color: var(--ink-deep);
-  background: var(--row-accent, var(--accent));
-  border-color: var(--row-accent, var(--accent));
 }
 
 .rotation__poollabel {

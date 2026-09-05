@@ -2286,9 +2286,7 @@ const App: FC = () => {
                         </span>
                         <span className="rotation__name">
                           {m.name}
-                          {m.fresh && <span className="newbadge">new</span>}
                           {m.tournament && <span className="matchbadge">5v5</span>}
-                          {m.bots && <span className="botbadge">bots</span>}
                         </span>
                         <span className="rotation__blurb">{m.blurb}</span>
                         <span className="rotation__caret" aria-hidden="true">
