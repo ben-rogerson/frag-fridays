@@ -709,6 +709,43 @@ idlers ~5 min after each session wound down. Both of the new triggers are
 safe by construction: a paused-but-alive sim still has its `Spawn Server`
 after any older kill line, and the age-out only fires on an empty server.
 
+## `Aborted(OOM)` is the engine heap, and it is a fixed size (2026-09-05)
+
+    the game engine crashed - RuntimeError: Aborted(OOM). Build with
+    -sASSERTIONS for more info.
+
+`xash.wasm` is built without `-sALLOW_MEMORY_GROWTH`, so its linear memory is
+declared `initial=4096 max=4096` pages and the emscripten glue turns any
+attempt to grow it into `abort("OOM")`. One allocation did not fit; that is
+the whole story. It is NOT a leak - twelve scripted map changes held the
+engine's `memlist` pool total flat at 77-83MB - it is a working set that was
+too close to the ceiling, spread across a fragmented arena.
+
+`launch.ts` now raises that ceiling to 512MB by patching six bytes of the wasm
+memory section before instantiation (see decisions.md for the full argument).
+Two things to know:
+
+- **Check which ceiling a session ran on** before anything else. It is in the
+  crash report as `heapCeiling` (`window.__ffCrash`, also dumped to the console
+  under `[engine fatal]`), and live as
+  `window.__xash.em.HEAPU8.length / 1048576`. 512 means the patch applied; 256
+  means it did not, and the console will have said why with an `[ff]` warning.
+- **After an xash3d-fwgs upgrade, re-check the memory declaration.** The patch
+  looks for one exact byte pattern and refuses to guess:
+
+      wasm-objdump -x apps/web/node_modules/xash3d-fwgs/dist/xash.wasm | grep -i memory
+
+  If that no longer prints `initial=4096 max=4096`, update `HEAP_DECL_OLD` /
+  `ENGINE_HEAP_PAGES` in `launch.ts`. A miss is loud (console warning) and
+  safe (the engine loads its stock binary), but it silently costs the headroom.
+
+To measure the heap against the live server, boot the client, then read the
+engine's own pool accounting - `Cmd_ExecuteString('memlist')` prints
+`total allocated size` and the pool count to `console.log`. `Module._malloc` is
+exposed and its return address is a rough proxy for the top of the arena, but
+only when the heap is compact: right after a map change it lands in a freed
+hole and reads far too low.
+
 ## Engine crashes surface as a native `alert()` that freezes the tab
 
 Reported 2026-08-28 (Windows/Chrome): after being dropped by the server, the

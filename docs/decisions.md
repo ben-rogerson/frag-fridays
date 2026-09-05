@@ -1966,3 +1966,87 @@ them), and that lesson outlives the map.
 
 Pools after both removals: gg 14, dm 13, aim 9, ClassicAl 9, CPL Tournament
 8, Source Maps 6, Fight Yard 5, Sniper unchanged.
+
+## The engine heap was a fixed 256MB, and we ran at two thirds of it (2026-09-05)
+
+Players reported the client dying with
+
+    the game engine crashed - RuntimeError: Aborted(OOM). Build with
+    -sASSERTIONS for more info.
+
+That string is not a mystery once you know where it comes from. `xash.wasm`
+ships built WITHOUT `-sALLOW_MEMORY_GROWTH`, so its linear memory is declared
+`initial=4096 max=4096` pages - a fixed **256MB that can never grow** - and the
+emscripten glue wires the growth path to a bare abort:
+
+    var abortOnCannotGrowMemory = requestedSize => { abort("OOM"); };
+    var _emscripten_resize_heap = requestedSize => { ... abortOnCannotGrowMemory(requestedSize); };
+
+`abort` throws `WebAssembly.RuntimeError("Aborted(OOM). ...")`, launch.ts's
+wasm-trap listener catches it, and the crash card shows it. So every one of
+these crashes is one engine allocation that did not fit. There is no second
+chance after it and nothing the player did wrong.
+
+**How close we were running.** Measured against the live server in a real
+browser client, on `cs_assault` - one of the SMALLEST maps in any rotation -
+just after picking a team: the malloc break was already at **162MB of the
+256MB**, with the engine's own `memlist` reporting 103MB across 267 mempools.
+Under 100MB of headroom on the cheapest map we ship, before a heavy map, a
+full 16-player server or a long session had cost anything.
+
+**It is not a leak.** Twelve scripted map changes (five of them `de_mirage`,
+the heaviest map left in the classic rotations) held the pool total flat at
+77-83MB throughout - a map change does free its map. What moves is the malloc
+arena: probes landed anywhere between 63MB and 142MB depending on which freed
+hole they fell into, i.e. the heap is heavily fragmented, and the live set of
+~80MB is spread across an arena nearly twice that. That is the shape of the
+bug: not runaway growth, but a working set that simply does not fit
+comfortably in 256MB once a heavy map, a full server and fragmentation
+coincide. Which is exactly why it presented as "a few crashes" rather than a
+reproducible one.
+
+(One thing does ratchet, slowly: the pool COUNT went 263 -> 278 over those
+twelve changes, about +1.3 per map change, with the byte total flat. Small,
+but it is the client-side cousin of the server's MAX_MODELS precache leak and
+worth remembering if a long session ever starts crashing late.)
+
+**The fix: raise the ceiling to 512MB.** Nothing in the build hardcodes 256MB.
+Both sides of the check read the memory's ACTUAL size at runtime
+(`getHeapMax = () => HEAPU8.length`, and sbrk compares against
+`__builtin_wasm_memory_size`), and every side module - `filesystem_stdio`,
+`libref_webgl2`, the cs16-client dlls - imports `env.memory` with a MINIMUM
+only. So a bigger declared memory is simply a bigger heap, with no other change
+needed anywhere.
+
+The declaration is six bytes of the wasm memory section, and 8192 pages encodes
+to the same width as 4096 (`0x80 0x40` vs `0x80 0x20`), so it is a pure
+in-place byte swap that moves no other offset in the module. The pattern occurs
+exactly once in `xash.wasm`; the patched module passes `WebAssembly.validate`,
+compiles, and still exports `memory`.
+
+We apply it in `apps/web/src/launch.ts` rather than in the build, because
+`Module.wasmBinary` - if set - is used INSTEAD of the engine's own fetch of
+`xash.wasm`. So we do the one fetch the engine was going to do anyway and hand
+back patched bytes: no extra round trip, no vite plugin, and no patched
+`node_modules` to lose on the next install. If the byte pattern ever stops
+matching (an xash3d-fwgs upgrade), the client warns loudly on the console and
+falls back to letting the engine load the stock binary - the game still runs,
+just at the old ceiling.
+
+512MB and not more: V8 commits wasm pages lazily, so the declaration is an
+address-space reservation rather than 512MB resident, but it is still a number
+the browser has to reserve on whatever machine a player brings. Doubling buys
+~3.7x the headroom we measured (94MB -> 350MB) and leaves the wasm32 ceiling
+far away.
+
+Verified end to end in headless Chrome against the live server: the client
+boots with `HEAPU8.length` = 512MB, connects, plays, and survived those twelve
+map changes without a crash.
+
+Two smaller things went in with it. Every crash report now carries
+`heapCeiling`, because the first question any future `Aborted(OOM)` raises is
+"which ceiling was that session on", and nobody can reconstruct it afterwards.
+And the crash card no longer shows players emscripten's wording - `Aborted(OOM)`
+names a build flag they cannot set, on a build they did not make - it says "the
+engine ran out of memory", which is true and points at the reload that actually
+fixes it. The raw text stays verbatim in the console report.

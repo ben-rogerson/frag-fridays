@@ -11,6 +11,151 @@ export type DownloadProgress = { received: number; total: number | null };
 // where the bytes are coming from, known only once the revalidation answers
 export type ZipSource = "cache" | "network";
 
+// --- THE ENGINE HEAP CEILING -------------------------------------------------
+//
+// xash.wasm ships built WITHOUT -sALLOW_MEMORY_GROWTH, so its linear memory is
+// declared `initial=4096 max=4096` pages - a fixed 256MB that can never grow.
+// The emscripten glue wires the growth path to a bare abort:
+//
+//   var abortOnCannotGrowMemory = requestedSize => { abort("OOM"); };
+//   var _emscripten_resize_heap = requestedSize => { ... abortOnCannotGrowMemory(requestedSize); };
+//
+// and `abort` throws `new WebAssembly.RuntimeError("Aborted(OOM). Build with
+// -sASSERTIONS for more info.")`. That string, verbatim, is the crash players
+// reported on 2026-09-05. It is not a leak report and not a wasm bug: it is one
+// engine allocation that did not fit, and there is no second chance after it.
+//
+// How close we run, measured on the live server in a real browser client on
+// cs_assault (one of the SMALLEST maps in any rotation), just after picking a
+// team: the malloc break was already at 162MB of the 256MB, with the engine's
+// own `memlist` reporting 103MB across 267 mempools. Under 100MB of headroom on
+// the cheapest map we ship, before a heavy map, a map change, or a full server
+// has cost anything. The pool count is the tell - a pool per model - so the
+// working set tracks how much content a map drags in, and de_mirage and
+// css_overpass are several times cs_assault's weight.
+//
+// So: raise the ceiling. Nothing in the build hardcodes 256MB - both sides of
+// the check read the memory's ACTUAL size at runtime (`getHeapMax = () =>
+// HEAPU8.length`, and sbrk compares against `__builtin_wasm_memory_size`), so a
+// bigger declared memory is simply a bigger heap, with no other change needed.
+// The side modules (filesystem_stdio, libref_webgl2, the cs16-client dlls)
+// import `env.memory` with a MINIMUM only, so a larger memory still satisfies
+// every one of them.
+//
+// The declaration is six bytes of the wasm memory section:
+//
+//   05 06 01 01 80 20 80 20
+//   ^  ^  ^  ^  \___/ \___/
+//   |  |  |  |  init  max     (LEB128; 4096 pages = 0x80 0x20)
+//   |  |  |  flags: has-max
+//   |  |  count: 1 memory
+//   |  section length
+//   section id 5 = Memory
+//
+// 8192 pages encodes as 0x80 0x40 - the SAME WIDTH - so this is a pure in-place
+// byte swap that leaves every other offset in the module untouched. Verified:
+// the pattern occurs exactly once in xash.wasm, and the patched module still
+// passes WebAssembly.validate and compiles with `memory` still exported.
+//
+// Why patch here rather than in the build: `Module.wasmBinary`, if set, is used
+// INSTEAD of the engine's own fetch of xash.wasm (see instantiateAsync ->
+// getWasmBinary -> getBinarySync in the generated glue). So we do the one fetch
+// the engine was going to do anyway, hand back patched bytes, and cost the boot
+// nothing. No vite plugin, no patched node_modules to lose on the next install,
+// and the reasoning lives next to the engine notes it belongs with.
+//
+// 512MB and not more: V8 commits wasm pages lazily, so the declaration is an
+// address-space reservation rather than 512MB of resident memory, but it is
+// still a number the browser must be able to reserve up front on whatever
+// machine a player brings. Doubling buys ~3.7x the headroom we measured
+// (94MB -> 350MB) and leaves the wasm32 ceiling far away.
+const WASM_PAGE = 65536;
+const STOCK_HEAP_PAGES = 4096; // what xash3d-fwgs 1.2.2 ships: 256MB
+const ENGINE_HEAP_PAGES = 8192; // what we want instead: 512MB
+
+// LEB128, which is how wasm writes the page counts. Both declarations are
+// built from their page counts rather than written out as literals, so the
+// constants above are the only thing anyone has to edit - and the section
+// length is computed too, since a page count outside the 128..16383 range
+// would encode to a different width and shift it.
+function memorySection(pages: number): number[] {
+  const leb = (n: number) => {
+    const out: number[] = [];
+    do {
+      const byte = n & 0x7f;
+      n >>>= 7;
+      out.push(n ? byte | 0x80 : byte);
+    } while (n);
+    return out;
+  };
+  const limits = [0x01, ...leb(pages), ...leb(pages)]; // flags=has-max, initial, max
+  return [0x05, limits.length + 1, 0x01, ...limits]; // section id, length, one memory
+}
+
+const HEAP_DECL_OLD = memorySection(STOCK_HEAP_PAGES);
+const HEAP_DECL_NEW = memorySection(ENGINE_HEAP_PAGES);
+
+// Set once the engine binary has been prepared, and carried into every crash
+// report: the first question any future OOM raises is "was the ceiling already
+// raised, and to what", and the answer should not depend on anyone remembering
+// which build a player was on.
+let heapCeiling = "unknown";
+
+function findOnce(buf: Uint8Array, pattern: number[]): number {
+  const at = (from: number) => {
+    outer: for (let i = from; i <= buf.length - pattern.length; i++) {
+      for (let j = 0; j < pattern.length; j++) if (buf[i + j] !== pattern[j]) continue outer;
+      return i;
+    }
+    return -1;
+  };
+  const first = at(0);
+  // ambiguity means the bytes are no longer the memory declaration alone, and
+  // patching the wrong copy would corrupt the module - refuse instead
+  return first < 0 || at(first + 1) >= 0 ? -1 : first;
+}
+
+// Fetch xash.wasm and lift its heap ceiling. Never throws: a miss here costs
+// the extra headroom, not the session, so we fall back to letting the engine
+// fetch the stock binary itself. But say so loudly - a silent fall back to
+// 256MB is exactly the kind of quiet regression this stack specialises in, and
+// the next OOM report would be unreadable without knowing which one ran.
+async function patchedEngineBinary(): Promise<ArrayBuffer | undefined> {
+  try {
+    // The swap is in-place, so a wider declaration would silently overwrite
+    // the start of the Global section instead. Only equal widths are safe -
+    // anything else needs the section rewritten, which is not worth building
+    // until some page count actually wants it.
+    if (HEAP_DECL_NEW.length !== HEAP_DECL_OLD.length) {
+      heapCeiling = "256MB (stock - new page count changes the encoding width)";
+      console.warn(
+        `[ff] ${ENGINE_HEAP_PAGES} pages does not encode to the same width as ` +
+          `${STOCK_HEAP_PAGES} - refusing to patch in place. Keep ENGINE_HEAP_PAGES ` +
+          "in 128..16383, or teach patchedEngineBinary to rewrite the section.",
+      );
+      return undefined;
+    }
+    const bytes = new Uint8Array(await (await fetch(xashURL)).arrayBuffer());
+    const at = findOnce(bytes, HEAP_DECL_OLD);
+    if (at < 0) {
+      heapCeiling = "256MB (stock - heap declaration not found)";
+      console.warn(
+        "[ff] xash.wasm memory declaration not found - engine keeps its stock " +
+          "256MB heap. If xash3d-fwgs was upgraded, re-check the memory section " +
+          "(wasm-objdump -x xash.wasm | grep memory) against ENGINE_HEAP_PAGES.",
+      );
+      return undefined;
+    }
+    bytes.set(HEAP_DECL_NEW, at);
+    heapCeiling = `${(ENGINE_HEAP_PAGES * 65536) / 1048576}MB (patched)`;
+    return bytes.buffer as ArrayBuffer;
+  } catch (e) {
+    heapCeiling = "256MB (stock - patch fetch failed)";
+    console.warn("[ff] could not pre-fetch xash.wasm to raise the heap ceiling:", e);
+    return undefined;
+  }
+}
+
 const ZIP_URL = "/valve.zip";
 const ZIP_CACHE = "ff-valve-v1";
 
@@ -178,6 +323,10 @@ function reportFatal(source: string, text: string, stack: string) {
     engineRunning,
     // what the engine was doing on the way in - see noteEngineLine
     log: engineLog.join("\n"),
+    // which engine heap this session was running on - the first thing an
+    // `Aborted(OOM)` report has to establish, and not something anyone can
+    // reconstruct after the fact
+    heapCeiling,
     // a trap in a hidden tab is a frozen-rAF story, not a game one
     hidden: document.hidden,
     sinceLoad: Math.round(performance.now()),
@@ -197,10 +346,21 @@ function reportFatal(source: string, text: string, stack: string) {
   console.groupEnd();
 }
 
+// `RuntimeError: Aborted(OOM). Build with -sASSERTIONS for more info.` is the
+// engine running out of heap (see the ceiling note at the top of this file).
+// Emscripten's wording names a build flag the player cannot set, on a build
+// they did not make, so it reads as gibberish on the crash card - and it hides
+// the one useful fact, which is that a reload genuinely does fix it, because
+// the next session starts from an empty heap. The raw text is kept verbatim in
+// the crash report either way; only the line the player reads is rewritten.
+function playerFacing(text: string): string {
+  return /Aborted\(OOM\)/.test(text) ? "the engine ran out of memory" : text;
+}
+
 function captureEngineFatals(onFatal: (message: string) => void, onEnded: () => void) {
   const fatal = (detail: string) => {
     engineDead = true;
-    onFatal(detail.slice(0, 120) || "the engine stopped");
+    onFatal(playerFacing(detail).slice(0, 120) || "the engine stopped");
   };
 
   window.alert = (message?: unknown) => {
@@ -851,6 +1011,9 @@ export async function launchGame(
   // engine had already closed under us, which only a `quit`/`exit` does
   // quietly - the same ending the silence watchdog reports as 'quit'.
   captureEngineFatals(onFatal, () => onDrop("quit"));
+  // Replaces the fetch the engine would have made, so this is not an extra
+  // round trip - see the heap-ceiling note at the top of this file.
+  const engineBinary = await patchedEngineBinary();
   const x = new Xash3DWebRTC({
     canvas,
     arguments: ["-windowed", "-game", "cstrike"],
@@ -875,6 +1038,8 @@ export async function launchGame(
       dynamicLibraries: ENGINE_LIBRARIES,
       print: noteEngineLine,
       printErr: noteEngineLine,
+      // undefined = let the engine fetch xash.wasm itself, at its stock 256MB
+      ...(engineBinary ? { wasmBinary: engineBinary } : {}),
     },
   });
 
