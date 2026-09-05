@@ -18,10 +18,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* The filter is digital vibrance and it belongs on the canvas ELEMENT, not on
+   any parent: the lobby overlay, the tab scoreboard and the match menu are
+   sibling page elements drawn over the canvas, and a filter one level up would
+   saturate those too. Driven by a custom property (see Vibrance.tsx) so nothing
+   in the React tree has to re-render to change it, and defaulting to `none` so
+   a player who turns it off gets exactly the compositing path we shipped
+   before it existed. */
 #canvas {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
   z-index: 1;
+  filter: var(--ff-vibrance, none);
 }
