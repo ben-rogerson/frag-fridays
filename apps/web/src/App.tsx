@@ -17,6 +17,7 @@ import type { DropKind } from "./webrtc";
 // the tab screen owns the /status.json and /info.json shapes: it is by far
 // their biggest consumer, and it is the reason the feed carries deaths, team
 // and ping at all
+import { keymapRows, type KeyRow } from "./KeyMap";
 import { TabScreen } from "./TabScreen";
 import type { ModeInfo, ServerStatus } from "./TabScreen";
 // A page-level display setting rather than a cvar, so it owns its own storage
@@ -1286,90 +1287,6 @@ const SettingsPanel: FC = () => {
   );
 };
 
-// --- keymap -----------------------------------------------------------------
-// Half the regulars have not played 1.6 since school and cannot remember the
-// keys, so the match menu lists them. The keys are read from the player's OWN
-// binds (see currentBinds), not printed from a table here - a rebind has to
-// show up or the list is worse than nothing.
-//
-// This is the running order of what a player needs, not everything that is
-// bound: the stock config binds ~60 keys and a wall of them teaches nobody.
-// One row can span several commands (move is four, weapons is five) and lists
-// a key for each, in order.
-const KEYMAP: { label: string; cmds: string[] }[] = [
-  { label: "move", cmds: ["+forward", "+moveleft", "+back", "+moveright"] },
-  { label: "jump", cmds: ["+jump"] },
-  { label: "duck", cmds: ["+duck"] },
-  { label: "walk quietly", cmds: ["+speed"] },
-  { label: "fire", cmds: ["+attack"] },
-  { label: "zoom / alt fire", cmds: ["+attack2"] },
-  { label: "reload", cmds: ["+reload"] },
-  { label: "use, plant, defuse", cmds: ["+use"] },
-  { label: "weapons", cmds: ["slot1", "slot2", "slot3", "slot4", "slot5"] },
-  { label: "last weapon", cmds: ["lastinv"] },
-  { label: "drop weapon", cmds: ["drop"] },
-  { label: "buy menu", cmds: ["buy"] },
-  // no scoreboard row here: TAB is unbound at boot and the page draws the
-  // board itself, so there is no bind to read. It is appended below instead.
-  { label: "chat, team chat", cmds: ["messagemode", "messagemode2"] },
-  { label: "radio", cmds: ["radio1", "radio2", "radio3"] },
-  { label: "spray", cmds: ["impulse 201"] },
-  { label: "torch", cmds: ["impulse 100"] },
-  { label: "join t, join ct", cmds: ["jointeam 1", "jointeam 2"] },
-  { label: "spectate", cmds: ["jointeam 6"] },
-  { label: "console", cmds: ["toggleconsole"] },
-];
-
-// Keys the stock config binds a command to SECOND, where the first one is not
-// what anyone reaches for: +attack is on ENTER before MOUSE1, and the arrows
-// shadow WASD. Skipped unless a command has nothing else.
-const AWKWARD_KEYS = new Set(["ENTER", "UPARROW", "DOWNARROW", "LEFTARROW", "RIGHTARROW"]);
-
-// Engine key names a player would not recognise on sight
-const KEYCAPS: Record<string, string> = {
-  MOUSE1: "mouse 1",
-  MOUSE2: "mouse 2",
-  MOUSE3: "mouse 3",
-  MWHEELUP: "wheel up",
-  MWHEELDOWN: "wheel down",
-  UPARROW: "up",
-  DOWNARROW: "down",
-  LEFTARROW: "left",
-  RIGHTARROW: "right",
-  ESCAPE: "esc",
-  RIGHTBRACKET: "]",
-  LEFTBRACKET: "[",
-  SEMICOLON: ";",
-};
-
-// One key per command in the row, ready to render. Rows nothing is bound to
-// drop out entirely - an empty row would just read as a broken menu.
-const keymapRows = (binds: Map<string, string[]>): { label: string; keys: string[] }[] => {
-  // a bind can carry a whole script (userconfig's join binds are
-  // `jointeam 1; joinclass 1`), so the first clause is an alias for it
-  const byCmd = new Map<string, string[]>();
-  for (const [cmd, keys] of binds) {
-    for (const alias of new Set([cmd, cmd.split(";")[0].trim()])) {
-      byCmd.set(alias, [...(byCmd.get(alias) ?? []), ...keys]);
-    }
-  }
-  const rows = KEYMAP.map(({ label, cmds }) => ({
-    label,
-    keys: cmds
-      .map((cmd) => {
-        const keys = byCmd.get(cmd) ?? [];
-        return keys.find((k) => !AWKWARD_KEYS.has(k)) ?? keys[0];
-      })
-      .filter((k): k is string => Boolean(k))
-      .map((k) => KEYCAPS[k] ?? k.toLowerCase()),
-  })).filter((row) => row.keys.length > 0);
-  // ours, not the engine's - the page reads these keys itself. Tab is unbound
-  // in the engine (see launchGame) and Escape was never bound to anything.
-  rows.push({ label: "scoreboard", keys: ["tab"] });
-  rows.push({ label: "this menu", keys: ["esc"] });
-  return rows;
-};
-
 const App: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zipRef = useRef<Uint8Array | null>(null);
@@ -1407,9 +1324,10 @@ const App: FC = () => {
   // the one that swallowed pointerlockchange broke mouse look outright. This
   // handler swallows nothing - see the effect below.
   const [paused, setPaused] = useState(false);
-  // the keymap the menu lists, read from the engine when the menu opens rather
-  // than held in state all session: a player can rebind mid-match
-  const [keys, setKeys] = useState<{ label: string; keys: string[] }[]>([]);
+  // the binds the controls page draws, read from the engine when the tab
+  // screen goes up rather than held in state all session: a player can rebind
+  // mid-match
+  const [keys, setKeys] = useState<KeyRow[]>([]);
   // true for as long as an overlay owns the cursor - see the release effect
   const holdCursorRef = useRef(false);
   // Tab held down: the session clock and the buy pad ride the scoreboard key
@@ -1669,6 +1587,9 @@ const App: FC = () => {
   // released again by the listener below - which the pause menu has always
   // had and nobody has reported.
   const cursorFree = paused || (playing && tabHeld);
+  // the tab screen is up: while Tab is held mid-match, or standing in for it
+  // in the ?tab= QA view over the lobby
+  const showTab = (playing && tabHeld) || DEBUG_TAB !== null;
 
   useEffect(() => {
     if (!cursorFree) return;
@@ -1691,10 +1612,14 @@ const App: FC = () => {
     };
   }, [cursorFree]);
 
+  // Re-read on every Tab press rather than once a session: the controls page
+  // is only worth drawing if a rebind moves the line, and currentBinds is a
+  // read off the in-memory FS - no console, nothing that can fail on a dead
+  // engine (see its note in launch.ts).
   useEffect(() => {
-    if (!paused) return;
+    if (!showTab) return;
     setKeys(keymapRows(currentBinds(xashRef.current)));
-  }, [paused]);
+  }, [showTab]);
 
   // The tab screen's buy pad. Every command goes through sendCommand, which
   // refuses to touch a console whose connection has gone - see the note above
@@ -2791,7 +2716,7 @@ const App: FC = () => {
       {/* The scoreboard. Ours, not the engine's - launchGame unbinds TAB, so
           +showscores never fires and this is the only board in the build. Same
           key, same moment, laid out in CSS so it holds at any resolution. */}
-      {((playing && tabHeld) || DEBUG_TAB !== null) && (
+      {showTab && (
         <TabScreen
           status={serverStatus}
           info={modeInfo}
@@ -2800,6 +2725,7 @@ const App: FC = () => {
           classic={classicBoard}
           you={name}
           mapLeft={mapClock}
+          controls={keys}
           // In the ?tab= QA view there is no engine to sell anything, but the
           // pad is a whole row of the panel and changes what fits above it, so
           // it has to be there to lay the screen out against. Its buttons then
@@ -2826,25 +2752,16 @@ const App: FC = () => {
             <button className="pause__leave" onClick={leaveMatch}>
               leave server
             </button>
-            {keys.length > 0 && (
-              <div className="keymap">
-                <p className="keymap__title">your controls</p>
-                <dl className="keymap__list">
-                  {keys.map((row) => (
-                    <div className="keymap__row" key={row.label}>
-                      <dt className="keymap__keys">
-                        {row.keys.map((k, i) => (
-                          <kbd className="key" key={`${k}-${i}`}>
-                            {k}
-                          </kbd>
-                        ))}
-                      </dt>
-                      <dd className="keymap__label">{row.label}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            )}
+            {/* The controls used to be listed here, and are now drawn on the
+                tab screen (see KeyMap.tsx). This line is what is left of them:
+                the menu is where someone who has forgotten the keys comes
+                looking, and sending them one key away costs nothing, while a
+                second copy of the binds here would be the one that goes
+                stale. */}
+            <p className="pause__note pause__hint">
+              your controls are on the scoreboard - resume, then hold{" "}
+              <kbd className="key">tab</kbd>
+            </p>
           </div>
         </div>
       )}

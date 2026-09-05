@@ -1,0 +1,223 @@
+/* ============================================================
+   The controls page of the tab screen - see KeyMap.tsx.
+   Sized in em off --tsu like the rest of that screen, and the
+   drawing itself is one SVG that scales with the panel, so
+   there is exactly one number here that is not relative.
+   ============================================================ */
+
+.keymap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  /* fills the page, which is the whole of how the drawing is sized: the page
+     is given a height by the panel and the stage below takes what is left */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* What bounds the drawing. The SVG scales to fit inside it (xMidYMid meet),
+   so a short window gets a smaller keyboard rather than a clipped one - the
+   failure this replaced, where the bottom two labels of each column were
+   simply cut off by the panel. */
+.keymap__stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* The one thing on the tab screen besides the buy pad that takes the pointer.
+   Safe for the same reason: the round is running behind it, and a click that
+   lands here is a click the player aimed at a key, not at the game. */
+.keymap__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+/* --- the keys ----------------------------------------------------------- */
+
+/* Three states, and the middle one is the point: a key nobody has a bind on
+   is furniture, a bound key is lit enough that the shape of your own layout
+   reads at a glance, and the one you are pointing at is the only bright thing
+   on the board. */
+.km__key {
+  fill: rgb(255 255 255 / 0.035);
+  stroke: rgb(255 255 255 / 0.08);
+  stroke-width: 1;
+  transition:
+    fill 0.12s ease-out,
+    stroke 0.12s ease-out;
+}
+
+.km__key--bound {
+  fill: rgb(var(--accent-rgb) / 0.11);
+  stroke: rgb(var(--accent-rgb) / 0.32);
+}
+
+.km__key--on {
+  fill: rgb(var(--accent-rgb) / 0.92);
+  stroke: rgb(var(--accent-rgb) / 1);
+}
+
+.km__cap {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--text-faint);
+  pointer-events: none;
+  transition: fill 0.12s ease-out;
+}
+
+.km__cap--small {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.km__cap--bound {
+  fill: var(--text);
+}
+
+/* on the lit cap the accent IS the background, so the glyph goes to the
+   panel navy rather than trying to out-shout it */
+.km__cap--on {
+  fill: #0e1a34;
+}
+
+/* --- the mouse ---------------------------------------------------------- */
+
+.km__shell {
+  fill: rgb(255 255 255 / 0.03);
+}
+
+.km__outline {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.18);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+/* --- the leaders -------------------------------------------------------- */
+
+/* At rest every line is drawn, faintly: that is the map. Point at anything
+   and the rest step back rather than disappear - a line you can still see the
+   ghost of is what makes the one lit line read as one of a set. */
+.km__leads {
+  pointer-events: none;
+}
+
+.km__lead path {
+  fill: none;
+  stroke: rgb(var(--accent-rgb) / 0.9);
+  stroke-width: 1.4;
+  opacity: 0.32;
+  transition: opacity 0.12s ease-out;
+}
+
+.km__lead circle {
+  fill: rgb(var(--accent-rgb) / 0.9);
+  opacity: 0.4;
+  transition: opacity 0.12s ease-out;
+}
+
+.keymap--lit .km__lead path,
+.keymap--lit .km__lead circle {
+  opacity: 0.08;
+}
+
+.keymap--lit .km__lead--on path {
+  opacity: 1;
+  stroke-width: 2;
+}
+
+.keymap--lit .km__lead--on circle {
+  opacity: 1;
+}
+
+/* --- the labels --------------------------------------------------------- */
+
+.km__label {
+  font-size: 19px;
+  fill: var(--text-mute);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: fill 0.12s ease-out;
+}
+
+.keymap--lit .km__label {
+  fill: var(--text-faint);
+}
+
+.km__label--on,
+.keymap--lit .km__label--on {
+  fill: var(--accent, var(--acid));
+  font-weight: 700;
+}
+
+.km__hits rect {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* --- under the board ---------------------------------------------------- */
+
+.keymap__hint {
+  margin: 0;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+/* bound to something the drawing has no cap for */
+.keymap__extra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25em 1.1em;
+  margin: 0.2em 0 0;
+  font-size: 0.8em;
+  color: var(--text-mute);
+}
+
+.keymap__extra div {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.keymap__extra dt,
+.keymap__extra dd {
+  display: flex;
+  gap: 0.2em;
+  margin: 0;
+}
+
+/* the keycap chip, as the Escape menu's list used to draw it */
+.key {
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text);
+  background: #0a1226;
+  border: 1px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  padding: 0.16em 0.34em;
+}
+
+/* the drawing is an image to a screen reader; this is the same binds as text */
+.keymap__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

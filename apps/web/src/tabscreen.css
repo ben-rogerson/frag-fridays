@@ -120,7 +120,10 @@
   color: var(--text);
 }
 
-/* --- page strip (only when the briefing will not fit) ------------------- */
+/* --- page strip --------------------------------------------------------- */
+
+/* Always there now that the controls are a page of their own; before that it
+   appeared only when the briefing would not fit under the board. */
 
 .tabscreen__strip {
   display: flex;
@@ -134,10 +137,23 @@
   letter-spacing: 0.16em;
 }
 
+/* a button, because it is one: the wheel turns the page for the hand already
+   on the mouse, and a click gets there for the hand that is not */
 .tabscreen__tab {
-  color: var(--text-faint);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  background: none;
+  border: 0;
   border-bottom: 2px solid transparent;
-  padding-bottom: 0.35em;
+  padding: 0 0 0.35em;
+  color: var(--text-faint);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.tabscreen__tab:hover {
+  color: var(--text-mute);
 }
 
 .tabscreen__tab--on {
@@ -155,7 +171,7 @@
 
 /* --- pages -------------------------------------------------------------- */
 
-/* Both pages are always in the DOM: the inactive one goes absolute and
+/* Every page is always in the DOM: an inactive one goes absolute and
    invisible rather than unmounting, so its height stays readable and the
    fits/does-not-fit measurement cannot oscillate. Clipped, not scrolled -
    an absolutely positioned child would otherwise add scroll height. */
@@ -170,7 +186,7 @@
   padding: 0.7em 0.9em 0.9em;
 }
 
-.tabscreen--paged .tabscreen__page[data-on="false"] {
+.tabscreen__page[data-on="false"] {
   position: absolute;
   top: 0;
   left: 0;
@@ -179,9 +195,20 @@
   pointer-events: none;
 }
 
+/* The controls fill the pages area rather than being sized by what is on
+   them: the drawing scales to whatever box it is given (see keymap.css), so
+   the page is the box. Absolute in every state, which is also why it is the
+   one page that never joins the fits/does-not-fit measurement. */
+.tabscreen__page.tabscreen__page--controls {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* the page turn: a short lift, so a wheel notch reads as a page arriving
    rather than the panel's contents being swapped underneath */
-.tabscreen--paged .tabscreen__page[data-on="true"] {
+.tabscreen__page[data-on="true"] {
   animation: tabscreen-page 0.16s ease-out;
 }
 
@@ -193,7 +220,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tabscreen--paged .tabscreen__page[data-on="true"] {
+  .tabscreen__page[data-on="true"] {
     animation: none;
   }
 }
@@ -452,7 +479,9 @@
   padding-top: 0.2em;
 }
 
-.tabscreen:not(.tabscreen--paged) .tabscreen__page + .tabscreen__page {
+/* stacked, the briefing runs straight on under the board rather than opening
+   a page's worth of padding between them */
+.tabscreen:not(.tabscreen--paged) .tabscreen__page--brief {
   padding-top: 0;
   margin-top: 0.2em;
 }

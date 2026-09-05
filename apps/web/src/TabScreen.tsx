@@ -20,6 +20,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FC } from "react";
 import { loadoutsFor, type Loadout } from "./buy";
 import { CartIcon, KIT_ICONS } from "./buyicons";
+import { KeyMap, KEYMAP_ASPECT, type KeyRow } from "./KeyMap";
 import "./tabscreen.css";
 
 // each mod's compose mounts its own /info.json next to the client
@@ -295,8 +296,6 @@ const ChatPanel: FC<{ lines: ChatLine[]; panelRef: React.Ref<HTMLDivElement> }> 
   );
 };
 
-const PAGES = ["scoreboard", "briefing"] as const;
-
 // One wheel notch on a mouse is 100+ deltaY; a trackpad flick is a spray of
 // 1-10s. Accumulating to a threshold makes both feel like one page turn.
 const WHEEL_STEP = 40;
@@ -314,6 +313,8 @@ export type TabScreenProps = {
   you: string;
   /** map time remaining, ticked locally by App between polls */
   mapLeft: number | null;
+  /** the player's live binds, drawn on the controls page (see KeyMap.tsx) */
+  controls: KeyRow[];
   /** Send a loadout's console commands. Returns false when the console was
    *  not safe to touch, which the pad shows rather than hides. Absent in the
    *  ?tab= QA view, where there is no engine and the pad is not drawn. */
@@ -328,6 +329,7 @@ export const TabScreen: FC<TabScreenProps> = ({
   classic,
   you,
   mapLeft,
+  controls,
   onBuy,
 }) => {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -373,6 +375,7 @@ export const TabScreen: FC<TabScreenProps> = ({
   const hasChat = chat !== undefined;
   const bullets = info?.bullets ?? [];
   const hasBrief = Boolean(info?.tagline || bullets.length);
+  const hasControls = controls.length > 0;
   // A box still running the pre-0.2.0 statusjson sends no team at all. Falling
   // back to the combined list there beats a team split that would pile every
   // player onto one side and leave the other reading "no players".
@@ -402,19 +405,31 @@ export const TabScreen: FC<TabScreenProps> = ({
   // list already ranks everybody.
   const joining = splitTeams ? players.filter((p) => p.team !== 1 && p.team !== 2) : [];
 
+  // What the strip lists, left to right. The board is always page one and the
+  // controls are always their own page - a keyboard is not a thing that stacks
+  // under a scoreboard at any window size. The briefing is the only page that
+  // comes and goes: it stacks under the board when there is room for it and
+  // becomes page two when there is not, which is what `paged` means and all it
+  // has ever meant.
+  const pages = [
+    "scoreboard",
+    ...(hasBrief && paged ? ["briefing"] : []),
+    ...(hasControls ? ["controls"] : []),
+  ];
+  const ctrlPage = pages.length - 1;
+
   // Does the briefing fit under the board, or does it need its own page?
   //
   // Measured against the frame (viewport minus its padding), never against the
   // panel: the panel's height depends on `paged`, so measuring it would feed
-  // the answer back into the question and oscillate. Both pages stay mounted
-  // in every state - the inactive one goes absolute+hidden, which keeps its
+  // the answer back into the question and oscillate. Every page stays mounted
+  // in every state - the inactive ones go absolute+hidden, which keeps their
   // height readable - so the numbers below mean the same thing either way.
+  //
+  // Only the briefing is in the question. The controls page is never in it:
+  // it is always its own page, so it can only ever change how tall the pages
+  // area is pinned, never whether there is more than one of them.
   useLayoutEffect(() => {
-    if (!hasBrief) {
-      setPaged(false);
-      setPageH(null);
-      return;
-    }
     const measure = () => {
       const frame = frameRef.current;
       const board = boardRef.current;
@@ -436,7 +451,7 @@ export const TabScreen: FC<TabScreenProps> = ({
         (chatRef.current?.offsetHeight ?? 0) +
         4.5 * em;
       const avail = frame.clientHeight;
-      const need = chrome + board.offsetHeight + brief.offsetHeight;
+      const need = chrome + board.offsetHeight + (hasBrief ? brief.offsetHeight : 0);
       // A measurement that is allowed to disagree with itself forever is a
       // frozen tab, so the count resets only when the frame really changes
       // size - the one input to this that is not downstream of the answer.
@@ -460,12 +475,30 @@ export const TabScreen: FC<TabScreenProps> = ({
       // bistable one. Landing on paged is the safe end: paging always fits,
       // because each page is then measured on its own.
       setPaged((was) => {
+        if (!hasBrief) return false;
         const next = was ? need + 3 * em > avail : need > avail;
         if (next === was) return was;
         return ++flips.current > 4 ? true : next;
       });
-      // the taller page wins the height, never more than there is room for
-      setPageH(Math.min(Math.max(board.offsetHeight, brief.offsetHeight), avail - chrome));
+      // The tallest page wins the height, never more than there is room for.
+      // Page one is the board plus whatever is stacked under it, which is the
+      // briefing whenever the answer above was "it fits".
+      //
+      // The controls ask for their height rather than being measured for it:
+      // that page fills whatever box it is given, so measuring it would be
+      // measuring this pin's own output. What it wants is the drawing at its
+      // natural shape across the page, plus the line of hint under it.
+      const want = hasControls ? board.clientWidth / KEYMAP_ASPECT + 2.4 * em : 0;
+      setPageH(
+        Math.min(
+          Math.max(
+            board.offsetHeight + (hasBrief && !paged ? brief.offsetHeight + 0.2 * em : 0),
+            hasBrief && paged ? brief.offsetHeight : 0,
+            want,
+          ),
+          avail - chrome,
+        ),
+      );
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -475,18 +508,21 @@ export const TabScreen: FC<TabScreenProps> = ({
     if (briefRef.current) ro.observe(briefRef.current);
     if (frameRef.current) ro.observe(frameRef.current);
     return () => ro.disconnect();
-  }, [hasBrief, hasPad, hasChat]);
+    // `paged` is in here because the pin above reads it: when the briefing
+    // stacks, page one is two elements tall. The flip guard is what stops the
+    // pair looping.
+  }, [hasBrief, hasPad, hasChat, hasControls, paged]);
 
-  // a screen that stopped having two pages must not be left showing page two
+  // a screen that stopped having a page must not be left showing it
   useEffect(() => {
-    if (!paged) setPage(0);
-  }, [paged]);
+    setPage((p) => Math.min(p, pages.length - 1));
+  }, [pages.length]);
 
   // Wheel turns the page. mwheelup/mwheeldown are unbound in userconfig.cfg
   // (stock invnext/invprev caused accidental weapon switches), so nothing in
   // the game wants this event and taking it costs the player nothing.
   useEffect(() => {
-    if (!paged) return;
+    if (pages.length < 2) return;
     let acc = 0;
     const onWheel = (e: WheelEvent) => {
       // over the lobby (the ?tab= QA view) this would scroll the page behind
@@ -495,11 +531,11 @@ export const TabScreen: FC<TabScreenProps> = ({
       if (Math.abs(acc) < WHEEL_STEP) return;
       const dir = acc > 0 ? 1 : -1;
       acc = 0;
-      setPage((p) => Math.min(PAGES.length - 1, Math.max(0, p + dir)));
+      setPage((p) => Math.min(pages.length - 1, Math.max(0, p + dir)));
     };
     window.addEventListener("wheel", onWheel, { capture: true, passive: false });
     return () => window.removeEventListener("wheel", onWheel, { capture: true });
-  }, [paged]);
+  }, [pages.length]);
 
   const teamRows = (team: number) => players.filter((p) => p.team === team).sort(byScore);
   const teamScore = (rows: Row[]) => rows.reduce((n, p) => n + p.frags, 0);
@@ -584,26 +620,32 @@ export const TabScreen: FC<TabScreenProps> = ({
             </span>
           </div>
 
-          {paged && (
+          {pages.length > 1 && (
             <div className="tabscreen__strip">
-              {PAGES.map((label, i) => (
-                <span
+              {pages.map((label, i) => (
+                <button
+                  type="button"
                   className={`tabscreen__tab${i === page ? " tabscreen__tab--on" : ""}`}
                   key={label}
+                  onClick={() => setPage(i)}
                 >
                   {label}
-                </span>
+                </button>
               ))}
-              <span className="tabscreen__hint">scroll to change</span>
+              <span className="tabscreen__hint">scroll or click to change</span>
             </div>
           )}
 
           <div
             className="tabscreen__pages"
-            style={paged && pageH ? { minHeight: `${Math.round(pageH)}px` } : undefined}
+            style={pages.length > 1 && pageH ? { minHeight: `${Math.round(pageH)}px` } : undefined}
           >
-            {/* both pages stay mounted in both states - see the measure above */}
-            <div className="tabscreen__page" data-on={!paged || page === 0} ref={boardRef}>
+            {/* every page stays mounted in every state - see the measure above */}
+            <div
+              className="tabscreen__page tabscreen__page--board"
+              data-on={page === 0}
+              ref={boardRef}
+            >
               {splitTeams ? (
                 <>
                   {teamBlock(2, "counter-terrorists", "ct")}
@@ -635,7 +677,11 @@ export const TabScreen: FC<TabScreenProps> = ({
               )}
             </div>
 
-            <div className="tabscreen__page" data-on={!paged || page === 1} ref={briefRef}>
+            <div
+              className="tabscreen__page tabscreen__page--brief"
+              data-on={paged ? page === 1 : page === 0}
+              ref={briefRef}
+            >
               {hasBrief && (
                 <div className="tabscreen__brief">
                   <p className="tabscreen__briefhead">{modeName}</p>
@@ -649,6 +695,16 @@ export const TabScreen: FC<TabScreenProps> = ({
                   )}
                 </div>
               )}
+            </div>
+
+            {/* The controls. Its own page at every size, and the reason the
+                strip is now always there: a keyboard cannot stack under a
+                scoreboard on any window worth playing on. */}
+            <div
+              className="tabscreen__page tabscreen__page--controls"
+              data-on={hasControls && page === ctrlPage}
+            >
+              {hasControls && <KeyMap rows={controls} />}
             </div>
           </div>
 

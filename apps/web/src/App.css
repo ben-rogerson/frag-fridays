@@ -2366,7 +2366,7 @@ th.standings__num {
     radial-gradient(ellipse 120% 80% at 50% -20%, rgba(26, 43, 82, 0.5) 0%, transparent 60%),
     rgba(18, 31, 61, 0.82);
   backdrop-filter: blur(3px);
-  /* a tall keymap on a short window has to scroll, not spill */
+  /* a short window has to scroll, not spill */
   overflow-y: auto;
   padding: 1.5rem 1rem;
 }
@@ -2411,8 +2411,8 @@ th.standings__num {
   color: var(--accent);
 }
 
-/* the card is wide enough for two keymap columns, but the buttons keep the
-   width they had - a 34rem RESUME bar reads as a banner, not a button */
+/* the card is wider than its column, but everything in it keeps the width it
+   had - a 34rem RESUME bar reads as a banner, not a button */
 .pause__title,
 .pause__note,
 .pause__resume,
@@ -2424,6 +2424,15 @@ th.standings__num {
 
 .pause__resume {
   padding: 0.65rem 1.6rem;
+}
+
+/* the one line left of the old keymap: where the controls went */
+.pause__hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: -0.2rem;
 }
 
 .pause__leave {
@@ -2446,75 +2455,6 @@ th.standings__num {
 .pause__leave:focus-visible {
   filter: brightness(1.35);
   outline: none;
-}
-
-/* --- the keymap, under the buttons ------------------------------------- */
-
-/* Read out of the player's own binds, so it is a reference, not decoration:
-   dense, quiet, and never competing with resume/leave above it. */
-.keymap {
-  margin-top: 0.6rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgb(var(--accent-rgb) / 0.22);
-  text-align: left;
-}
-
-.keymap__title {
-  margin: 0 0 0.7rem;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  text-align: center;
-}
-
-/* two columns where there is room, one on a narrow window */
-.keymap__list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.3rem 1.4rem;
-  margin: 0;
-}
-
-/* keys in a fixed gutter, right-aligned, so the labels start on one line */
-.keymap__row {
-  display: grid;
-  /* wide enough for the five weapon-slot caps to stay on one line */
-  grid-template-columns: 7.6rem 1fr;
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 1.5rem;
-}
-
-.keymap__keys {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.2rem;
-  margin: 0;
-}
-
-.keymap__label {
-  margin: 0;
-  font-size: 0.72rem;
-  color: var(--text-mute);
-}
-
-/* the keycap: the chip vocabulary from the settings panel, shrunk */
-.key {
-  font: inherit;
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--text);
-  background: #0a1226;
-  border: 1px solid var(--bevel-light);
-  border-bottom-color: var(--bevel-dark);
-  border-right-color: var(--bevel-dark);
-  padding: 0.16rem 0.34rem;
 }
 
 /* --- server news: the between-Fridays log ------------------------------ */
