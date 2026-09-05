@@ -40,16 +40,19 @@ new g_choice[33];
 // one /guns hint per connection, on first spawn
 new bool:g_hinted[33];
 
+// Keys are the bare word - every chat line is normalised through split_cmd
+// before it reaches here, so "/ak", "!ak", ".ak", "ak" and "guns ak" all
+// arrive as "ak". The leading slash is added back for display only.
 new const g_guns[][] = {
-	"/ak",     "weapon_ak47",
-	"/m4",     "weapon_m4a1",
-	"/awp",    "weapon_awp",
-	"/mp5",    "weapon_mp5navy",
-	"/p90",    "weapon_p90",
-	"/scout",  "weapon_scout",
-	"/shotty", "weapon_xm1014",
-	"/famas",  "weapon_famas",
-	"/deagle", ""  // pistol only
+	"ak",     "weapon_ak47",
+	"m4",     "weapon_m4a1",
+	"awp",    "weapon_awp",
+	"mp5",    "weapon_mp5navy",
+	"p90",    "weapon_p90",
+	"scout",  "weapon_scout",
+	"shotty", "weapon_xm1014",
+	"famas",  "weapon_famas",
+	"deagle", ""  // pistol only
 };
 
 public plugin_init()
@@ -345,12 +348,65 @@ public task_remove_wbox(taskid)
 
 // --- chat commands ----------------------------------------------------------
 
+// Split a chat line into a normalised verb and optional argument.
+//
+// Players type the same command a dozen ways, and the SHAPE rather than the
+// word is what usually kills it. Measured 2026-09-05 over the full log
+// history: of 254 command-shaped lines ever said here, 76 did nothing, and
+// the largest group was a word this plugin knows wearing a prefix it did not
+// ("ak", "!awp", ".m4") or split across two ("guns ak", "more guns"). The
+// inconsistency was also ours - chatrestart.sma took !restart while this
+// file took only /-prefixed words.
+//
+// Accepts /x, !x, .x and bare x, case-insensitively, plus "guns <name>" for
+// the pick and "more guns"/"all guns" for the list.
+split_cmd(const said[], verb[], vlen, arg[], alen)
+{
+	new buf[48];
+	copy(buf, charsmax(buf), said);
+	trim(buf);
+	strtolower(buf);
+
+	new start = (buf[0] == '/' || buf[0] == '!' || buf[0] == '.') ? 1 : 0;
+
+	// cut at the first space, leaving the remainder addressable
+	new sp = contain(buf[start], " ");
+	if (sp != -1)
+		buf[start + sp] = EOS;
+
+	copy(verb, vlen, buf[start]);
+
+	if (sp != -1)
+	{
+		copy(arg, alen, buf[start + sp + 1]);
+		trim(arg);
+	}
+	else
+		arg[0] = EOS;
+
+	if (equal(arg, "guns") && (equal(verb, "more") || equal(verb, "all")))
+	{
+		copy(verb, vlen, "guns");
+		arg[0] = EOS;
+	}
+	else if (equal(verb, "guns") && arg[0])
+	{
+		copy(verb, vlen, arg);
+		arg[0] = EOS;
+	}
+}
+
 public cmd_say(id)
 {
-	new said[32];
+	new said[48];
 	read_args(said, charsmax(said));
 	remove_quotes(said);
 	trim(said);
+
+	new verb[24], arg[24];
+	split_cmd(said, verb, charsmax(verb), arg, charsmax(arg));
+	if (!verb[0])
+		return PLUGIN_CONTINUE;
 
 	// /respawn - put a dead player back in the game NOW.
 	//
@@ -361,25 +417,25 @@ public cmd_say(id)
 	// round restarts, 45 of them within a minute of joining. Death already
 	// queues task_respawn, so this only ever matters to someone dead for
 	// another reason - joined mid-round, or waiting out a long objective map.
-	if (equali(said, "/respawn") || equali(said, "/spawn"))
+	if (equal(verb, "respawn") || equal(verb, "spawn"))
 	{
 		if (!do_respawn(id))
 			client_print(id, print_chat, "[DM] /respawn only works while you are dead and on a team - press F1 or F2 to pick a side.");
 		return PLUGIN_CONTINUE;
 	}
 
-	if (equali(said, "/guns") || equali(said, "guns"))
+	if (equal(verb, "guns"))
 	{
 		new list[128], pos;
 		for (new i = 0; i < sizeof(g_guns) / 2; i++)
-			pos += formatex(list[pos], charsmax(list) - pos, "%s ", g_guns[i * 2]);
+			pos += formatex(list[pos], charsmax(list) - pos, "/%s ", g_guns[i * 2]);
 		client_print(id, print_chat, "[DM] Pick a gun for your next spawn: %s", list);
 		return PLUGIN_CONTINUE;
 	}
 
 	for (new i = 0; i < sizeof(g_guns) / 2; i++)
 	{
-		if (equali(said, g_guns[i * 2]))
+		if (equal(verb, g_guns[i * 2]))
 		{
 			g_choice[id] = i;
 			if (get_pcvar_num(g_mapGuns))

@@ -32,8 +32,14 @@ public cmd_say(id)
 	read_args(said, charsmax(said));
 	remove_quotes(said);
 	trim(said);
+	strtolower(said);
 
-	if (!equali(said, "!restart") && !equali(said, "/restart"))
+	// Accept every prefix players actually type, not just the two we picked.
+	// Bare "restart" was said three times and did nothing, and frag_dm.sma
+	// took /-prefixed words while this file took ! - so the same player could
+	// learn !restart here and have !awp die there. Both files normalise now.
+	new start = (said[0] == '/' || said[0] == '!' || said[0] == '.') ? 1 : 0;
+	if (!equal(said[start], "restart"))
 		return PLUGIN_CONTINUE;
 
 	if (g_pending)
