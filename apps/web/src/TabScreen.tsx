@@ -27,7 +27,8 @@ export type ModeInfo = { mode: string; tagline?: string; bullets?: string[] };
 // written every second by the statusjson.amxx plugin into the served public/
 // dir. deaths/team/ping are optional on the way in: a box still running the
 // old plugin answers without them and the scoreboard just prints dashes
-// rather than nothing at all.
+// rather than nothing at all. bomb/kit are optional for the same reason, and
+// absent reads as false, which is what a mode with no bomb sends anyway.
 export type ServerStatus = {
   map: string;
   maxplayers: number;
@@ -42,6 +43,10 @@ export type ServerStatus = {
     deaths?: number;
     team?: number; // 1 = T, 2 = CT, 3 = spectator, 0 = still picking
     ping?: number;
+    /** carrying the C4 right now (statusjson 0.4.0+; absent = older box) */
+    bomb?: boolean;
+    /** has a defuse kit right now (same) */
+    kit?: boolean;
   }[];
   /** last 20 things said, oldest first. Absent on a box still running a
    *  pre-0.3.0 statusjson, which is the difference between "no panel" and
@@ -90,6 +95,34 @@ const sideTag = (p: Row) => {
     <div className={`tabscreen__tag${side ? ` tabscreen__tag--${side}` : ""}`}>{side ?? "-"}</div>
   );
 };
+
+// The bomb and the defuse kit, against the name that is holding them.
+//
+// This is the one thing a 1.6 scoreboard says that ours could not. Both live
+// on the row rather than in a column of their own: they are true of at most
+// one T and a handful of CTs, so a column would be empty space on every other
+// row and on every non-bomb map, and neither is a quantity to line up and
+// compare - it is a fact about a person, which belongs beside their name.
+//
+// Words, not glyphs, and the same shape as the side tags: this board has no
+// icon language and one bomb pictogram would have to teach itself. Coloured by
+// what the thing does rather than by whose side it is - the C4 in the T colour
+// and the kit in the CT colour is also just true - so that a glance down a
+// classic board finds the carrier without reading a word of it.
+const carry = (p: Row) => (
+  <>
+    {p.bomb && (
+      <span className="tabscreen__carry tabscreen__carry--bomb" title="carrying the bomb">
+        c4
+      </span>
+    )}
+    {p.kit && (
+      <span className="tabscreen__carry tabscreen__carry--kit" title="has a defuse kit">
+        kit
+      </span>
+    )}
+  </>
+);
 
 // How long a clicked button stays lit. Long enough to register as a response,
 // short enough that a player buying gun then armour does not see the first
@@ -197,7 +230,22 @@ const ChatPanel: FC<{ lines: ChatLine[]; panelRef: React.Ref<HTMLDivElement> }> 
   // the page turn, so the list cannot be scrolled by hand.
   useLayoutEffect(() => {
     const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const pin = () => {
+      el.scrollTop = el.scrollHeight;
+      // Whether the top edge is hiding anything, read off the position the
+      // panel is actually in after the pin. Drives the fade there; a class
+      // rather than state because nothing else re-renders on it and the
+      // scroll above is already imperative.
+      el.classList.toggle("tabscreen__chatlist--clipped", el.scrollTop > 0);
+    };
+    pin();
+    // The same lines rewrap when the panel changes width, so a resize can turn
+    // overflow on or off with nothing said. Without this the fade would sit
+    // over a first line that is no longer hiding anything until someone talks.
+    const ro = new ResizeObserver(pin);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [newest]);
 
   return (
@@ -467,7 +515,10 @@ export const TabScreen: FC<TabScreenProps> = ({
     >
       {rank !== undefined && <div className="tabscreen__rank">{rank}</div>}
       {rank !== undefined && sideTags && sideTag(p)}
-      <div className="tabscreen__name">{p.name}</div>
+      <div className="tabscreen__name">
+        <span className="tabscreen__nametext">{p.name}</span>
+        {carry(p)}
+      </div>
       <div className="tabscreen__num">{p.frags}</div>
       <div className="tabscreen__num">{p.deaths ?? "-"}</div>
       {/* 1.6 prints BOT where a bot's ping would go; so do we */}

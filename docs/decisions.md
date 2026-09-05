@@ -1744,3 +1744,48 @@ The rule this is an instance of: **a greeting is for arrival, and there is no
 arrival here.** The loading screen is the welcome, it says the name in 60pt,
 and the player has already read it by the time the map loads. Repeating it over
 the game every three minutes is the server talking during someone else's round.
+
+## The scoreboard shows who has the bomb and who has a kit (2026-09-05)
+
+statusjson 0.4.0 adds `bomb` and `kit` per player, and the tab screen prints
+them as small `C4` / `KIT` tags beside the name.
+
+**Because this client shows them nowhere else.** The engine draws the C4 icon
+and the defuse-kit icon on the owner's own HUD only, and our tab screen replaced
+the engine's scoreboard, which is where a CT would otherwise have looked. So a
+CT had no way at all to learn whether anyone on their side could cut the wires,
+and a T had no way to see who to escort - on a 5v5 bomb map, which is the whole
+of Classic.
+
+**Read from the weapon list, not from a "has bomb" native, because there isn't
+one**: to the engine the C4 is a weapon like any other, and `get_user_weapons`
+is core rather than a module native, so it costs no new dependency. A dropped
+bomb therefore belongs to nobody and shows against nobody, which is right - the
+board is answering "who is carrying it", not "where is it".
+
+**Both are gated on being alive.** A dead player's bomb is on the floor and
+their kit died with them. A board still crediting a corpse with the C4 is worse
+than one saying nothing: it sends a CT to guard a body.
+
+**Written for every mode, not just the Classic family.** In a mode with no
+bomb both fields are simply always false, which is cheaper than teaching the
+plugin which mod it is running under, and it means the field is there the day
+a bomb map turns up in a rotation nobody expected it in.
+
+Boot-tested in a throwaway container on de_dust2 (no published ports, own
+cmdpipe): one carrier at round start, the tag moving to the T who picks the
+bomb up after the carrier dies, and the kit count falling as CTs die.
+
+**Words, not glyphs, and coloured by the thing rather than the side** - C4 in
+the T colour, kit in the CT colour, both of which are also just true. The board
+has no icon language, so one bomb pictogram would have to teach itself; the
+colour is what actually gets scanned down a list.
+
+**Same commit, the chat panel's top edge fades to transparent** instead of
+being sliced off by its height cap. With no scrollbar (the overlay takes no
+pointer events, so a bar would be a control that does not work) a hard cut
+reads as a rendering fault; a fade reads as "this continues above", which is
+what is true. Only when the list is actually overflowing - the class is set
+from the same layout effect that pins the scroll to the newest line, and
+re-checked on resize, because a fade over the first line of a short
+conversation would dim a line that is hiding nothing.

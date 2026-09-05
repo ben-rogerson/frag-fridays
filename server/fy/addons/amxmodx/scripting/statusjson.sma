@@ -19,6 +19,15 @@
 // 1s and not the 5s the loading screen was happy with - a scoreboard trailing
 // the kill feed by five seconds reads as broken.
 //
+// It also carries who is holding the C4 and who has a defuse kit (0.4.0).
+// Both are round-deciding facts this client shows NOWHERE else: the engine's
+// scoreboard is unbound, and the C4 and kit icons are drawn on the owner's own
+// HUD only - so a CT could never tell whether anyone on their side could cut
+// the wires, and a T could never tell who to escort. Written for every mode
+// rather than only the Classic family: in a mode with no bomb both are simply
+// always false, which is cheaper than teaching this plugin which mod it is
+// running under.
+//
 // The file is truncated in place (compose mounts it by inode, so no
 // write-then-rename), which means a read landing mid-write gets half a
 // document. The client keeps its last good snapshot and skips the tick; that
@@ -43,7 +52,8 @@
 // side of the trade for a panel whose job is "what did people say".
 
 #include <amxmodx>
-// cs_get_user_deaths - deaths live on CBasePlayer, not in entvars
+// cs_get_user_deaths - deaths live on CBasePlayer, not in entvars;
+// cs_get_user_defuse - the defuse kit is a flag on the player, not an item
 #include <cstrike>
 
 new g_roundtime;
@@ -70,7 +80,7 @@ new g_chatSeq;
 
 public plugin_init()
 {
-	register_plugin("Frag Fridays Status JSON", "0.3.0", "frag-friday");
+	register_plugin("Frag Fridays Status JSON", "0.4.0", "frag-friday");
 
 	g_roundtime = get_cvar_pointer("mp_roundtime");
 	register_logevent("logev_round_start", 2, "1=Round_Start");
@@ -193,9 +203,17 @@ public task_write()
 		new ping, loss;
 		get_user_ping(id, ping, loss);
 
-		fprintf(fp, "%s{^"name^":^"%s^",^"frags^":%d,^"deaths^":%d,^"team^":%d,^"ping^":%d,^"bot^":%s}",
+		// Both questions are about who is ALIVE and holding the thing right
+		// now. A dead player's bomb is on the ground and their kit died with
+		// them, and a board still crediting a corpse with the C4 is worse than
+		// one that says nothing: it sends a CT to guard a body.
+		new bool:alive = is_user_alive(id) != 0;
+
+		fprintf(fp, "%s{^"name^":^"%s^",^"frags^":%d,^"deaths^":%d,^"team^":%d,^"ping^":%d,^"bot^":%s,^"bomb^":%s,^"kit^":%s}",
 			i ? "," : "", esc, get_user_frags(id), cs_get_user_deaths(id),
-			get_user_team(id), ping, is_user_bot(id) ? "true" : "false");
+			get_user_team(id), ping, is_user_bot(id) ? "true" : "false",
+			(alive && has_c4(id)) ? "true" : "false",
+			(alive && cs_get_user_defuse(id)) ? "true" : "false");
 	}
 
 	// oldest first, so the panel can render the array top to bottom and the
@@ -216,6 +234,26 @@ public task_write()
 
 	fprintf(fp, "]}");
 	fclose(fp);
+}
+
+// Whether this player is carrying the C4.
+//
+// Read off the weapon list because there is no "has the bomb" native: to the
+// engine C4 is a weapon like any other, and get_user_weapons is core rather
+// than a module native, so asking this way costs no new dependency. A dropped
+// bomb belongs to nobody and so shows against nobody, which is the honest
+// answer to the question the scoreboard is actually asking - "who is carrying
+// it", which is not the same question as "where is it".
+bool:has_c4(id)
+{
+	new weapons[32], num;
+	get_user_weapons(id, weapons, num);
+
+	for (new i = 0; i < num; i++)
+		if (weapons[i] == CSW_C4)
+			return true;
+
+	return false;
 }
 
 // quotes/backslashes escaped, control chars dropped - enough for player names

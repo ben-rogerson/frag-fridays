@@ -344,10 +344,47 @@
   opacity: 0.6;
 }
 
+/* A row, so the carry markers sit beside the name and the ellipsis belongs to
+   the name alone: with the truncation on this cell the marker would be the
+   first thing a long name ate, which is backwards - the name is the part you
+   can afford to lose the tail of. */
 .tabscreen__name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  min-width: 0;
+}
+
+.tabscreen__nametext {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Same shape as the side tag and the chat flags: a short uppercase word
+   carrying a fact about the row. Never shrinks - a marker at half width is
+   not a shorter marker, it is a mistake. */
+.tabscreen__carry {
+  flex: none;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tabscreen__carry--bomb {
+  color: var(--team-t);
+}
+
+.tabscreen__carry--kit {
+  color: var(--team-ct);
+}
+
+/* The bot rule above greys the whole row; the markers keep their hue for the
+   same reason the side tag does - the colour IS the signal - and dim instead.
+   A bot with the bomb is still where the bomb is. */
+.tabscreen__row--bot .tabscreen__carry {
+  opacity: 0.6;
 }
 
 .tabscreen__num {
@@ -361,7 +398,7 @@
 
 /* bots are furniture, not opponents to measure yourself against - present,
    legible, and a tier down */
-.tabscreen__row--bot .tabscreen__name,
+.tabscreen__row--bot .tabscreen__nametext,
 .tabscreen__row--bot .tabscreen__num {
   color: var(--text-faint);
 }
@@ -542,13 +579,26 @@
   scroll-behavior: auto;
   /* The bar is hidden because it lies: the overlay takes no pointer events,
      so it cannot be dragged, and a control that does not work is worse than
-     no control. The half-cut line at the top edge is what says there is more
-     above, which is the same thing every chat box in the world says. */
+     no control. The top edge is what says there is more above instead - see
+     the fade below. */
   scrollbar-width: none;
 }
 
 .tabscreen__chatlist::-webkit-scrollbar {
   display: none;
+}
+
+/* The oldest line fades out at the top edge rather than being sliced off by
+   the cap. A hard cut reads as a rendering fault on a panel with no scrollbar
+   and no way to drag; a fade reads as "this continues above", which is what
+   is actually true.
+   Only when the list is actually overflowing: the class is set from the same
+   layout effect that pins the scroll, because a fade over the FIRST line of a
+   short conversation would dim a line nothing is hiding. Fade depth is about
+   one line, so the line it eats is one already half-cut by the cap. */
+.tabscreen__chatlist--clipped {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.5em);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 1.5em);
 }
 
 .tabscreen__chatline {
