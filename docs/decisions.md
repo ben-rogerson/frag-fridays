@@ -1672,3 +1672,52 @@ frame (`mode=2->4 target=<self>-><killer>`), the 4.5s step is caught
 over to the fallback. Kill switch `ff_specmode_eye 0`. In the dm-family mods
 this is a sub-second blip - `dm_spawn_delay` is 0.75 - so it only really shows
 in `classical`, where you are dead until the round ends.
+
+## Chat lives on the tab screen now, because it lived nowhere (2026-09-05)
+
+Chat in this build goes one way and stops. Measured live against the classical
+mod with a real browser client: three spectator `say`s, an `amx_psay` and two
+`amx_say`s all reached the server - they are in the mod's own log - and not one
+of them came back anywhere a player could see. Not the HUD, not the engine's
+stdout, with `hud_saytext 1` and `hud_saytext_time 5`. Death notices DO print
+to stdout (that is the kill feed, and it is how the engine's own feed reaches
+the JS console), so this is specific to SayText.
+
+That reframes the panel. It is not a nicer skin on the engine's chat; on this
+client it is the only chat there is. Typing still works - Y still opens the say
+prompt and the message still reaches everyone server-side - so the missing half
+was only ever the reading.
+
+**The feed is the server's, not the client's**, and that follows from the
+above: there is no client-side stream to intercept. It also buys structured
+fields instead of regexing localised HUD prose, which is what a kill feed built
+off the console stream would have to do. statusjson 0.3.0 carries the last 20
+lines in the file the scoreboard already polls every second.
+
+**Captured with clcmd hooks on say/say_team**, not `register_message(SayText)`.
+The clcmd fires once per message with the sender known; SayText fires once per
+RECIPIENT, so every line arrives N times and carries a localisation token
+rather than text. The trade is that admin `amx_say` and plugin announcements
+are not client says and so never appear, which is the right side of the trade
+for a panel whose job is "what did people say".
+
+**Chat commands are skipped.** `/guns` and `!something` are answered and
+swallowed by another plugin, so they never reach anyone else's screen; showing
+them would put a conversation in the panel that did not happen.
+
+**The freeze this shook out is the part worth remembering.** The panel adds
+~3.5em of chrome to the tab screen's fit measurement, which put a common window
+size onto a boundary where the two briefing dressings - two columns when
+stacked, one when paged - differ by more than the 3em hysteresis band. The
+effect then flipped `paged` forever: no error, no console line, just a renderer
+pinned at 100% that never painted again, which reads exactly like a hung tab.
+The dead band was always the mitigation for a one-line difference; it was never
+enough for a bistable one. There is now a settle guard that stops the flipping
+after four changes of mind and lands on paged, which fits by construction
+because each page is measured on its own, and resets only when the frame really
+changes size - the one input that is not downstream of the answer.
+
+Next, if it is wanted: the kill feed. That one CAN come off the engine's stdout
+(`launch.ts` already routes every engine line through `noteEngineLine`), or ride
+the same `events` array for structured fields. `hud_deathnotice_time 0` retires
+the engine's version once something draws it.
