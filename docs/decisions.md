@@ -1906,6 +1906,63 @@ bots, and logs no `Could not load model ... from disk`. The only errors are
 `No spawn function for "info_overview_point"` / `"info_texlights"`, which are
 compiler entities the engine has never had a spawn function for.
 
-Still missing: none of the four has a 160x120 thumbnail in
-`apps/web/src/assets/maps/`, so they render as the "no map image" tile in the
-map pool on the loading screen.
+All four got a 160x120 thumbnail in `apps/web/src/assets/maps/`, so the map
+pool stopped falling back to the "no map image" tile. The shots are the map
+authors' own, off their GameBanana pages - Tatu Eugen's for `css_overpass`,
+and a 1.6 in-game shot for `de_mirage`; matching the uploader to the author
+recorded here is the one way to be sure the picture is of the build we ship
+rather than the CS:GO original it is named after. Cropped to 4:3 (the HUD band
+and any watermark cropped out, not painted over) and resized to 160x120. The
+`de_beishan` and `de_dust2_2020_se` shots went with the maps, below.
+
+## The two big customs came straight back out (2026-09-05)
+
+`de_beishan` and `de_dust2_2020_se` left every rotation the same day they went
+in - gg, dm, aim, ClassicAl and CPL Tournament. `de_mirage` and `css_overpass`
+stay.
+
+The reason is the one the entry above already named as the price worth
+checking: those two are the 20MB+ BSPs, and the BSP is not the half of it.
+With their models, sounds, sprites and sky faces they were **104MB of source
+assets** between them (23MB + 20MB of BSP, 42MB of models, 15MB of sound,
+3.6MB of sprites, 1.1MB of sky), and every byte that survives the keep-list is
+a first-load download for every player on the site. Two maps out of 32 were
+carrying most of the payload growth.
+
+What came out with them, because none of it has another owner: the BSPs and
+their `.txt`s, the YaPB graphs in all four built mods, `server/custom/`
+`models|sound|sprites/de_beishan` and `.../de_dust2_2020`, `gfx/env/`
+`de_dust2_2020`, the `de_dust2_2020_se` overview, and both thumbnails.
+
+Two things deliberately stayed:
+
+- **The `models/` and `sprites/` compose mounts** on gg, dm, aim, ClassicAl
+  and CPL. These two maps forced them in, and nothing in those rotations needs
+  them today - but they cost nothing, and the next custom map that carries
+  props would otherwise fail the same silent way (`Could not load model ...
+  from disk`).
+- **The `gfx/env/` subdirectory rule** in `update-clientcfg.sh`. It was
+  written for this map's sky and is general; the comment now says the map is
+  gone so nobody reads it as dead code and deletes it.
+
+Nothing about the map shuffle needed touching: the mod entrypoints shuffle
+`mapcycle.txt` at container start and boot line 1, and CPL's fixed `+map
+de_dust2` is still in its cycle.
+
+## Trimming the pools further: three more maps out (2026-09-05)
+
+Same day, same direction, owner's call: `scoutzknivez` (gg, dm),
+`css_mirage_go` (Source Maps) and `fy_snow` (Fight Yard) left as well. Small
+files next to the two above - 734KB, 8.5MB and 534KB - so this one is
+curation, not payload.
+
+What went with them: BSPs, YaPB graphs, thumbnails, the site's pool lists,
+and the AMXX per-map configs for `scoutzknivez` and `fy_snow` in gg and dm.
+The per-map cvar MECHANISM stays, and so does the note about it in
+game-guide.md, reworded so it no longer teaches the reader a map that is not
+there: scoutzknivez's `sv_gravity 250` was the reason the mechanism exists
+(cvars set for one map persist into the next unless every other map resets
+them), and that lesson outlives the map.
+
+Pools after both removals: gg 14, dm 13, aim 9, ClassicAl 9, CPL Tournament
+8, Source Maps 6, Fight Yard 5, Sniper unchanged.

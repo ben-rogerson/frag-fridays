@@ -2,5 +2,4 @@ fy_iceworld
 fy_desert
 fy_pool_day
 fy_houses
-fy_snow
 fy_nuketown

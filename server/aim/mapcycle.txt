@@ -7,5 +7,3 @@ de_cbble
 de_nuke
 de_train
 de_mirage
-de_beishan
-de_dust2_2020_se

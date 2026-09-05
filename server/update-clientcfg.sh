@@ -229,11 +229,12 @@ list_files() {
     # A face in some other format is kept rather than guessed at - but list
     # every format the tree actually uses, or the rule silently keeps them all
     #
-    # A skyname can carry a subdirectory - de_dust2_2020_se ships its faces as
-    # gfx/env/de_dust2_2020/Dust2020*.tga and names the sky
-    # "de_dust2_2020/Dust2020". So strip back to gfx/env/, not to the
-    # basename: matched on a basename, those six faces hit no keepsky entry
-    # and were trimmed out of the payload, leaving the map skyless.
+    # A skyname can carry a subdirectory: de_dust2_2020_se (since removed from
+    # every rotation) shipped its faces as gfx/env/de_dust2_2020/Dust2020*.tga
+    # and named the sky "de_dust2_2020/Dust2020". So strip back to gfx/env/,
+    # not to the basename: matched on a basename, those six faces hit no
+    # keepsky entry and were trimmed out of the payload, leaving the map
+    # skyless. The rule outlives that map - the next one will do it too.
     # (No apostrophes in here - this whole awk program is one single-quoted
     # shell string, and one in a comment ends it.)
     tolower($0) ~ /^(valve|cstrike)\/gfx\/env\// {

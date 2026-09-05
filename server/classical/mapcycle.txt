@@ -7,5 +7,3 @@ de_aztec
 de_dust
 cs_assault
 de_mirage
-de_beishan
-de_dust2_2020_se

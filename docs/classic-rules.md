@@ -334,10 +334,12 @@ every mode's cycle. `cs_assault` stays, and is still in **ClassicAl's** pool
 
 The same day put three customs - `de_mirage`, `de_beishan` and
 `de_dust2_2020_se` - into every rotation that carries classic maps, CPL
-Tournament's included. That last one is a deliberate break with the rest of
-this file: the seven are the era's pool, the three are not, and CPL Tournament
-runs both. If a match should be played on era maps only, the pool to use is
-lines 1-7 of `server/cpl/mapcycle.txt`.
+Tournament's included. The two big ones came straight back out the same day
+(they were 43MB of BSP between them - see decisions.md), so what remains is
+`de_mirage`. That is still a deliberate break with the rest of this file: the
+seven are the era's pool, `de_mirage` is not, and CPL Tournament runs both. If
+a match should be played on era maps only, the pool to use is lines 1-7 of
+`server/cpl/mapcycle.txt`.
 
 ## Running a match on this stack
 

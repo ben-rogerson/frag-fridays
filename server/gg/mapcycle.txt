@@ -7,11 +7,8 @@ de_aztec
 de_cbble
 fy_iceworld
 fy_pool_day
-scoutzknivez
 de_rats
 de_train
 cs_prospeedball
 cs_deagle5
 de_mirage
-de_beishan
-de_dust2_2020_se

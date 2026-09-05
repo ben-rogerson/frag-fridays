@@ -6,5 +6,3 @@ de_cbble
 de_aztec
 de_dust
 de_mirage
-de_beishan
-de_dust2_2020_se

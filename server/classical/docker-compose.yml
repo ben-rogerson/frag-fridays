@@ -25,8 +25,9 @@ services:
       - "./info.json:/xashds/public/info.json:ro"
       - "../cs/cstrike/maps:/xashds/cstrike/custom/maps:ro"
       # studio models load SERVER-side for collision (unlike wads/sounds, which
-      # are render-only) - de_beishan and de_dust2_2020_se both carry their own
-      # props, so the models tree has to reach the container too.
+      # are render-only), so any custom map carrying its own props needs the
+      # models tree in the container too. de_beishan and de_dust2_2020_se
+      # forced this before they were removed; the mount stays for the next one.
       - "../cs/cstrike/models:/xashds/cstrike/custom/models:ro"
       # their env_sprites are precached SERVER-side and loaded from disk
       # ("Could not load model sprites/... from disk" without this), same rule

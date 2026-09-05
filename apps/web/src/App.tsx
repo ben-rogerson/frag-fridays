@@ -681,8 +681,6 @@ const MODES: ModeEntry[] = [
       "de_dust",
       "cs_assault",
       "de_mirage",
-      "de_beishan",
-      "de_dust2_2020_se",
     ],
   },
   {
@@ -712,8 +710,6 @@ const MODES: ModeEntry[] = [
       "de_aztec",
       "de_dust",
       "de_mirage",
-      "de_beishan",
-      "de_dust2_2020_se",
     ],
   },
   {
@@ -734,14 +730,11 @@ const MODES: ModeEntry[] = [
       "de_cbble",
       "fy_iceworld",
       "fy_pool_day",
-      "scoutzknivez",
       "de_rats",
       "de_train",
       "cs_prospeedball",
       "cs_deagle5",
       "de_mirage",
-      "de_beishan",
-      "de_dust2_2020_se",
     ],
   },
   {
@@ -761,14 +754,11 @@ const MODES: ModeEntry[] = [
       "de_cbble",
       "fy_iceworld",
       "aim_map",
-      "scoutzknivez",
       "de_rats",
       "de_train",
       "cs_prospeedball",
       "cs_deagle5",
       "de_mirage",
-      "de_beishan",
-      "de_dust2_2020_se",
     ],
   },
   {
@@ -794,8 +784,6 @@ const MODES: ModeEntry[] = [
       "de_nuke",
       "de_train",
       "de_mirage",
-      "de_beishan",
-      "de_dust2_2020_se",
     ],
   },
   {
@@ -815,7 +803,6 @@ const MODES: ModeEntry[] = [
     fresh: true,
     pool: [
       "css_dust2_go",
-      "css_mirage_go",
       "css_cache",
       "de_bank_csgo",
       "css_bycastor",
@@ -837,7 +824,7 @@ const MODES: ModeEntry[] = [
     emblem: FightYardEmblem,
     bots: true,
     fresh: true,
-    pool: ["fy_iceworld", "fy_desert", "fy_pool_day", "fy_houses", "fy_snow", "fy_nuketown"],
+    pool: ["fy_iceworld", "fy_desert", "fy_pool_day", "fy_houses", "fy_nuketown"],
   },
   {
     key: "awp",
