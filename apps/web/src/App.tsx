@@ -660,6 +660,7 @@ const MODES: ModeEntry[] = [
       "$16000 every round - buy whatever you want",
       "no fade to black - spectate whoever is still alive",
       "1:45 rounds, 6s freeze, one life",
+      "no friendly fire, and most of the round to buy in",
       "5v5 with bots - one leaves per human",
       "10 minute maps",
     ],

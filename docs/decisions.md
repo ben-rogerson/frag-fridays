@@ -1345,8 +1345,13 @@ So the mode split rather than bent:
   `mp_maxrounds 0` so a block sees three maps, `mp_freezetime 6`, and
   `yb_quota 10` so it is never empty. `mp_limitteams 0` is mechanical rather
   than taste: stock CS blocks joining the larger team, which locks a human
-  out of a bot-filled server. Friendly fire stays on and the teams stay as
-  people pick them - it is still Classic.
+  out of a bot-filled server. Teams stay as people pick them - it is still
+  Classic. Friendly fire went off and `mp_buytime` went to the engine's
+  default 1.5 on the same day, once it was played: friendly fire is the match
+  rule that punishes a crowded corridor, and with bots on both sides and
+  everyone fully kitted the corridors here are crowded; 15 seconds to buy is
+  a rule about buying under pressure, which just punished anyone who spawned
+  in still reading the map.
 - **CPL Tournament** (`cpl`): the old mode, byte-identical in behaviour,
   renamed so its name says which of the two it is. The name is the era it
   copies, and it sits next to a "CPL" column in the rules tables that means

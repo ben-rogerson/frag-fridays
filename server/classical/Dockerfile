@@ -35,11 +35,18 @@ RUN cp cstrike/mapcycle.txt cstrike/addons/amxmodx/configs/maps.ini
 #   limitteams 0 - mechanical, not taste: stock CS blocks joining the larger
 #     team ("only 1 team change is allowed"), which locks a human out of a
 #     bot-filled server. Same reason dm runs 0.
-# friendlyfire stays 1 and autoteambalance stays 0: this is still Classic.
+#   friendlyfire 0 - the match rule that punishes a crowded corridor, and
+#     with bots on both sides and everyone fully kitted the corridors here
+#     are crowded. Every other mod on this box runs 0.
+#   buytime 1.5 - the engine's own default, 90 seconds of a 105-second round.
+#     CPL's 15 is a rule about buying under pressure; here it just punished
+#     anyone who spawned in still reading the map. Long enough that dying
+#     late and respawning next round never costs you a rifle.
+# autoteambalance stays 0: teams are still whichever side people picked.
 # hostagepenalty 0 because cs_office, cs_italy and cs_assault are in the pool
 # and a stray shot should not kick anybody.
 # sv_gravity/sv_airaccelerate are the baseline any per-map override resets from.
-RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_roundtime 1.75\nmp_freezetime 6\nmp_buytime .25\nmp_c4timer 35\nmp_startmoney 16000\nmp_maxrounds 0\nmp_winlimit 0\nmp_timelimit 10\nmp_friendlyfire 1\nmp_autoteambalance 0\nmp_limitteams 0\nmp_tkpunish 0\nmp_hostagepenalty 0\nmp_fadetoblack 0\nmp_forcecamera 0\nmp_forcechasecam 0\nallow_spectators 1\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
+RUN printf 'sv_gravity 800\nsv_airaccelerate 10\nmp_roundtime 1.75\nmp_freezetime 6\nmp_buytime 1.5\nmp_c4timer 35\nmp_startmoney 16000\nmp_maxrounds 0\nmp_winlimit 0\nmp_timelimit 10\nmp_friendlyfire 0\nmp_autoteambalance 0\nmp_limitteams 0\nmp_tkpunish 0\nmp_hostagepenalty 0\nmp_fadetoblack 0\nmp_forcecamera 0\nmp_forcechasecam 0\nallow_spectators 1\n' >> cstrike/addons/amxmodx/configs/amxx.cfg
 # stock amxx.cfg ships AMX Mod X adverts (scrolling HUD line + centre-screen
 # "This server is using AMX Mod X" every 3 min) - strip them
 RUN sed -i '/^amx_scrollmsg /d; /^amx_imessage "This server is using/d' cstrike/addons/amxmodx/configs/amxx.cfg
