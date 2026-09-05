@@ -46,7 +46,7 @@ gets hand-edited on the server.
   Still box-only, audited 2026-09-04: `mods/zp/plugins/*.amxx` (compiled
   binaries - nothing can rebuild them for vanilla; the loaded set is stock
   AMXX plus `cmdpipe.amxx` and `statusjson.amxx`, and notably NOT
-  `chatrestart` or `teambalance`), `mods/zp/configs/plugins.ini`,
+  `teambalance`), `mods/zp/configs/plugins.ini`,
   `configs/users.ini`, `configs/maps/` (per-map cfgs for awp_india,
   cs_deagle5 and scoutzknivez - none of them in Classic's pool) and
   `mods/metamod-plugins.ini`.

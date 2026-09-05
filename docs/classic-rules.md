@@ -371,8 +371,8 @@ pnpm run match score     # the live scoreboard
 
 Note `sv_restartround`, not `restart`: the command pipe blocks `restart`
 because it segfaults this engine build (2026-08-04). `sv_restartround` is an
-alias of the era's `sv_restart` and is what `chatrestart.sma` uses on the
-other modes.
+alias of the era's `sv_restart` and is what the war room's Restart round
+button sends on the other modes.
 
 ### What this stack cannot do
 
@@ -388,8 +388,9 @@ other modes.
   **stock image, unbuilt**: it has no Dockerfile, so nothing compiles a `.sma`
   for it, and the plugins it does load are pre-compiled binaries hand-placed
   on the box. Backlog item 16 is the fix and it is bigger than a plugin.
-- **No `!restart` in chat.** `chatrestart.amxx` is baked into the mod images
-  only. Use `pnpm run match knife`.
+- **No `!restart` in chat.** Nothing has it any more - the plugin that took
+  it (`chatrestart.amxx`) was removed from every mod on 2026-09-05. Use
+  `pnpm run match knife`, or the war room's Restart round button.
 
 ### Bots
 

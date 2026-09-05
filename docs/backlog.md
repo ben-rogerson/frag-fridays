@@ -349,11 +349,12 @@ Two honest options, both bigger than a plugin:
    into `mods/zp/plugins` box-side. Fast, and it keeps the box-only pile
    growing - the exact hazard item 17 is about.
 
-Two smaller wins available on the same path, both currently missing on
-Classic and both already compiled inside the mod images:
-`chatrestart.amxx` (`!restart` from chat - useful for a botched knife round)
-and `teambalance.amxx` (`ff_swapteams`, which would make the half-time swap a
-war room button instead of ten people rejoining by hand).
+One smaller win available on the same path, currently missing on Classic and
+already compiled inside the mod images: `teambalance.amxx` (`ff_swapteams`,
+which would make the half-time swap a war room button instead of ten people
+rejoining by hand). A botched knife round no longer needs a plugin here - the
+war room's Restart round button sends `sv_restartround` through the pipe,
+which Classic has.
 
 ## 17. Vanilla's box-only plugins and configs (2026-09-04)
 

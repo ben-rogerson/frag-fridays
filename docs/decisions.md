@@ -1261,3 +1261,62 @@ which `deploy.sh` never touches, so the compiled `.amxx` goes in by hand.
 The log parsers fold `Name (1)` back to `Name` anyway (standings.py already
 did; the recap parser now does too), because the plugin only helps from the
 moment it ships and the archive is full of already-split sessions.
+
+## The round restart left chat for the war room (2026-09-05)
+
+`chatrestart.amxx` gave every player `!restart`, an unadmin-gated
+`sv_restartround` - deliberately, because sessions run without admins and a
+round can wedge (bots camped, an objective nobody can finish, someone stuck in
+spectate) with nobody able to fix it. A 10-second ticker told anyone who had
+been dead or spectating for two ticks to type it.
+
+Reading the full log history on 2026-09-05 said what it was actually used for.
+Of 90 round restarts, **one player accounted for 57, and 45 of those were
+within a minute of joining**: they were dead, they wanted to spawn, and the
+only verb anyone had ever advertised to them restarted the round for all ten
+people. The nag is what taught it to them.
+
+So the two needs were separated:
+
+- **A player who wants to be back in the game** says `/spawn` (or `/respawn`,
+  added the same day in `frag_dm.sma`). It respawns them alone, and the ticker
+  now names it. Both moved into the plugin that owns the verb, because
+  advertising a command from a plugin that might not be loaded beside it is
+  how a note starts lying: `frag_dm.sma` on the DM five, and a second copy in
+  `gungame.sma` for GunGame, which runs no `frag_dm.sma` at all. `/restart`
+  survives as an alias of `/spawn` in both - the word is in players' fingers,
+  and silence would teach nothing.
+- **A round that genuinely needs resetting for everyone** is the war room's
+  Restart round button (`POST /admin-api/restartround`), one rung below
+  Restart server on the Console panel. Same `sv_restartround 1`, now behind
+  the admin token, so the cost lands with the person who can see the whole
+  server.
+
+`chatrestart.sma` is deleted from all six mod images rather than left
+registered with its command removed: what was left was the ticker, and the
+ticker belongs next to `/spawn`.
+
+A collision goes with it. GunGame's own `!restart` means "reset me to level
+1" (`gungame.sma`, and its `!rules` console text says so), so on gg the two
+plugins had been answering the same word with different things - a level
+reset menu and a server-wide round restart, both at once. That is why gg's
+`/spawn` takes every shape of the word EXCEPT `!restart`: bare, `/` and `.`
+land on the respawn, and the `!` shape stays GunGame's level reset, which is
+the one meaning a player can read for themselves in `!rules`.
+
+Aim Prac got the same three pieces the same day. Its `frag_dm.sma` is an
+older copy (no `split_cmd`, no alias table - it matches whole words), so the
+prefix is stripped for these three verbs only rather than pulling the whole
+normaliser back; the rest of that file staying a version behind is a separate
+tidy-up.
+
+**The last piece is a cvar, not a plugin.** `/spawn` deliberately refuses
+anyone not on a team - writing a team segfaults this stack
+(`teambalance.sma`) - so it tells them to press F1/F2 instead, and gg was the
+one mod where the engine refused that: `aim/awp/css/dm/fy` all append
+`mp_limitteams 0` + `mp_autoteambalance 0` to `amxx.cfg` from their
+Dockerfiles, gg appended neither and `gungame.cfg` set `mp_autoteambalance 1`
+back on. Both cvars now live in `gungame.cfg`, which is where they have to be:
+`exec_gg_config_file` runs that file after `amxx.cfg`, so anything the
+Dockerfile appended would have been overwritten. Without it gg's new nag ends
+in a wall - "press F1 or F2" to a player the engine will not let press it.

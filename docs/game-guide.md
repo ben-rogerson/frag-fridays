@@ -46,7 +46,7 @@ One mod runs at a time; the URL never changes.
 
 | Mod | What it is | Swap to it |
 |---|---|---|
-| gg | GunGame - new weapon every kill, first to gold knife wins. Deathmatch respawn is on (`gg_dm 1`). | `pnpm run deploy gg` |
+| gg | GunGame - new weapon every kill, first to gold knife wins. Deathmatch respawn is on (`gg_dm 1`). Chat is GunGame's own (`!rules`, `!guns`, `!restart` = reset yourself to level 1), plus `/spawn` and its nag. | `pnpm run deploy gg` |
 | dm | Deathmatch - instant respawn, pick your gun, aim practice (`frag_dm.sma`, ours) | `pnpm run deploy dm` |
 | vanilla | Classic - 5v5 competition rules, no bots by default. The match mode; full ruleset and sources in [classic-rules.md](classic-rules.md) | `pnpm run deploy vanilla` |
 
@@ -61,8 +61,13 @@ not ruled out:
   SMGs `/mp5 /p90 /mac10 /tmp /ump`, shotguns `/shotty /m3`, LMG `/para` -
   primary from next spawn
 - `/deagle` - pistol only
-- `/respawn` - back in the game now, if you are dead. Use this rather than
-  `/restart`, which restarts the round for the whole server.
+- `/respawn`, `/spawn` or `/restart` - back in the game now, if you are dead.
+  The server nags anyone who has been watching for two ticks (10-20s) to say
+  it. `/restart` is an alias, not a round restart any more: it used to restart
+  the round for everyone, and 57 of the 90 round restarts in the log history
+  were one player who only wanted to spawn. It stays as a word because it is
+  what those fingers type. A real round restart is a war room button now
+  (Console panel).
 
 **Anything reasonable is accepted.** The prefix can be `/`, `!`, `.` or
 nothing at all (`ak`, `!awp`, `.m4`, `guns ak` all work), case is ignored,

@@ -160,7 +160,7 @@ one IP locks that IP out for 15 minutes.
 | Announce | `amx_csay green` centre-screen message | no |
 | Map | `changelevel` to any map in the live rotation | no, stays connected |
 | Mode | Full mod swap - `docker compose` down/build/up | DROPS EVERYONE, 1-2 min |
-| Console | Any console command through the pipe, team rebalance, container restart | restart DROPS EVERYONE |
+| Console | Any console command through the pipe, round restart, container restart | round restart no; container restart DROPS EVERYONE |
 
 **Starting early:** if everyone is on and it is not kickoff yet, Session ->
 START NOW rewrites `/opt/cs16/web/assets/session.json` with the kickoff at

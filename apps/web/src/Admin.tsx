@@ -676,6 +676,25 @@ const Room: FC<{ token: string; onLock: () => void }> = ({ token, onLock }) => {
               {pending === "command" ? "..." : "Run"}
             </button>
           </form>
+          {/* The soft restart, above the hard one so the ladder reads in
+              order. sv_restartround resets the round and respawns everyone
+              where they stand: the fix for a wedged round (bots camped, an
+              objective nobody can finish, someone stuck in spectate) that
+              costs nobody their connection. It was !restart in chat until
+              2026-09-05 - unadmin-gated, and mostly one player who only wanted
+              to spawn (57 of the server's 90 round restarts were theirs).
+              Players say /spawn for that now; this is the whole-server one. */}
+          <Arm
+            label="Restart round"
+            armed="Restart the round?"
+            disabled={busy || !pipe}
+            onFire={() => act("restartround", "/restartround", {}, "Restarting the round")}
+          />
+          <p className="war__hint">
+            Resets the round and respawns everyone where they stand - nobody is dropped, the map
+            stays, and frags are kept. A player who is just dead or stuck in spectate can say
+            /spawn instead of costing everyone a round.
+          </p>
           {/* deliberately NOT gated on `busy`: this is the way out of a
               wedged sim, and a map change going wrong is when it is wanted */}
           <Arm

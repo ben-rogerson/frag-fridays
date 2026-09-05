@@ -252,6 +252,19 @@ export function adminRouter() {
     return ok(result ?? `swap sent (#${serial})`)
   }))
 
+  // Restart the round, not the server: sv_restartround 1 respawns everyone
+  // where they stand, keeps the map and drops nobody. It used to be !restart
+  // in chat (chatrestart.amxx, removed 2026-09-05) - unadmin-gated, and mostly
+  // used by one player who only wanted to spawn: 57 of the server's 90 round
+  // restarts were theirs. /spawn covers that player now; the whole-server
+  // reset is this button, which is the shape it should always have had.
+  router.post('/restartround', handle(async () => {
+    log('restartround')
+    // no log wait: the round is visibly back on the scoreboard the panel polls
+    const { serial } = await runCommands(['sv_restartround 1'], { wait: 0 })
+    return ok(`round restarting (#${serial})`)
+  }))
+
   // The escape hatch: cmdpipe.js still blocks the engine-killers, so the worst
   // this does is set a silly cvar.
   router.post('/command', handle(async (req) => {
