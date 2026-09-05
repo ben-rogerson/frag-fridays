@@ -1588,3 +1588,87 @@ about a tenth of one level.
 Because the rule lives in the stylesheet keyed on `#canvas` rather than as an
 inline style, it also survives anything that replaces the element, and fullscreen
 is requested on the document element, so no fullscreen path can drop it.
+
+## The two map-overview spectator modes are gone (2026-09-05)
+
+Spectating, the jump key cycles the camera, and CS's own ring ends with two
+top-down radar views - Free Map Overview and Chase Map Overview. Both draw
+`cstrike/overviews/<map>.bmp` as their backdrop, and when the client has no
+overview for the map, cs16-client falls back to a bare green grid on black.
+Confirmed live with a browser client: fy_desert (ships an overview) renders the
+map image with player icons, fy_iceworld (none) renders black, and the client
+says so on connect - "Couldn't open file overviews/fy_iceworld.txt. Using
+default values for overview mode."
+
+Only stock CS maps ship overviews. Sixteen of the thirty maps across our
+rotations have none: all three awp maps, five of six css, four of six fy, plus
+aim_map, scoutzknivez, cs_prospeedball, cs_deagle5 and fy_pool_day in dm and gg.
+The community maps we added brought their own only by luck (de_rats, fy_desert,
+fy_nuketown, de_bank_csgo).
+
+Two ways out: generate the sixteen missing overview images, or drop the modes.
+Dropped them. Generating them is a per-map job for a camera angle almost nobody
+uses on maps you can see end to end from the floor, and every one would then have
+to ride valve.zip.
+
+There is no cvar for this - the mode ring is hardcoded in the game dll's
+`Observer_HandleButtons` - so it is a plugin, `ff_specmode.amxx`, in every mod
+that has a plugins.ini (cpl runs the stock image, and its rotation is all stock
+maps, so it keeps them and does not need it). It hooks `PlayerPreThink` POST,
+which lands in the same frame the dll moved the mode, and rewrites an overview
+mode to Free Chase before the client is ever told. It also relabels the dll's
+own centre-screen announce, which is sent earlier in that same frame and would
+otherwise read "Free Overview" over a chase cam.
+
+The cost is that the overview also disappears on the maps where it worked - all
+of aim, classical and cpl, most of dm and gg. If the missing images ever get
+made, delete the plugin rather than teaching it which maps have one: containers
+mount only `cs/cstrike/maps`, so a server-side file check cannot see the
+client-only overviews that ride the `server/custom/` overlay.
+
+## Dead players land in their killer's eyes (2026-09-05)
+
+Stock, the camera you settle in when you die is the free-fly one, and it takes
+five seconds to get there. Measured in a throwaway `classical` container with a
+probe plugin logging every `iuser1` transition:
+
+```
+t+0.00s  DeathMsg, same frame iuser1 0 -> 2 (CHASE_FREE), iuser2 = your own body
+t+4.5s   iuser1 2 -> 3 (ROAMING), the mode you are actually left in
+```
+
+The chase cam is only the death-cam moment on the way through. The 4.5s step is
+`StartObserver` calling `Observer_SetMode(m_iObserverLastMode)`, and
+`m_iObserverLastMode` starts life as ROAMING - which is also why the game
+remembers a mode you picked yourself and reuses it next death.
+
+Free-fly is the worst of the four for a dead player who just wants to watch the
+round out: you are a camera in an empty corridor, and finding the fight is a
+job. First person through the player who just killed you is the one that reads
+as spectating and answers the question you actually have, so `ff_specmode.amxx`
+(v0.2.0, same plugin as the overview fix above) pins mode to `OBS_IN_EYE` and
+target to the killer, from the frame you die until you touch the cycle.
+
+Three things that shape it:
+
+- **It has to run every frame, not once on death.** The dll's own switch to
+  ROAMING lands 4.5 seconds later and would take the camera straight back.
+- **The first jump press hands the camera back for good** - that death and
+  every death after it, tracked per player for the session. The dll already
+  remembers a chosen mode, so forcing first person over the top of one every
+  death would be the more annoying bug. The spectator menu's `specmode` command
+  counts as the same choice.
+- **The target is set every frame too, not just the mode.** The dll's own
+  target at the death frame is the victim's own body, it clears it to 0 at the
+  ROAMING step, and it moves you off any target that dies - so re-asserting the
+  killer is what keeps you there. When the killer dies, disconnects or the death
+  had none (a suicide, the world), it falls back to the dll's target if that is
+  alive and then to anyone alive, and forgets the killer rather than snapping
+  back to them when they respawn.
+
+Verified on the rig with bots: every death re-aims to the killer in the same
+frame (`mode=2->4 target=<self>-><killer>`), the 4.5s step is caught
+(`mode=3->4 target=0-><killer>`), it holds until the killer dies and then hands
+over to the fallback. Kill switch `ff_specmode_eye 0`. In the dm-family mods
+this is a sub-second blip - `dm_spawn_delay` is 0.75 - so it only really shows
+in `classical`, where you are dead until the round ends.

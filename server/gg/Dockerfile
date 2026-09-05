@@ -86,6 +86,14 @@ RUN grep -qx 'statusjson.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
  || echo 'statusjson.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
 RUN touch public/status.json && chown xashds public/status.json
 
+# spectator camera: dead players land in their killer's own first-person view
+# instead of the free-fly camera the dll drops them into, and the two
+# map-overview modes are out of the jump cycle - they are a black screen on every
+# map with no overviews/<map>.bmp, which is 16 of the 30 maps across our
+# rotations. See scripting/ff_specmode.sma.
+RUN grep -qx 'ff_specmode.amxx' cstrike/addons/amxmodx/configs/plugins.ini \
+ || echo 'ff_specmode.amxx' >> cstrike/addons/amxmodx/configs/plugins.ini
+
 # YaPB registers with METAMOD's plugins.ini (not AMXX's - third registration
 # file, see docs/troubleshooting.md). Bots need write access to data/ at
 # runtime (logs, learned files).
