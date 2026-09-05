@@ -11,15 +11,16 @@ import { docker, gameContainer, modOf, psLine, run, sleep } from './exec.js'
 
 const GAME_ORIGIN = process.env.GAME_ORIGIN ?? 'http://host.docker.internal:27016'
 const ROOT = '/opt/cs16'
-// per-mod compose projects; vanilla lives in ROOT. Every mod that can hold
+// per-mod compose projects; cpl lives in ROOT. Every mod that can hold
 // 27016 must be listed - swapMod's teardown loop reads this, and a mod
 // missing here keeps the port and fails the swap.
-const MOD_DIRS = ['gg', 'dm', 'zp', 'aim', 'css', 'fy', 'awp']
+const MOD_DIRS = ['gg', 'dm', 'zp', 'aim', 'css', 'fy', 'awp', 'classical']
 
-export const MODS = ['vanilla', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
+export const MODS = ['cpl', 'classical', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
 // mods whose image bakes teambalance.amxx in (ff_rebalance / ff_swapteams).
-// The dm clones inherit it; vanilla, zp and aim do not have the plugin.
-const TEAM_MODS = new Set(['gg', 'dm', 'css', 'fy', 'awp'])
+// The dm clones and classical inherit it; cpl, zp and aim do not have the
+// plugin - cpl because it runs the stock image unbuilt and compiles nothing.
+const TEAM_MODS = new Set(['gg', 'dm', 'css', 'fy', 'awp', 'classical'])
 
 export class ActionError extends Error {
   constructor(message, status = 409) {
@@ -145,7 +146,7 @@ export async function mapcycle() {
     cycleCache.set(container, { maps, at: Date.now() })
     return maps
   } catch {
-    return [] // vanilla's mount or a mid-restart exec - not worth failing a whole state read
+    return [] // cpl's mount or a mid-restart exec - not worth failing a whole state read
   }
 }
 
@@ -449,7 +450,7 @@ export async function swapMod(mod) {
     steps.push('warned players via csay, waited 8s')
   }
   // down everything that could hold 27016 (mirrors deploy.sh; never touches mcp/)
-  await run('docker', ['compose', '--profile', 'vanilla', 'down', '--remove-orphans'], {
+  await run('docker', ['compose', '--profile', 'cpl', 'down', '--remove-orphans'], {
     cwd: ROOT,
     timeout: 120_000,
   })
@@ -462,8 +463,8 @@ export async function swapMod(mod) {
   }
   steps.push('all game containers down')
   // up the target (build contexts are already on the box from the last deploy)
-  if (mod === 'vanilla') {
-    await run('docker', ['compose', '--profile', 'vanilla', 'up', '-d'], {
+  if (mod === 'cpl') {
+    await run('docker', ['compose', '--profile', 'cpl', 'up', '-d'], {
       cwd: ROOT,
       timeout: 300_000,
     })

@@ -87,7 +87,7 @@ export type TabScreenProps = {
   modeName: string;
   /** data-mode key, so the panel wears the mode's signal colour */
   themeMode: string;
-  /** Classic splits into two teams; every other mode is one list by kills */
+  /** the Classic-family modes split into two teams; every other mode is one list by kills */
   classic: boolean;
   /** the player's own alias, for the highlighted row */
   you: string;
@@ -134,7 +134,7 @@ export const TabScreen: FC<TabScreenProps> = ({
   // data anywhere means the column is not drawn at all, rather than a stripe
   // of dashes down a board that never had sides to begin with.
   const sideTags = !splitTeams && hasTeams;
-  // Classic splits by side, so a player who has not got one belongs to neither
+  // the classic board splits by side, so a player who has not got one belongs to neither
   // block - and used to fall through both and vanish off the board completely.
   // That is not a rare state: team 0 is "connected, still on the join screen",
   // which is what everybody looks like for the first seconds after joining and

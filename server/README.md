@@ -9,8 +9,9 @@ gets hand-edited on the server.
 
 | Path | On the VPS | Purpose |
 |---|---|---|
-| `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile vanilla` runs Classic, the 5v5 match mode, off the stock image. The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
-| `vanilla/` | `/opt/cs16/vanilla/` | Classic's config, mounted (not baked) because vanilla runs the stock image unbuilt: `server.cfg` (the match ruleset), `amxx.cfg` (sets no gameplay cvar; ends with `exec server.cfg`, which is what re-applies the ruleset each map), `yapb.cfg` (`yb_quota 0`), `mapcycle.txt`, `maps.ini`. See [docs/classic-rules.md](../docs/classic-rules.md) |
+| `docker-compose.yml` | `/opt/cs16/docker-compose.yml` | Profile-based compose. `--profile cpl` runs CPL Tournament, the 5v5 match mode, off the stock image. The gg/dm profiles here are unused templates - the real mods run from their own dirs below |
+| `cpl/` | `/opt/cs16/cpl/` | CPL Tournament's config, mounted (not baked) because it runs the stock image unbuilt: `server.cfg` (the match ruleset), `amxx.cfg` (sets no gameplay cvar; ends with `exec server.cfg`, which is what re-applies the ruleset each map), `yapb.cfg` (`yb_quota 0`), `mapcycle.txt`, `maps.ini`. Called `vanilla/` until 2026-09-05. See [docs/classic-rules.md](../docs/classic-rules.md) |
+| `classical/` | `/opt/cs16/classical/` | ClassicAl - the same rounds with the match rules off ($16000, no fade to black, 10 minute maps, bots to 10). Unlike `cpl/` it is a normal mod dir with its own image, so it compiles `cmdpipe`/`statusjson`/`ff_rejoin`/`teambalance` and bakes its own cvars. No `frag_dm.amxx`: that plugin would force respawn over the top of the rounds |
 | `gg/` | `/opt/cs16/gg/` | GunGame (working) - Dockerfile compiles `addons/` plugin source at build time, appends to `plugins.ini` |
 | `dm/` | `/opt/cs16/dm/` | Deathmatch (working) - our `frag_dm.sma` compiled at build time; CSDM itself is dead on this stack (see docs/troubleshooting.md) |
 | `css/` | `/opt/cs16/css/` | Source Maps - dm's rules on CS:S/CS:GO maps remade for 1.6 (`css_*` + `de_bank_csgo`) |
@@ -31,24 +32,24 @@ gets hand-edited on the server.
   name in `DIR_MODS`) can never land on it.
 - SteamCMD internals at `/opt/cs16/` root (`linux32/`, `package/`, `steamcmd.sh`, ...).
 - `.env` - stays on the box, holds only `PUBLIC_IP` for the root compose.
-- **`/opt/cs16/mods/` - the one real hazard.** vanilla runs the stock image
+- **`/opt/cs16/mods/` - the one real hazard.** cpl runs the stock image
   unbuilt, so it cannot compile or bake anything; the root compose feeds it
   AMXX plugins, AMXX configs and the YaPB tree out of `mods/`, which was
   hand-seeded on the box and which `deploy.sh` only ever `mkdir -p`s. Nothing
   in `server/` syncs it, so a change made there is invisible here and dies
   with the box. Three files have been pulled back under repo control by
-  mounting over it (`vanilla/amxx.cfg`, `vanilla/maps.ini`,
-  `vanilla/yapb.cfg`) - do the same for anything else that starts mattering,
+  mounting over it (`cpl/amxx.cfg`, `cpl/maps.ini`,
+  `cpl/yapb.cfg`) - do the same for anything else that starts mattering,
   rather than editing `mods/` in place. When you do, take the box copy
   VERBATIM and subtract from it; retyping a config from what the docs say is
   in it is how you lose settings nobody remembered.
 
   Still box-only, audited 2026-09-04: `mods/zp/plugins/*.amxx` (compiled
-  binaries - nothing can rebuild them for vanilla; the loaded set is stock
+  binaries - nothing can rebuild them for cpl; the loaded set is stock
   AMXX plus `cmdpipe.amxx` and `statusjson.amxx`, and notably NOT
   `teambalance`), `mods/zp/configs/plugins.ini`,
   `configs/users.ini`, `configs/maps/` (per-map cfgs for awp_india,
-  cs_deagle5 and scoutzknivez - none of them in Classic's pool) and
+  cs_deagle5 and scoutzknivez - none of them in CPL Tournament's pool) and
   `mods/metamod-plugins.ini`.
 
 ## Rules (learned the hard way - see docs/troubleshooting.md)
@@ -58,12 +59,12 @@ gets hand-edited on the server.
 - Use `restart: unless-stopped`, never `restart: always`.
 - A `.amxx` in `plugins/` does nothing unless listed in `plugins.ini`. Modules
   (like CSDM's `.so`) register in `modules.ini` instead.
-- **Classic (vanilla) gets nothing from this repo's `addons/`.** It runs the
+- **CPL Tournament (`cpl`) gets nothing from this repo's `addons/`.** It runs the
   stock image and mounts `/opt/cs16/mods/zp/{plugins,configs}`, which `deploy.sh`
   never touches - a new plugin has to be compiled and copied in by hand. It also
   keeps the stock `gamedata/`, so the AMXX `SV_DropClient` detour is still
   installed there: anything that drops a client programmatically (`ff_rejoin.amxx`)
-  must not go to Classic until `fragfridays-sv-dropclient.txt` is mounted too.
+  must not go to CPL Tournament until `fragfridays-sv-dropclient.txt` is mounted too.
 - `valve.zip` root must contain only `valve/` and `cstrike/`.
 - Wads and sounds are render-side, but **studio models and env_sprites load
   server-side** - a map using them needs the `models/`/`sprites/` compose

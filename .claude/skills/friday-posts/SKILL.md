@@ -99,7 +99,8 @@ copy. One mode line and one bot line per post.
 | `Source Maps` | deathmatch rules on CS:S and CS:GO maps rebuilt for 1.6 - cache, mirage, dust2, bank; `/guns` works the same | bots fill the server and leave as humans join - early birds aren't alone |
 | `Fight Yard` | fy_ maps only - tiny open yards, 1 minute rounds, `/guns` works but some maps hand out their own floor guns | bots fill the server and leave as humans join - early birds aren't alone |
 | `Sniper` | AWP and knife, nothing else - no `/guns`, no buying, grenades still work; one shot decides it | bots fill the server and leave as humans join - early birds aren't alone |
-| `Classic` | stock round rules - buy at round start, no respawns, dead means spectating until the next round, so don't rush the AWP alone | NO bots - it's humans or nobody, so turning up on time is the whole plan |
+| `ClassicAl` | classic rounds with the match rules off - $16000 every round so you buy whatever you want, and when you die you get to watch the round finish instead of a black screen | bots fill the server and leave as humans join - early birds aren't alone |
+| `CPL Tournament` | the era's match rules - $800 start, buy at round start, no respawns, and dead means a black screen until the round ends, so don't rush the AWP alone | NO bots - it's humans or nobody, so turning up on time is the whole plan |
 | `Aim Prac` | rarely posted (Ben's call) - if it's somehow live, check with him before writing the post | 16 knife bots, all on T, and they stay - humans hold CT |
 
 `Source Maps`, `Fight Yard` and `Sniper` ship on the
@@ -113,11 +114,12 @@ it from main mid-week.
   old IP URL - never put the IP URL in a post.
 - Gun chat commands are **`/guns`**, `/ak`, `/awp` etc - dm's info.json
   says `!guns`, which is wrong. Sniper has no gun menu at all.
-- Bots: every mod except Classic runs `yb_quota 10`, `yb_quota_mode fill` -
-  ten players in the server, one bot leaving per human who joins. Classic
-  has no YaPB at all, so no bots unless added by hand. game-guide.md's
+- Bots: every mod except CPL Tournament runs `yb_quota 10`,
+  `yb_quota_mode fill` - ten players in the server, one bot leaving per human
+  who joins. CPL Tournament ships `yb_quota 0`: it HAS YaPB, it just starts
+  with none, and a restart always puts it back to zero. game-guide.md's
   "quota 9" is stale, and so is any older "7". Or just say "bots fill the
-  server" (never for Classic).
+  server" (never for CPL Tournament - ClassicAl is the one with bots).
 - Never name the current map in posts - maps rotate and there's voting, so
   whatever status.json shows now won't be what's on at session time.
 - The bots aren't pushovers - never pitch them as free frags or easy kills.

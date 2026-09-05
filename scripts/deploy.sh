@@ -4,7 +4,7 @@
 # Usage:
 #   scripts/deploy.sh            # sync files only, no restart
 #   scripts/deploy.sh gg         # sync, then swap the running mod to gg
-#   scripts/deploy.sh vanilla    # sync, then swap to vanilla (root compose profile)
+#   scripts/deploy.sh cpl        # sync, then swap to cpl (root compose profile)
 #
 # Runs from a clean main only - the syncs use --delete, so deploying any other
 # tree removes from the box whatever that tree is missing. CS16_DEPLOY_FORCE=1
@@ -16,16 +16,17 @@
 # the target mod.
 #
 # Mod layout on the box:
-#   vanilla        -> /opt/cs16/docker-compose.yml, profile "vanilla" (bind-mounts mods/)
+#   cpl            -> /opt/cs16/docker-compose.yml, profile "cpl" (bind-mounts mods/)
 #   gg/dm/zp/aim/  -> /opt/cs16/<mod>/docker-compose.yml, own image built from addons/
-#   css/fy/awp
+#   css/fy/awp/
+#   classical
 set -euo pipefail
 
 HOST="${CS16_HOST:-cs16}"
 REMOTE_ROOT="${CS16_REMOTE_ROOT:-/opt/cs16}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER_DIR="$REPO_ROOT/server"
-DIR_MODS=(gg dm zp aim css fy awp)
+DIR_MODS=(gg dm zp aim css fy awp classical)
 MOD="${1:-}"
 
 log() { printf '\033[1;36m[deploy]\033[0m %s\n' "$*"; }
@@ -50,8 +51,8 @@ if [[ "${CS16_DEPLOY_FORCE:-}" != "1" ]]; then
 $(git -C "$REPO_ROOT" status --short)"
 fi
 
-if [[ -n "$MOD" && "$MOD" != "vanilla" ]]; then
-  [[ " ${DIR_MODS[*]} " == *" $MOD "* ]] || die "unknown mod '$MOD' (expected: vanilla ${DIR_MODS[*]})"
+if [[ -n "$MOD" && "$MOD" != "cpl" ]]; then
+  [[ " ${DIR_MODS[*]} " == *" $MOD "* ]] || die "unknown mod '$MOD' (expected: cpl ${DIR_MODS[*]})"
   [[ -f "$SERVER_DIR/$MOD/docker-compose.yml" ]] \
     || die "server/$MOD/docker-compose.yml missing - run scripts/pull.sh first?"
 fi
@@ -105,15 +106,15 @@ rsync -tpvz "$SERVER_DIR/update-clientcfg.sh" "$HOST:$REMOTE_ROOT/update-clientc
 log "installing sim-watchdog.sh"
 rsync -tpvz "$SERVER_DIR/sim-watchdog.sh" "$HOST:$REMOTE_ROOT/sim-watchdog.sh"
 
-# vanilla's mapcycle (mounted by the root compose; every other mod ships
-# theirs in its own mod dir)
-if [[ -d "$SERVER_DIR/vanilla" ]]; then
-  rsync -rlptvz --delete "$SERVER_DIR/vanilla/" "$HOST:$REMOTE_ROOT/vanilla/"
+# cpl's mapcycle and ruleset (mounted by the root compose; every other mod
+# ships theirs in its own mod dir)
+if [[ -d "$SERVER_DIR/cpl" ]]; then
+  rsync -rlptvz --delete "$SERVER_DIR/cpl/" "$HOST:$REMOTE_ROOT/cpl/"
 fi
 
-# vanilla's loading-screen mode blurb (gg/dm ship theirs inside their dirs)
-if [[ -f "$SERVER_DIR/info-vanilla.json" ]]; then
-  rsync -tvz "$SERVER_DIR/info-vanilla.json" "$HOST:$REMOTE_ROOT/info-vanilla.json"
+# cpl's loading-screen mode blurb (gg/dm ship theirs inside their dirs)
+if [[ -f "$SERVER_DIR/info-cpl.json" ]]; then
+  rsync -tvz "$SERVER_DIR/info-cpl.json" "$HOST:$REMOTE_ROOT/info-cpl.json"
 fi
 
 # custom maps go into the game files tree (server plays from it; clientcfg
@@ -138,8 +139,8 @@ fi
 # logs/<mod> receives HL kill logs; chown so the container's xashds (1000)
 # can write through the bind mount. cores/ catches segfault dumps (host
 # kernel.core_pattern points at /cores; 1777 so any container uid can write).
-ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,aim,css,fy,awp,vanilla} $REMOTE_ROOT/cores \
-  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,aim,css,fy,awp,vanilla} && chmod 1777 $REMOTE_ROOT/cores"
+ssh "$HOST" "mkdir -p $REMOTE_ROOT/mods/{zp,gg,dm}/{plugins,configs} $REMOTE_ROOT/cmdpipe $REMOTE_ROOT/logs/{gg,dm,aim,css,fy,awp,classical,cpl} $REMOTE_ROOT/cores \
+  && chown 1000:1000 $REMOTE_ROOT/logs/{gg,dm,aim,css,fy,awp,classical,cpl} && chmod 1777 $REMOTE_ROOT/cores"
 
 # --- mcp control plane -------------------------------------------------------
 # Always-on, own compose project, publishes 27017 only - never part of the
@@ -160,7 +161,7 @@ fi
 
 if [[ -z "$MOD" ]]; then
   log "files synced. No mod named, so nothing was restarted."
-  log "to swap/restart a mod: pnpm run deploy <vanilla|gg|dm|zp|aim|css|fy|awp>"
+  log "to swap/restart a mod: pnpm run deploy <cpl|classical|gg|dm|zp|aim|css|fy|awp>"
   exit 0
 fi
 
@@ -168,7 +169,7 @@ fi
 # One mod at a time: everything binds 27016 so the player URL never changes.
 
 # The teardown below DESTROYS the old container and its docker logs with it -
-# vanilla's only record of play, and crash output on any mod (learned
+# cpl's only record of play, and crash output on any mod (learned
 # 2026-08-14: two engine crashes left no evidence). Snapshot first.
 log "snapshotting console logs of the running container..."
 ssh "$HOST" 'c=$(docker ps --filter publish=27016 --format "{{.Names}}" | head -n1); \
@@ -178,15 +179,15 @@ ssh "$HOST" 'c=$(docker ps --filter publish=27016 --format "{{.Names}}" | head -
 
 log "stopping whatever is running..."
 ssh "$HOST" "
-  cd $REMOTE_ROOT && docker compose --profile vanilla down --remove-orphans 2>/dev/null || true
+  cd $REMOTE_ROOT && docker compose --profile cpl down --remove-orphans 2>/dev/null || true
   for d in ${DIR_MODS[*]}; do
     [ -f $REMOTE_ROOT/\$d/docker-compose.yml ] && (cd $REMOTE_ROOT/\$d && docker compose down --remove-orphans) || true
   done
 "
 
-if [[ "$MOD" == "vanilla" ]]; then
-  log "starting vanilla (root compose, profile vanilla)..."
-  ssh "$HOST" "cd $REMOTE_ROOT && docker compose --profile vanilla up -d"
+if [[ "$MOD" == "cpl" ]]; then
+  log "starting cpl (root compose, profile cpl)..."
+  ssh "$HOST" "cd $REMOTE_ROOT && docker compose --profile cpl up -d"
 else
   log "building and starting $MOD..."
   ssh "$HOST" "cd $REMOTE_ROOT/$MOD && docker compose build && docker compose up -d"

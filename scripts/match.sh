@@ -33,11 +33,11 @@ csay() { scripts/rc.sh "amx_csay green $1" >/dev/null; }
 # procedure only means anything on Classic (rounds, buy, one life).
 mod=$(ssh "$HOST" 'docker ps --filter publish=27016 --format "{{.Names}}"' | head -n1)
 [[ -n "$mod" ]] || die "no container on 27016 - the server is down"
-# gg-xash3d-1 -> gg, but vanilla runs from the ROOT compose project so its
-# container is cs16-vanilla-1 (same idiom as server/mcp/src/exec.js)
+# gg-xash3d-1 -> gg, but cpl runs from the ROOT compose project so its
+# container is cs16-cpl-1 (same idiom as server/mcp/src/exec.js)
 mod=${mod%%-*}
-if [[ "$mod" == "cs16" ]]; then mod=vanilla; fi
-if [[ "$mod" != "vanilla" ]]; then
+if [[ "$mod" == "cs16" ]]; then mod=cpl; fi
+if [[ "$mod" != "cpl" ]]; then
   say "WARNING: running mod is '$mod', not Classic - sending the match commands anyway"
 fi
 

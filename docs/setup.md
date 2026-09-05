@@ -99,12 +99,13 @@ SteamCMD install dir, so SteamCMD internals sit alongside the project files:
 │   └── cstrike/
 │       └── userconfig.cfg   # shared client config, ships to all players
 ├── .env                     # PUBLIC_IP for the root compose (not in repo)
-├── docker-compose.yml       # profile-based: --profile vanilla runs Classic
+├── docker-compose.yml       # profile-based: --profile cpl runs CPL Tournament
 ├── valve.zip                # ~300MB trimmed client archive (rebuild: update-clientcfg.sh)
 ├── web/                     # custom web client build (from repo apps/web via deploy.sh)
 ├── update-clientcfg.sh      # rebuilds valve.zip from cs/, restarts running mod
-├── vanilla/                 # Classic's mounted config (from repo server/vanilla/):
-│                            # server.cfg, amxx.cfg, yapb.cfg, mapcycle.txt
+├── cpl/                     # CPL Tournament's mounted config (repo server/cpl/):
+│                            # server.cfg, amxx.cfg, yapb.cfg, mapcycle.txt,
+│                            # maps.ini, gamedata/. Was vanilla/ until 2026-09-05
 ├── mods/                    # bind-mount targets for the root compose. HAND-SEEDED,
 │                            # NOT synced by deploy.sh - see server/README.md
 ├── src/                     # downloaded mod archives (not in repo)
@@ -115,6 +116,8 @@ SteamCMD install dir, so SteamCMD internals sit alongside the project files:
 │   ├── docker-compose.yml
 │   └── addons/              # mounts ../valve.zip (the canonical one)
 ├── dm/                      # Deathmatch - frag_dm.sma (ours; CSDM was incompatible)
+├── aim/, css/, fy/, awp/    # Aim Prac, Source Maps, Fight Yard, Sniper - dm clones
+├── classical/               # ClassicAl - cpl's rounds, casual rules, own image
 ├── zp/                      # Zombie Plague - abandoned template
 └── linux32/, linux64/, package/, public/, siteserverui/, steamcmd.sh
                              # SteamCMD internals - leave alone

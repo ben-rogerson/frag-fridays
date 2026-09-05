@@ -37,10 +37,13 @@ export async function gameContainer() {
   return stdout.split('\n').find(Boolean) ?? null
 }
 
-// gg-xash3d-1 -> gg, cs16-vanilla-1 -> vanilla (same idiom as the scripts)
+// gg-xash3d-1 -> gg, cs16-cpl-1 -> cpl (same idiom as the scripts).
+// The mod dirs are their own compose project, so the prefix IS the mod; cpl
+// runs from the ROOT project, whose prefix is the project name, so its
+// service name is the middle segment.
 export const modOf = (container) => {
-  const prefix = container.split('-')[0]
-  return prefix === 'cs16' ? 'vanilla' : prefix
+  const parts = container.split('-')
+  return parts[0] === 'cs16' ? (parts[1] ?? 'cpl') : parts[0]
 }
 
 export async function psLine(container) {

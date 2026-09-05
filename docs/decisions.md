@@ -1320,3 +1320,73 @@ back on. Both cvars now live in `gungame.cfg`, which is where they have to be:
 `exec_gg_config_file` runs that file after `amxx.cfg`, so anything the
 Dockerfile appended would have been overwritten. Without it gg's new nag ends
 in a wall - "press F1 or F2" to a player the engine will not let press it.
+
+## Classic split in two: ClassicAl and CPL Tournament (2026-09-05)
+
+Classic was built as a tournament mode and it is a good one - `mp_startmoney
+800`, MR15 halves, no map clock, no bots, `mp_fadetoblack 1`. Every one of
+those numbers is sourced to a league rulebook in
+[classic-rules.md](classic-rules.md), and none of them is wrong.
+
+They are wrong for a Friday. Sessions here run in 30-minute blocks, people
+arrive late, and the mode's three defining rules each work against that: no
+map clock means one map for the whole block, $800 means the first three
+rounds are pistols, and fade to black means a dead player spends most of the
+block looking at nothing. That last one is what actually prompted this - Al
+asked to be able to watch the round finish - and `classic-rules.md` had
+already flagged it as "the rule most likely to read as 'the game is broken'
+to someone who has only played the casual modes".
+
+So the mode split rather than bent:
+
+- **ClassicAl** (`classical`): the same rounds, the match rules off.
+  `mp_fadetoblack 0` / `mp_forcecamera 0` / `mp_forcechasecam 0`,
+  `mp_startmoney 16000` (the engine's ceiling), `mp_timelimit 10` with
+  `mp_maxrounds 0` so a block sees three maps, `mp_freezetime 6`, and
+  `yb_quota 10` so it is never empty. `mp_limitteams 0` is mechanical rather
+  than taste: stock CS blocks joining the larger team, which locks a human
+  out of a bot-filled server. Friendly fire stays on and the teams stay as
+  people pick them - it is still Classic.
+- **CPL Tournament** (`cpl`): the old mode, byte-identical in behaviour,
+  renamed so its name says which of the two it is. The name is the era it
+  copies, and it sits next to a "CPL" column in the rules tables that means
+  the league, so the tables in `classic-rules.md` still say "Classic" with a
+  note at the top explaining the rename rather than being churned.
+
+**ClassicAl is a built mod dir; CPL Tournament is not.** This is the more
+interesting half. Classic runs the stock image unbuilt, which is why it has
+no `teambalance` (its half-time swap is ten people rejoining by hand), no
+`ff_rejoin` (a crashed player returns as `Name (1)`), and a pile of
+hand-placed `.amxx` binaries in `/opt/cs16/mods/zp` that no part of `server/`
+syncs - backlog items 16 and 17. Copying that shape for the new mode would
+have copied the problem, so `server/classical/` was built from `server/fy/`
+instead: its own Dockerfile, its own compiled plugins, its cvars baked into
+`amxx.cfg` (which AMXX execs at every map start, unlike `server.cfg`), and
+`PORT 27138`. Backlog item 16 now has a working example of what porting CPL
+Tournament would look like.
+
+It ships **no `frag_dm.amxx`**, which is the one thing to remember when
+copying a mod dir for a round-based mode. That plugin forces instant respawn,
+`mp_freezetime 0` and `mp_timelimit 10` from `plugin_init`, so it would
+overwrite the ruleset on every map. Its absence also means no `/guns` and no
+`/spawn` ticker here, which is correct: nothing respawns.
+
+The rotation is CPL's seven plus `cs_office`, `cs_italy` and `cs_assault` -
+maps no competition pool ever had, and exactly the kind of variety a 30-minute
+block wants. All ten are already in another mod's `mapcycle.txt`, so the
+`valve.zip` keep-list (the union of every rotation) is unchanged and this
+needed no `clientcfg`.
+
+Two things the rename touched that are worth knowing:
+
+- `modOf()` in `server/mcp/src/exec.js` mapped **any** `cs16-*` container to
+  `vanilla`, because the root compose project is the prefix and there was only
+  ever one service in it. It now reads the service name out of the middle
+  segment. Nothing was broken by this before; it would have been the moment a
+  second root-compose profile existed, which is a second reason ClassicAl is a
+  mod dir instead.
+- `data/logs/vanilla/` keeps its name - it is the archive, and the recap
+  parser's `MODES` keeps `"vanilla": "classic"` alongside the new `"cpl"` so
+  old sessions still parse. `/opt/cs16/vanilla/` on the box is dead after the
+  first deploy and has to be removed by hand: `deploy.sh` never deletes a
+  directory it no longer knows about.

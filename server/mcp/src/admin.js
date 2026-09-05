@@ -31,7 +31,7 @@ import {
 } from './actions.js'
 
 const TOKEN = process.env.ADMIN_TOKEN
-const MODS = ['vanilla', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
+const MODS = ['cpl', 'classical', 'gg', 'dm', 'aim', 'css', 'fy', 'awp', 'zp']
 
 const sha = (s) => createHash('sha256').update(String(s)).digest()
 const tokenOk = (t) => Boolean(TOKEN) && timingSafeEqual(sha(t ?? ''), sha(TOKEN))

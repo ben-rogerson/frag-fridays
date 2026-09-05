@@ -428,13 +428,14 @@ case "$RUNNING" in
   css-*)       MOD=css ;;
   fy-*)        MOD=fy ;;
   awp-*)       MOD=awp ;;
-  *vanilla*)   MOD=vanilla ;;
+  classical-*) MOD=classical ;;
+  *cpl*)       MOD=cpl ;;
   *)           die "container '$RUNNING' holds 27016 but is not a known mod - restart it yourself" ;;
 esac
 
 log "restarting $MOD ($RUNNING) so the new zip is served..."
-if [[ "$MOD" == "vanilla" ]]; then
-  (cd "$ROOT" && docker compose --profile vanilla down && docker compose --profile vanilla up -d)
+if [[ "$MOD" == "cpl" ]]; then
+  (cd "$ROOT" && docker compose --profile cpl down && docker compose --profile cpl up -d)
 else
   (cd "$ROOT/$MOD" && docker compose down && docker compose up -d)
 fi
