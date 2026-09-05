@@ -2791,6 +2791,30 @@ th.standings__num {
   margin: 0;
   background: transparent;
   cursor: pointer;
+
+  /* The tick marking the shipped default. `--ff-notch` is set per slider as a
+     0-1 fraction of its range (notch.ts); it is left unset here so a slider
+     that never sets one draws no tick rather than a tick pinned at zero. The
+     thumb's CENTRE - not its left edge - is what the fraction refers to, and
+     that centre only travels from half a thumb in to half a thumb from the far
+     end, so the position has to be inset by the same half-thumb at each end or
+     the tick drifts off the thumb the closer you get to either stop. */
+  --ff-thumb: 9px;
+  --ff-notch-x: calc(var(--ff-notch, 0) * (100% - var(--ff-thumb)) + var(--ff-thumb) / 2);
+  --ff-notch-ink: #33497f;
+  --ff-notch-mark: linear-gradient(
+    90deg,
+    transparent calc(var(--ff-notch-x) - 1px),
+    var(--ff-notch-ink) calc(var(--ff-notch-x) - 1px),
+    var(--ff-notch-ink) calc(var(--ff-notch-x) + 1px),
+    transparent calc(var(--ff-notch-x) + 1px)
+  );
+}
+
+/* no fraction, no tick - the gradient above would otherwise fall back to 0 and
+   park a mark under the left stop of every slider that does not set one */
+.tweak__range:not([style*="--ff-notch"]) {
+  --ff-notch-mark: none;
 }
 
 .tweak__range:focus-visible {
@@ -2800,7 +2824,7 @@ th.standings__num {
 
 .tweak__range::-webkit-slider-runnable-track {
   height: 6px;
-  background: #060b18;
+  background: var(--ff-notch-mark) no-repeat, #060b18;
   border: 1px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);
   border-right-color: var(--bevel-light);
@@ -2809,7 +2833,7 @@ th.standings__num {
 
 .tweak__range::-moz-range-track {
   height: 6px;
-  background: #060b18;
+  background: var(--ff-notch-mark) no-repeat, #060b18;
   border: 1px solid var(--bevel-dark);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.55);
 }

@@ -22,6 +22,7 @@ import type { ModeInfo, ServerStatus } from "./TabScreen";
 // A page-level display setting rather than a cvar, so it owns its own storage
 // and its own tile - see Vibrance.tsx for why it is not in CONTROLS.
 import { VibranceTweak } from "./Vibrance";
+import { notchStyle } from "./notch";
 import "@fontsource/black-ops-one";
 import "./App.css";
 
@@ -1246,6 +1247,7 @@ const SettingsPanel: FC = () => {
                     max={c.max}
                     step={c.step}
                     value={controlNum(c, value)}
+                    style={notchStyle(c.min, c.max, controlNum(c, c.def))}
                     aria-label={c.label}
                     onChange={(e) => set(c, e.target.value)}
                   />

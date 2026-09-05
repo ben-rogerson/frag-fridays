@@ -31,17 +31,20 @@
 // document element, so neither path can drop the filter.
 import { useSyncExternalStore, type FC } from "react";
 
-// The dial. 1 is off - the picture the engine drew, untouched. The top of the
-// range is roughly what NVIDIA's slider does at 100%, which is past what anyone
-// sane runs but is where the range has to end for the useful part to sit in the
-// middle of the travel rather than jammed against the left stop.
-export const VIBRANCE_MIN = 1;
-export const VIBRANCE_MAX = 1.8;
-export const VIBRANCE_STEP = 0.05;
+import { notchStyle } from "./notch";
 
-// Shipped at +20%. Enough to separate a model from sand at range without the
-// orange maps going to poster paint, and the number Ben asked to see.
-export const VIBRANCE_DEFAULT = 1.2;
+// The dial. 1 is off - the picture the engine drew, untouched. The range stops
+// at +20%: past that the orange maps go to poster paint, so the travel is spent
+// on the band that is actually worth living in rather than on headroom nobody
+// should use. Finer steps than the old 0.05 to match - a fifth of the range
+// needs a fifth of the granularity to still feel like a dial.
+export const VIBRANCE_MIN = 1;
+export const VIBRANCE_MAX = 1.2;
+export const VIBRANCE_STEP = 0.01;
+
+// Shipped at +10%, mid-track. Enough to separate a model from sand at range,
+// and it leaves room to go up as well as down from where players land.
+export const VIBRANCE_DEFAULT = 1.1;
 
 // Its own localStorage key, deliberately NOT the `ff-settings-v2` cvar bucket
 // the rest of the settings panel writes to. Everything in that bucket is a cfg
@@ -54,7 +57,7 @@ const KEY = "ff-vibrance";
 const clamp = (n: number) => Math.min(VIBRANCE_MAX, Math.max(VIBRANCE_MIN, n));
 
 // a slider hands back its value as a string, so compare with a tolerance rather
-// than betting on 1 + 4 * 0.05 landing exactly on 1.2
+// than betting on 1 + 10 * 0.01 landing exactly on 1.1
 const isDefault = (v: number) => Math.abs(v - VIBRANCE_DEFAULT) < 0.001;
 
 function read(): number {
@@ -133,6 +136,7 @@ export const VibranceTweak: FC = () => {
         max={VIBRANCE_MAX}
         step={VIBRANCE_STEP}
         value={v}
+        style={notchStyle(VIBRANCE_MIN, VIBRANCE_MAX, VIBRANCE_DEFAULT)}
         aria-label="digital vibrance"
         onChange={(e) => setVibrance(parseFloat(e.target.value))}
       />
