@@ -144,15 +144,24 @@ public event_death()
 
 public task_respawn(taskid)
 {
-	new id = taskid - TASK_RESPAWN;
+	do_respawn(taskid - TASK_RESPAWN);
+}
+
+// Respawn one dead player where they stand in the rotation. Shared by the
+// post-death task and the /respawn chat command; returns false when the
+// player is not in a state that can be respawned (alive, spectating,
+// unassigned, gone).
+bool:do_respawn(id)
+{
 	if (!is_user_connected(id) || is_user_alive(id))
-		return;
+		return false;
 
 	new CsTeams:team = cs_get_user_team(id);
 	if (team != CS_TEAM_T && team != CS_TEAM_CT)
-		return;
+		return false;
 
 	ExecuteHamB(Ham_CS_RoundRespawn, id);
+	return true;
 }
 
 // --- one-weapon maps: strip everything else on deploy ------------------------
@@ -342,6 +351,22 @@ public cmd_say(id)
 	read_args(said, charsmax(said));
 	remove_quotes(said);
 	trim(said);
+
+	// /respawn - put a dead player back in the game NOW.
+	//
+	// Without this the only verb a dead player has ever had is /restart, which
+	// is chatrestart.sma's SERVER-WIDE round restart: one player who wants to
+	// spawn drags everyone through sv_restartround. Measured 2026-09-05 over
+	// the full log history, one player accounted for 57 of the server's 90
+	// round restarts, 45 of them within a minute of joining. Death already
+	// queues task_respawn, so this only ever matters to someone dead for
+	// another reason - joined mid-round, or waiting out a long objective map.
+	if (equali(said, "/respawn") || equali(said, "/spawn"))
+	{
+		if (!do_respawn(id))
+			client_print(id, print_chat, "[DM] /respawn only works while you are dead and on a team - press F1 or F2 to pick a side.");
+		return PLUGIN_CONTINUE;
+	}
 
 	if (equali(said, "/guns") || equali(said, "guns"))
 	{
