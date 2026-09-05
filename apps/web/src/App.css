@@ -1212,18 +1212,12 @@
 }
 
 /* "5v5" chip - the match mode's mark. Outlined like the bots chip but lit
-   from behind, so on a roster row it sits a step above the informational
-   chips without becoming a second accent action. The bots chip says a mode
-   will fill itself; this one says it will not. */
+   from behind, so it sits a step above the informational chips without
+   becoming a second accent action. The bots chip says a mode will fill
+   itself; this one says it will not. */
 .matchbadge {
   background: rgb(var(--accent-rgb) / 0.12);
   border-color: rgb(var(--accent-rgb) / 0.7);
-}
-
-.rotation__item .matchbadge {
-  color: var(--row-accent, var(--accent));
-  background: color-mix(in srgb, var(--row-accent, var(--accent)) 12%, transparent);
-  border-color: color-mix(in srgb, var(--row-accent, var(--accent)) 70%, transparent);
 }
 
 /* "new" chip - filled where the bots chip is outlined, so on a row carrying

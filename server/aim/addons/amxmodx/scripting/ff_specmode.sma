@@ -20,10 +20,16 @@
 // remember a mode you picked yourself and reuses it on your next death.
 //
 // WHAT WE DO. From the death until the player touches the camera cycle, the
-// mode is rewritten to IN_EYE and the target to the killer - so you are behind
-// their eyes from the frame you die, watching what they do next. It has to be
-// every frame, not once: the dll's own 4.5s switch to ROAMING lands well after
-// the death frame and would take the camera straight back.
+// mode is rewritten to IN_EYE and the target to the killer - so you end up
+// behind their eyes, watching what they do next. It has to be every frame, not
+// once: the dll's own 4.5s switch to ROAMING lands well after the death frame
+// and would take the camera straight back.
+//
+// NOT ON THE DEATH FRAME THOUGH. ff_specmode_eye_delay seconds (1.5 by
+// default) of the dll's own death cam come first, because being thrown behind
+// someone else's eyes in the same instant you are shot reads as a glitch -
+// you lose the moment you died in. The delay sits inside the dll's 4.5s window
+// so the camera still moves exactly once. Set it to 0 for the old behaviour.
 //
 // THE KILLER IS NOT THE DLL'S PICK. Left alone, the dll aims you at
 // Observer_FindNextPlayer's first candidate - measured on the rig, that is the
@@ -100,7 +106,8 @@
 // the custom overviews are client-only assets that ride valve.zip.
 //
 // Live kill switches: pnpm run rc "ff_specmode_block 0" (overview modes back),
-// pnpm run rc "ff_specmode_eye 0" (death camera back to the dll's own).
+// pnpm run rc "ff_specmode_eye 0" (death camera back to the dll's own), and
+// pnpm run rc "ff_specmode_eye_delay <secs>" for the beat before it moves.
 
 #include <amxmodx>
 #include <fakemeta>
@@ -116,6 +123,7 @@
 
 new g_pBlock;
 new g_pEye;
+new g_pEyeDelay;
 new g_maxPlayers;
 
 // this death's camera is ours to aim, until they take it back
@@ -126,6 +134,10 @@ new bool:g_eyeChosen[33];
 new g_eyeButtons[33];
 // who killed them, while that player is still worth looking through
 new g_eyeKiller[33];
+// when they died, so the camera can wait a beat before it moves
+new Float:g_eyeAt[33];
+// whether this death's move has been announced to them yet
+new bool:g_eyeSaid[33];
 
 public plugin_init()
 {
@@ -133,6 +145,7 @@ public plugin_init()
 
 	g_pBlock = register_cvar("ff_specmode_block", "1");
 	g_pEye = register_cvar("ff_specmode_eye", "1");
+	g_pEyeDelay = register_cvar("ff_specmode_eye_delay", "1.5");
 	g_maxPlayers = get_maxplayers();
 
 	// POST: run after the game dll's Observer_HandleButtons has already moved
@@ -155,6 +168,8 @@ public client_putinserver(id)
 	g_eyeChosen[id] = false;
 	g_eyeButtons[id] = 0;
 	g_eyeKiller[id] = 0;
+	g_eyeAt[id] = 0.0;
+	g_eyeSaid[id] = false;
 }
 
 public ev_death()
@@ -169,6 +184,8 @@ public ev_death()
 	g_eyeKiller[victim] = (killer != victim) ? killer : 0;
 
 	g_eyePending[victim] = !g_eyeChosen[victim];
+	g_eyeAt[victim] = get_gametime();
+	g_eyeSaid[victim] = false;
 	// baseline for the press edge, so a jump held through the death itself
 	// does not read as a choice
 	g_eyeButtons[victim] = pev(victim, pev_button);
@@ -201,8 +218,10 @@ public msg_textmsg(msgid, dest, id)
 		return PLUGIN_CONTINUE;
 
 	// every mode the dll announces during a steered death is a mode we are
-	// about to replace, so the label follows the camera rather than the dll
-	if (g_eyePending[id] && get_pcvar_num(g_pEye) && eye_target(id))
+	// about to replace, so the label follows the camera rather than the dll.
+	// Only once the beat is up, though: until then the dll's death cam is the
+	// camera, and its own label for it is the true one.
+	if (g_eyePending[id] && get_pcvar_num(g_pEye) && eye_due(id) && eye_target(id))
 	{
 		set_msg_arg_string(2, "#Spec_Mode4");
 		return PLUGIN_CONTINUE;
@@ -248,7 +267,7 @@ public fw_prethink_post(id)
 			g_eyePending[id] = false;
 			g_eyeChosen[id] = true;
 		}
-		else
+		else if (eye_due(id))
 		{
 			new target = eye_target(id);
 			if (target)
@@ -258,12 +277,22 @@ public fw_prethink_post(id)
 				// the killer for as long as they are alive
 				set_pev(id, pev_iuser2, target);
 				set_pev(id, pev_iuser1, OBS_IN_EYE);
+
+				if (!g_eyeSaid[id])
+				{
+					g_eyeSaid[id] = true;
+					announce_eye(id);
+				}
+
 				return FMRES_IGNORED;
 			}
 
 			// nobody alive to look through - let the dll's mode stand, and
 			// try again next frame
 		}
+
+		// still inside the beat: the dll's death cam has it, and we are only
+		// here to watch for the jump that would take the camera off us
 	}
 
 	if (!get_pcvar_num(g_pBlock))
@@ -285,6 +314,25 @@ public fw_prethink_post(id)
 	}
 
 	return FMRES_IGNORED;
+}
+
+// has the death cam had its beat? get_gametime() is the same clock the dll's
+// own 4.5s step runs on, and a delay past that would just fight ROAMING.
+bool:eye_due(id)
+{
+	return (get_gametime() - g_eyeAt[id]) >= get_pcvar_float(g_pEyeDelay);
+}
+
+// the dll narrates its own mode changes; ours arrives a beat later and with no
+// mode change of the dll's to ride, so the label is sent by hand on the frame
+// the camera actually moves. HUD_PRINTCENTER (4) is the channel the dll uses
+// for these.
+announce_eye(id)
+{
+	message_begin(MSG_ONE, get_user_msgid("TextMsg"), _, id);
+	write_byte(4);
+	write_string("#Spec_Mode4");
+	message_end();
 }
 
 // who a player we just killed off should be looking through: their killer

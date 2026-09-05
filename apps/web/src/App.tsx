@@ -2286,10 +2286,7 @@ const App: FC = () => {
                         <span className="rotation__emblem" aria-hidden="true">
                           <Emblem />
                         </span>
-                        <span className="rotation__name">
-                          {m.name}
-                          {m.tournament && <span className="matchbadge">5v5</span>}
-                        </span>
+                        <span className="rotation__name">{m.name}</span>
                         <span className="rotation__blurb">{m.blurb}</span>
                         <span className="rotation__caret" aria-hidden="true">
                           <svg
