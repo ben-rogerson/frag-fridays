@@ -1038,9 +1038,8 @@ const CONTROLS: Control[] = [
     //
     // 1.5 is a half-step in size and a whole-step in softness: the font is a
     // GL-stretched bitmap, so only integer scales land on texel boundaries.
-    // It stays because the jump from 1 to 2 is a big one on a small laptop
-    // screen, and soft-but-readable beats tiny - but it is the pick that
-    // looks worst, so it is offered, not defaulted.
+    // It is the only step up on offer (2 was dropped 2026-09-05), and
+    // soft-but-readable beats tiny, so it is offered, not defaulted.
     //
     // FWGS extension, present in this build's engine. The saved diff replays
     // after main() and before `connect`, and the HUD builds its fonts at
@@ -1048,12 +1047,11 @@ const CONTROLS: Control[] = [
     cvar: "hud_fontscale",
     label: "hud text size",
     def: "1",
-    note: "medium is a soft half-step - the font stretches, whole sizes stay sharp",
+    note: "medium is a soft half-step - the font is a bitmap, so it stretches",
     kind: "choice",
     options: [
       { value: "1", label: "normal" },
       { value: "1.5", label: "medium" },
-      { value: "2", label: "big" },
     ],
   },
   {
